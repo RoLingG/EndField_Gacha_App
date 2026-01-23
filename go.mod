@@ -3,7 +3,6 @@ module Go_Arknights_Gacha_App
 go 1.23
 
 require (
-	git.sr.ht/~jackmordaunt/go-toast v1.1.2
 	github.com/energye/systray v1.0.2
 	github.com/wailsapp/wails/v2 v2.11.0
 )

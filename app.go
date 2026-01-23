@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"log"
 
-	"git.sr.ht/~jackmordaunt/go-toast"
 	"github.com/energye/systray"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -134,7 +133,6 @@ func (a *App) onReady() {
 	reloadMenu.SetIcon(reloadIcon)
 	reloadMenu.Click(func() {
 		go a.ReloadFrontend()
-		go a.notify("EndField Gacha History消息", "已重置App内容")
 	})
 
 	quitMenu := systray.AddMenuItem("Quit", "Quit the gacha app")
@@ -147,27 +145,4 @@ func (a *App) onReady() {
 func (a *App) onExit() {
 	systray.Quit()
 	runtime.Quit(a.ctx)
-}
-
-// 系统桌面消息提示
-func (a *App) notify(str string, msg string) {
-	// 这里的路径建议以后改为相对路径或配置项，暂时保持原样
-	notification := toast.Notification{
-		AppID: "EndField_Gacha_History",
-		Title: str,
-		Body:  msg,
-		Icon:  "D:\\GoLand\\EndField_App\\frontend\\src\\assets\\icons\\home.ico",
-		Actions: []toast.Action{
-			{
-				Type:      "protocol",
-				Content:   "查看详情",
-				Arguments: "https://rolingg.top",
-			},
-		},
-		Audio: toast.Default,
-	}
-	err := notification.Push()
-	if err != nil {
-		log.Println("Notification error:", err)
-	}
 }
