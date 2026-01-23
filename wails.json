@@ -1,0 +1,13 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Endfield_Gacha_App",
+  "outputfilename": "Endfield_Gacha",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "SomeCA7",
+    "email": "1184598069@qq.com"
+  }
+}
