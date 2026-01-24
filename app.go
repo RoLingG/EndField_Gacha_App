@@ -67,12 +67,8 @@ func (a *App) RefreshGachaHistory() (string, error) {
 		log.Println("Failed to retrieve EndField gacha data:", err)
 		return "", err
 	}
-
-	// 2. 移除旧的 convert 步骤，直接按池子分组
-	// 注意：EndFieldCharInfo 的 JSON tag 已经与前端需求兼容
-	// 前端不再需要 Pos 字段，或者可以在前端 JS 中通过 index 计算
+	// 2. 按卡池分组
 	grouped := groupByPoolName(endFieldData)
-
 	// 3. 序列化为 JSON
 	jsonData, err := json.MarshalIndent(grouped, "", "  ")
 	if err != nil {

@@ -107,24 +107,54 @@ function updateDisplay(dataMap, poolName) {
 function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName];
   const total = items.length;
+  // 计算当前水位 (Pity)
+  // 规则：80抽硬保底
   let pity = 0;
   let last6StarIndex = -1;
-  for(let i = items.length - 1; i >= 0; i--) { if(items[i].rarity === 6) { last6StarIndex = i; break; } }
+  // 倒序查找最近的一个6星
+  for(let i = items.length - 1; i >= 0; i--) {
+    if(items[i].rarity === 6) {
+      last6StarIndex = i;
+      break;
+    }
+  }
+  // 计算垫刀数
   pity = (last6StarIndex === -1) ? total : (items.length - 1 - last6StarIndex);
+  // 软保底逻辑 (Soft Pity)
+  // 规则：65抽开始，概率每抽提升5%
+  let pityColor = "var(--ef-yellow)"; // 默认黄色
+  let pitySubText = "SINCE LAST 6★";   // 默认文案
+
+  if (pity >= 65) {
+    pityColor = "#ff5722"; // 超过65抽变橙红色，警示状态
+    // 计算当前理论概率: 基础2% + (当前水位 - 64) * 5%
+    const currentRate = 2 + (pity - 64) * 5;
+    // 限制最高显示 100%
+    pitySubText = `RATE UP: ${Math.min(currentRate, 100)}%`;
+  }
+  // 计算总出货率
   const sixStarCount = items.filter(i => i.rarity === 6).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
-
+  // 限定池 120 井 (Spark) 逻辑
+  let totalColor = "#ffffff";
+  if (total >= 120) totalColor = "var(--ef-yellow)";
   document.getElementById('summaryStrip').innerHTML = `
         <div class="info-card">
             <div class="info-label">CURRENT PITY // 当前水位</div>
-            <div class="info-value" style="color:var(--ef-yellow)">${pity} <span style="font-size:12px;color:#666">/ 90</span></div>
-            <div class="info-sub">SINCE LAST 6★</div>
+            <div class="info-value" style="color:${pityColor}">
+                ${pity} <span style="font-size:12px;color:#666">/ 80</span>
+            </div>
+            <div class="info-sub">${pitySubText}</div>
         </div>
+        
         <div class="info-card">
-            <div class="info-label">TOTAL PULLS // 寻访总数</div>
-            <div class="info-value">${total}</div>
-            <div class="info-sub">RECORDS LOGGED</div>
+            <div class="info-label">POOL TOTAL // 本池累计</div>
+            <div class="info-value" style="color:${totalColor}">
+                ${total} <span style="font-size:12px;color:#666">/ 120</span>
+            </div>
+            <div class="info-sub">LIMITED SPARK COUNT</div>
         </div>
+        
         <div class="info-card">
             <div class="info-label">6★ RATIO // 出货率</div>
             <div class="info-value">${rate}%</div>
@@ -133,20 +163,70 @@ function createSummaryStrip(dataMap, poolName) {
     `;
 }
 
+// 分页状态变量
+let currentHistoryPage = 1;
+const historyPageSize = 10; // 每页显示10条
+let currentHistoryData = []; // 存储当前池子的完整历史数据
+let currentPoolNameForPagination = ""; // 存储当前池子名称
+
 function createHistoryTable(dataMap, poolName) {
+  // 1. 如果切换了池子，重置页码为 1
+  if (currentPoolNameForPagination !== poolName) {
+    currentHistoryPage = 1;
+    currentPoolNameForPagination = poolName;
+  }
   const items = dataMap[poolName];
-  const tbody = document.getElementById('historyTableBody');
-  tbody.innerHTML = '';
-  const recentItems = items.slice(-15).reverse();
-  recentItems.forEach(item => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="rarity-${item.rarity}">${item.charName}</td><td>${"★".repeat(item.rarity)}</td><td style="color:#444; font-size:10px;">[ ${poolName} ]</td>`;
-    tbody.appendChild(tr);
-  });
-  if(recentItems.length === 0) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#444;">NO DATA AVAILABLE</td></tr>`;
+  // 2. 保存反转后的完整数据（最新的在前面），供分页使用
+  currentHistoryData = items.slice().reverse();
+
+  renderHistoryPage();
 }
 
-// === 修改：图表生成 (移除独立边框) ===
+// 渲染当前页数据的函数
+function renderHistoryPage() {
+  const tbody = document.getElementById('historyTableBody');
+  tbody.innerHTML = '';
+  const totalItems = currentHistoryData.length;
+  const totalPages = Math.ceil(totalItems / historyPageSize) || 1;
+  // 确保页码不越界
+  if (currentHistoryPage < 1) currentHistoryPage = 1;
+  if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
+  // 计算切片索引
+  const startIndex = (currentHistoryPage - 1) * historyPageSize;
+  const endIndex = Math.min(startIndex + historyPageSize, totalItems);
+
+  const pageItems = currentHistoryData.slice(startIndex, endIndex);
+  // 渲染行
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#444;">NO DATA AVAILABLE</td></tr>`;
+  } else {
+    pageItems.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      const displayNum = startIndex + index + 1;
+      tr.innerHTML = `
+                <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
+                <td class="rarity-${item.rarity}">${item.charName}</td>
+                <td>${"★".repeat(item.rarity)}</td>
+                <td style="color:#444; font-size:10px;">[ ${currentPoolNameForPagination} ]</td>
+            `;
+      tbody.appendChild(tr);
+    });
+  }
+  // 更新分页控件 UI
+  document.getElementById('pageIndicator').textContent = `PAGE ${currentHistoryPage} / ${totalPages}`;
+
+  const prevBtn = document.getElementById('prevPageBtn');
+  const nextBtn = document.getElementById('nextPageBtn');
+
+  prevBtn.disabled = (currentHistoryPage === 1);
+  nextBtn.disabled = (currentHistoryPage === totalPages || totalPages === 0);
+}
+
+window.changePage = function(delta) {
+  currentHistoryPage += delta;
+  renderHistoryPage();
+}
+
 function createChart(dataMap, poolName) {
   const items = dataMap[poolName];
   const rarityCounts = { 4: 0, 5: 0, 6: 0 };
@@ -185,7 +265,6 @@ function createChart(dataMap, poolName) {
   });
 }
 
-// === 修改：详情卡生成 (移除宽度限制，移除边框) ===
 function createRareCharsCard(dataMap, poolName) {
   const items = dataMap[poolName];
   const sixStarChars = [];

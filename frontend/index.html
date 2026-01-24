@@ -74,18 +74,24 @@
 
     <!-- 4. 最近记录列表 -->
     <div class="history-section" id="historySection" style="display:none;">
-        <div class="section-title">[ RECENT ACQUISITION LOG ]</div>
+        <div class="section-title">[ Gacha Pool Record List ]</div>
         <div class="history-table-container">
             <table class="ef-table">
                 <thead>
                 <tr>
-                    <th width="30%">CHARACTER</th>
-                    <th width="20%">RARITY</th>
-                    <th width="30%">POOL</th>
+                    <th>Number</th>
+                    <th>CHARACTER</th>
+                    <th>RARITY</th>
+                    <th>POOL</th>
                 </tr>
                 </thead>
                 <tbody id="historyTableBody"></tbody>
             </table>
+            <div class="pagination-controls">
+                <button id="prevPageBtn" class="page-btn" onclick="window.changePage(-1)">[ PREV ]</button>
+                <span id="pageIndicator">PAGE 1 / 1</span>
+                <button id="nextPageBtn" class="page-btn" onclick="window.changePage(1)">[ NEXT ]</button>
+            </div>
         </div>
     </div>
 </div>
@@ -243,6 +249,41 @@
     .rarity-6 { color: #ff5722 !important; font-weight: bold; text-shadow: 0 0 5px rgba(255,87,34,0.3); }
     .rarity-5 { color: #ffca28 !important; }
     .rarity-4 { color: #9c27b0 !important; }
+
+    /* 分页控件 */
+    .pagination-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        border-top: 1px solid var(--ef-grey);
+        background: rgba(0, 0, 0, 0.5);
+        font-family: 'Consolas', monospace;
+        font-size: 12px;
+    }
+    .page-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #888;
+        cursor: pointer;
+        font-family: 'Consolas', monospace;
+        font-weight: bold;
+        padding: 4px 8px;
+        transition: all 0.2s;
+    }
+    .page-btn:hover:not(:disabled) {
+        color: var(--ef-yellow);
+        text-shadow: 0 0 5px var(--ef-yellow);
+        background: rgba(255, 250, 0, 0.05);
+    }
+    .page-btn:disabled {
+        color: #333;
+        cursor: not-allowed;
+    }
+    #pageIndicator {
+        color: var(--ef-white);
+        letter-spacing: 1px;
+    }
 
     /* 页脚 */
     .system-footer { width: 100%; height: 30px; background: #0a0a0a; border-top: 1px solid #333; display: flex; align-items: center; padding: 0 20px; box-sizing: border-box; font-size: 10px; color: #444; margin-top: auto; flex-shrink: 0; }

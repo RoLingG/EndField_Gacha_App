@@ -139,7 +139,6 @@ func GetEndFieldGachaData(pageURL string, targetPoolType string) ([]EndFieldChar
 			break
 		}
 	}
-
 	return allData, nil
 }
 
