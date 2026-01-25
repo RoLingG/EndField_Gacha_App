@@ -105,52 +105,65 @@ function updateDisplay(dataMap, poolName) {
 }
 
 function createSummaryStrip(dataMap, poolName) {
-  const items = dataMap[poolName];
-  const total = items.length;
-  // 计算当前水位 (Pity)
-  // 规则：80抽硬保底
-  let pity = 0;
-  let last6StarIndex = -1;
-  // 倒序查找最近的一个6星
-  for(let i = items.length - 1; i >= 0; i--) {
-    if(items[i].rarity === 6) {
-      last6StarIndex = i;
-      break;
-    }
-  }
-  // 计算垫刀数
-  pity = (last6StarIndex === -1) ? total : (items.length - 1 - last6StarIndex);
-  // 软保底逻辑 (Soft Pity)
-  // 规则：65抽开始，概率每抽提升5%
-  let pityColor = "var(--ef-yellow)"; // 默认黄色
-  let pitySubText = "SINCE LAST 6★";   // 默认文案
+  const items = dataMap[poolName] || [];
+  const poolUpCharConfig = {
+    "熔火灼痕": "莱万汀",
+    // 在这里添加其他池子...
+  };
+  const targetUpChar = poolUpCharConfig[poolName];
+  let currentPity = 0;
+  let sparkCount = 0;
 
-  if (pity >= 65) {
-    pityColor = "#ff5722"; // 超过65抽变橙红色，警示状态
-    // 计算当前理论概率: 基础2% + (当前水位 - 64) * 5%
-    const currentRate = 2 + (pity - 64) * 5;
-    // 限制最高显示 100%
-    pitySubText = `RATE UP: ${Math.min(currentRate, 100)}%`;
+  items.slice().reverse().forEach(item => {
+    if (item.rarity === 6) {
+      currentPity = 0; // 只要出6星，小保底就重置
+    } else {
+      currentPity++;
+    }
+    if (targetUpChar && item.charName === targetUpChar) {
+      sparkCount = 0; // 只要出UP角色，大保底就重置
+    } else {
+      sparkCount++;
+      if (sparkCount >= 120) {
+        sparkCount = sparkCount % 120
+      }
+    }
+  });
+
+  let nextProb = 2;
+  let pityColor = "var(--ef-yellow)";
+  let pitySubText = "SINCE LAST 6★";
+
+  if (currentPity >= 65) {
+    pityColor = "#ff5722"; // 超过65抽变红
+    const extraRate = (currentPity - 64) * 5;
+    nextProb = 2 + extraRate;
+    if (nextProb > 100) nextProb = 100;
+    pitySubText = `NEXT PROB: ${nextProb}%`;
   }
-  // 计算总出货率
+
+  let sparkColor = "var(--ef-yellow)";
+  if (sparkCount >= 120) {
+    sparkColor = "#ff5252";
+  }
+
+  const total = items.length;
   const sixStarCount = items.filter(i => i.rarity === 6).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
-  // 限定池 120 井 (Spark) 逻辑
-  let totalColor = "#ffffff";
-  if (total >= 120) totalColor = "var(--ef-yellow)";
+
   document.getElementById('summaryStrip').innerHTML = `
         <div class="info-card">
             <div class="info-label">CURRENT PITY // 当前水位</div>
             <div class="info-value" style="color:${pityColor}">
-                ${pity} <span style="font-size:12px;color:#666">/ 80</span>
+                ${currentPity} <span style="font-size:12px;color:#666">/ 80</span>
             </div>
             <div class="info-sub">${pitySubText}</div>
         </div>
         
         <div class="info-card">
-            <div class="info-label">POOL TOTAL // 本池累计</div>
-            <div class="info-value" style="color:${totalColor}">
-                ${total} <span style="font-size:12px;color:#666">/ 120</span>
+            <div class="info-label">POOL TOTAL // 本池垫刀数</div>
+            <div class="info-value" style="color:${sparkColor}">
+                ${sparkCount} <span style="font-size:12px;color:#666">/ 120</span>
             </div>
             <div class="info-sub">LIMITED SPARK COUNT</div>
         </div>
@@ -170,13 +183,13 @@ let currentHistoryData = []; // 存储当前池子的完整历史数据
 let currentPoolNameForPagination = ""; // 存储当前池子名称
 
 function createHistoryTable(dataMap, poolName) {
-  // 1. 如果切换了池子，重置页码为 1
+  // 如果切换了池子，重置页码为 1
   if (currentPoolNameForPagination !== poolName) {
     currentHistoryPage = 1;
     currentPoolNameForPagination = poolName;
   }
   const items = dataMap[poolName];
-  // 2. 保存反转后的完整数据（最新的在前面），供分页使用
+  // 保存反转后的完整数据（最新的在前面），供分页使用
   currentHistoryData = items.slice().reverse();
 
   renderHistoryPage();
@@ -191,18 +204,20 @@ function renderHistoryPage() {
   // 确保页码不越界
   if (currentHistoryPage < 1) currentHistoryPage = 1;
   if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
+  // 反转数据，最新的在前面
+  const reversedData = currentHistoryData.slice().reverse();
   // 计算切片索引
   const startIndex = (currentHistoryPage - 1) * historyPageSize;
   const endIndex = Math.min(startIndex + historyPageSize, totalItems);
-
-  const pageItems = currentHistoryData.slice(startIndex, endIndex);
-  // 渲染行
+  // 从反转后的数组里取数据
+  const pageItems = reversedData.slice(startIndex, endIndex);
   if (pageItems.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#444;">NO DATA AVAILABLE</td></tr>`;
   } else {
     pageItems.forEach((item, index) => {
       const tr = document.createElement('tr');
-      const displayNum = startIndex + index + 1;
+      // 序号计算
+      const displayNum = totalItems - (startIndex + index);
       tr.innerHTML = `
                 <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
                 <td class="rarity-${item.rarity}">${item.charName}</td>
