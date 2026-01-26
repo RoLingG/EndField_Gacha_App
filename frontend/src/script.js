@@ -160,27 +160,54 @@ function getItemName(item) {
 
 function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName] || [];
-  let currentPity = 0;
+  const poolUpCharConfig = {
+    "熔火灼痕": "莱万汀",
+  };
   const reversed = items.slice().reverse();
+  let currentPity = 0;
 
   for(let item of reversed) {
     if(item.rarity === 6) {
       currentPity = 0;
-      break; // 遇到6星停止
     } else {
       currentPity++;
     }
   }
 
-  // 概率计算逻辑
+  let centerLabel = "POOL TOTAL // 总抽取数";
+  let centerValueHtml = items.length;
+  let centerSub = "RECORDS LOGGED";
+  let centerColor = "#ffffff";
+  const targetUpChar = poolUpCharConfig[poolName];
+  if (currentType === 'char' && targetUpChar) {
+    centerLabel = "POOL SPARK // 本池垫刀";
+    centerSub = "LIMITED SPARK COUNT";
+
+    let sparkCount = 0;
+    for(let item of reversed) {
+      const name = getItemName(item);
+      if (name === targetUpChar) {
+        sparkCount = 0
+      } else {
+        sparkCount++;
+      }
+    }
+    if (sparkCount >= 120) {
+      centerColor = "#ff5252";
+      sparkCount = sparkCount % 120;
+    } else {
+      centerColor = "var(--ef-yellow)";
+    }
+
+    centerValueHtml = `${sparkCount} <span style="font-size:12px;color:#666">/ 120</span>`;
+  }
+
   let nextProb = 2;
   let pityColor = "var(--ef-yellow)";
   let pitySubText = "SINCE LAST 6★";
-
-  // 假设 65 抽开始增加概率
   if (currentPity >= 65) {
     pityColor = "#ff5722";
-    const extraRate = (currentPity - 65) * 2;
+    let extraRate = (currentPity - 64) * 5;
     nextProb = 2 + extraRate;
     if (nextProb > 100) nextProb = 100;
     pitySubText = `NEXT PROB: ~${nextProb}%`;
@@ -189,9 +216,7 @@ function createSummaryStrip(dataMap, poolName) {
   const total = items.length;
   const sixStarCount = items.filter(i => i.rarity === 6).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
-
-  const labelText = (currentType === 'char') ? "CHARACTER" : "WEAPONS";
-
+  const typeLabel = (currentType === 'char') ? "CHARACTERS" : "WEAPONS";
   document.getElementById('summaryStrip').innerHTML = `
         <div class="info-card">
             <div class="info-label">CURRENT PITY // 当前水位</div>
@@ -202,17 +227,17 @@ function createSummaryStrip(dataMap, poolName) {
         </div>
         
         <div class="info-card">
-            <div class="info-label">POOL TOTAL // 总抽取数</div>
-            <div class="info-value">
-                ${total}
+            <div class="info-label">${centerLabel}</div>
+            <div class="info-value" style="color:${centerColor}">
+                ${centerValueHtml}
             </div>
-            <div class="info-sub">RECORDS LOGGED</div>
+            <div class="info-sub">${centerSub}</div>
         </div>
         
         <div class="info-card">
             <div class="info-label">6★ RATIO // 出货率</div>
             <div class="info-value">${rate}%</div>
-            <div class="info-sub">${sixStarCount} ${labelText}</div>
+            <div class="info-sub">${sixStarCount} ${typeLabel}</div>
         </div>
     `;
 }
@@ -229,7 +254,7 @@ function createHistoryTable(dataMap, poolName) {
     currentPoolNameForPagination = poolName;
   }
   const items = dataMap[poolName];
-  currentHistoryData = items.slice().reverse();
+  currentHistoryData = items.slice();
   renderHistoryPage();
 }
 
