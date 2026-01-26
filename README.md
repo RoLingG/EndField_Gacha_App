@@ -5,14 +5,14 @@
 一个极简、安全且具有沉浸式**终末地 (Endfield) 工业风格**的明日方舟官服抽卡记录分析工具。
 基于 Wails 构建，无需上传数据，完全本地解析日志文件，提供良好的数据可视化体验。
 
-![Preview](https://rolingg.top/images/EndField/endfield.png)
 ![Preview](https://rolingg.top/images/EndField/endfield1.png)
+
+![Preview](https://rolingg.top/images/EndField/endfield2.png)
+
+![Preview](https://rolingg.top/images/EndField/endfield3.png)
 
 ## ✨ 特性 (Features)
 
-- **🎨 沉浸式 UI 设计**:
-    - 深度复刻终末地工业美学：黄/黑/灰主色调。
-    - 动态加载动画、CRT 扫描线效果。
 - **📊 核心数据分析**:
     - **仪表盘**: 环形图展示 4/5/6 星分布。
     - **关键指标**: 当前水位 (Pity)、总抽数、六星综合出货率。
