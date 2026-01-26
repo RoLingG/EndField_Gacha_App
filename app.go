@@ -49,8 +49,8 @@ func (a *App) WindowClose() {
 	runtime.Quit(a.ctx)
 }
 
-// groupByPoolName 将原数据按卡池分组
-func groupByPoolName(data []utils.EndFieldCharInfo) map[string][]utils.EndFieldCharInfo {
+// groupByCharPoolName 将角色卡池原数据按卡池分组
+func groupByCharPoolName(data []utils.EndFieldCharInfo) map[string][]utils.EndFieldCharInfo {
 	groupedData := make(map[string][]utils.EndFieldCharInfo)
 	for _, item := range data {
 		key := item.PoolName
@@ -59,17 +59,45 @@ func groupByPoolName(data []utils.EndFieldCharInfo) map[string][]utils.EndFieldC
 	return groupedData
 }
 
-// RefreshGachaHistory 导出给前端调用的核心方法
-func (a *App) RefreshGachaHistory() (string, error) {
-	// 1. 获取终末地原生数据
-	endFieldData, err := utils.GetEndFieldGachaDataFromPools()
+// RefreshCharGachaHistory 导出角色抽卡数据给前端调用的核心方法
+func (a *App) RefreshCharGachaHistory() (string, error) {
+	// 获取终末地原生数据
+	charsData, err := utils.GetEndFieldCharGachaDataAll()
 	if err != nil {
 		log.Println("Failed to retrieve EndField gacha data:", err)
 		return "", err
 	}
-	// 2. 按卡池分组
-	grouped := groupByPoolName(endFieldData)
-	// 3. 序列化为 JSON
+	// 按卡池分组
+	grouped := groupByCharPoolName(charsData)
+	// 序列化为 JSON
+	jsonData, err := json.MarshalIndent(grouped, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
+}
+
+// groupByWeaponPoolName 将武器卡池原数据按卡池分组
+func groupByWeaponPoolName(data []utils.EndFieldWeaponInfo) map[string][]utils.EndFieldWeaponInfo {
+	groupedData := make(map[string][]utils.EndFieldWeaponInfo)
+	for _, item := range data {
+		key := item.PoolName
+		groupedData[key] = append(groupedData[key], item)
+	}
+	return groupedData
+}
+
+// RefreshWeaponGachaHistory 导出武器抽卡数据给前端调用的核心方法
+func (a *App) RefreshWeaponGachaHistory() (string, error) {
+	// 获取终末地原生数据
+	weaponsData, err := utils.GetEndFieldWeaponDataAll()
+	if err != nil {
+		log.Println("Failed to retrieve EndField gacha data:", err)
+		return "", err
+	}
+	// 按卡池分组
+	grouped := groupByWeaponPoolName(weaponsData)
+	// 序列化为 JSON
 	jsonData, err := json.MarshalIndent(grouped, "", "  ")
 	if err != nil {
 		return "", err

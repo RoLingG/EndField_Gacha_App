@@ -48,7 +48,7 @@
         </div>
         <div class="text-wrapper"><div class="loading-text">SYSTEM SYNCHRONIZING...</div><div class="loading-subtext">ACCESSING HG_WEBVIEW_LOG // SECURE</div></div>
         <div class="tech-progress-track"><div class="tech-progress-bar"></div></div>
-        <div class="tech-stat-row"><span>MEM: <span style="color:#fff">ALLOCATING</span></span><span>NET: <span style="color:#fffa00">CONNECTED</span></span><span>VER: <span style="color:#666">1.0.2</span></span></div>
+        <div class="tech-stat-row"><span>MEM: <span style="color:#fff">ALLOCATING</span></span><span>NET: <span style="color:#fffa00">CONNECTED</span></span><span>VER: <span style="color:#666">1.1.0</span></span></div>
     </div>
 </div>
 
@@ -56,15 +56,21 @@
 <div class="main-content-wrapper">
     <h1 class="main-title">寻访数据概览 <span style="font-size:14px;color:#666"> // STATISTICS</span></h1>
 
-    <!-- 1. 卡池选择器 -->
+    <!-- 类型切换 Tab -->
+    <div class="type-switcher" id="typeSwitcher" style="display:none;">
+        <button class="type-btn active" id="btnTypeChar" onclick="switchType('char')">[ CHARACTERS / 干员 ]</button>
+        <button class="type-btn" id="btnTypeWeapon" onclick="switchType('weapon')">[ WEAPONS / 武器 ]</button>
+    </div>
+
+    <!-- 卡池选择器 -->
     <div class="pool-selector-wrapper" id="poolSelectorWrapper" style="display:none;">
         <div class="pool-selector" id="poolSelector"></div>
     </div>
 
-    <!-- 2. 数据概览条 -->
+    <!-- 数据概览条 -->
     <div class="info-strip" id="summaryStrip" style="display:none;"></div>
 
-    <!-- 3. 核心仪表盘 (合并后的图表+详情) -->
+    <!-- 核心仪表盘 (合并后的图表+详情) -->
     <div class="dashboard-panel" id="dashboardPanel" style="display:none;">
         <!-- 左侧：图表 -->
         <div class="panel-left" id="chartContainer"></div>
@@ -72,15 +78,15 @@
         <div class="panel-right" id="rareCharsContainer"></div>
     </div>
 
-    <!-- 4. 最近记录列表 -->
+    <!-- 最近记录列表 -->
     <div class="history-section" id="historySection" style="display:none;">
         <div class="section-title">[ Gacha Pool Record List ]</div>
         <div class="history-table-container">
             <table class="ef-table">
                 <thead>
                 <tr>
-                    <th>Number</th>
-                    <th>CHARACTER</th>
+                    <th>NUMBER</th>
+                    <th id="thName"></th>
                     <th>RARITY</th>
                     <th>POOL</th>
                 </tr>
@@ -96,7 +102,7 @@
     </div>
 </div>
 
-<!-- 5. 底部装饰页脚 -->
+<!-- 底部装饰页脚 -->
 <footer class="system-footer">
     <div class="footer-block">STATUS: <span style="color:var(--ef-yellow)">ONLINE</span></div>
     <div class="footer-block">SERVER: ENDFIELD_CN_01</div>
@@ -188,6 +194,48 @@
         margin: 30px 0 20px 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px;
         border-left: 5px solid var(--ef-yellow); padding-left: 15px; width: 90%; text-align: left;
         opacity: 0;
+    }
+
+    .type-switcher {
+        width: 90%;
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        opacity: 0;
+    }
+    .type-btn {
+        flex: 1;
+        background: transparent;
+        border: 1px solid var(--ef-grey);
+        color: #666;
+        padding: 12px;
+        font-family: 'Consolas', sans-serif;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        position: relative;
+        overflow: hidden;
+    }
+    .type-btn::before {
+        content: ''; position: absolute; top:0; left:0; width:4px; height:100%; background: var(--ef-grey); transition: 0.3s;
+    }
+    .type-btn:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .type-btn:hover::before {
+        background: var(--ef-yellow);
+    }
+    .type-btn.active {
+        border-color: var(--ef-yellow);
+        color: var(--ef-yellow);
+        background: rgba(255, 250, 0, 0.05);
+        box-shadow: 0 0 10px rgba(255, 250, 0, 0.1);
+    }
+    .type-btn.active::before {
+        background: var(--ef-yellow);
     }
 
     /* 卡池选择器 */
