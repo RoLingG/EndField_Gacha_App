@@ -357,7 +357,6 @@ func GetEndFieldWeaponDataAll() ([]EndFieldWeaponInfo, error) {
 	}
 	allData := make([]EndFieldWeaponInfo, 0)
 	for _, pool := range pools {
-		fmt.Printf("正在抓取武器池: %s (%s)\n", pool.PoolName, pool.PoolID)
 		poolData, err := GetEndFieldWeaponDataByPool(baseURL, pool.PoolID)
 		if err != nil {
 			return nil, fmt.Errorf("获取武器池 %v 数据失败: %v", pool.PoolName, err)

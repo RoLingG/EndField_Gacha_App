@@ -30,7 +30,7 @@
     - **HTML5 / CSS3**: 自定义 Flex 布局，CSS 动画。
     - **JavaScript (ES6+)**: 原生 JS 逻辑，无繁重框架依赖。
     - **Chart.js**: 数据可视化图表绘制。
-    - **MDUI**: (部分引用)
+    - **MDUI**: 部分样式美化
 
 ## 🚀 开发指南 (Development)
 

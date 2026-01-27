@@ -25,7 +25,7 @@ document.getElementById("closeBtn").onclick = () => WindowClose();
 
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
-    const container = document.getElementById('loginContainer');
+    const container = document.getElementById('analyzeContainer');
     if (container) container.classList.add('show');
   }, 100);
 });
@@ -37,15 +37,15 @@ let currentType = 'char'; // 'char' | 'weapon'
 let currentPool = null;
 
 // 登录入口
-window.login = async function () {
+window.analyze = async function () {
   const loadingOverlay = document.getElementById("loadingOverlay");
   loadingOverlay.style.display = "flex"; loadingOverlay.style.opacity = "1"; loadingOverlay.style.transform = "translateY(0)";
-  const loginContainer = document.getElementById("loginContainer"); loginContainer.style.opacity = "0"; setTimeout(() => loginContainer.style.display = "none", 500);
+  const analyzeContainer = document.getElementById("analyzeContainer"); analyzeContainer.style.opacity = "0"; setTimeout(() => analyzeContainer.style.display = "none", 500);
 
   try { await initApp(); } catch (err) {
     console.error(err);
-    document.getElementById("loginError").textContent = "ERR: " + err;
-    resetToLogin();
+    document.getElementById("analyzeError").textContent = "ERR: " + err;
+    resetToAnalyze();
   }
 };
 
@@ -54,11 +54,11 @@ async function initApp() {
   loadingText.textContent = 'SYSTEM SYNCHRONIZING...';
 
   // 并行获取角色和武器数据
-  // 如果武器数据获取失败（比如没点过武器历史），我们应该允许容错，不要让整个APP崩溃
+  // 如果武器数据获取失败（比如没点过武器历史），允许容错，不让整个APP崩溃
   const p1 = RefreshCharGachaHistory().then(res => JSON.parse(res));
   const p2 = RefreshWeaponGachaHistory().then(res => JSON.parse(res)).catch(err => {
     console.warn("Weapon data load failed:", err);
-    return {}; // 返回空对象，避免报错
+    return {};
   });
 
   const [charData, weaponData] = await Promise.all([p1, p2]);
@@ -75,7 +75,7 @@ async function initApp() {
   startExitAnimation();
 }
 
-// === 核心切换逻辑 ===
+// 核心切换逻辑
 window.switchType = function(type) {
   if(currentType === type) return;
   currentType = type;
@@ -169,48 +169,70 @@ function createSummaryStrip(dataMap, poolName) {
   for(let item of reversed) {
     if(item.rarity === 6) {
       currentPity = 0;
-    } else {
+    } else if (!item.isFree) {
       currentPity++;
     }
   }
 
   let centerLabel = "POOL TOTAL // 总抽取数";
   let centerValueHtml = items.length;
-  let centerSub = "RECORDS LOGGED";
+  let rightCornerSub = (currentType === 'char') ? "6★ GUARANTEED AT 80" : "UP 6★ GUARANTEED AT 80";
   let centerColor = "#ffffff";
+  let pityCount = (currentType === 'char') ? 80 : 40;
   const targetUpChar = poolUpCharConfig[poolName];
   if (currentType === 'char' && targetUpChar) {
     centerLabel = "POOL SPARK // 本池垫刀";
-    centerSub = "LIMITED SPARK COUNT";
-
+    rightCornerSub = "LIMITED SPARK COUNT";
     let sparkCount = 0;
+    let sparkConsumed  = false;
+
     for(let item of reversed) {
-      const name = getItemName(item);
-      if (name === targetUpChar) {
-        sparkCount = 0
-      } else {
+      if (!item.isFree) {
         sparkCount++;
       }
+      const name = getItemName(item);
+      if (name === targetUpChar && !item.isFree) {
+        if (sparkCount <= 120) {
+          sparkConsumed = true;
+        }
+      }
     }
-    if (sparkCount >= 120) {
+
+    let targetLimit = 120;
+    if (sparkCount >= 240) {
+      targetLimit = 240;
+      rightCornerSub = "MAX SPARK REACHED";
+      centerColor = (sparkCount === 240) ? "#ff5252" : "#ffffff";
+    } else if (sparkCount > 120) {
+      targetLimit = 240;
+      rightCornerSub = "NEXT TARGET: 240";
+    } else {
+      if (sparkConsumed) {
+        targetLimit = 240;
+        rightCornerSub = "120 CONSUMED -> TARGET 240";
+      } else {
+        targetLimit = 120;
+      }
+    }
+
+    if (sparkCount >= targetLimit && targetLimit > 0) {
       centerColor = "#ff5252";
-      sparkCount = sparkCount % 120;
     } else {
       centerColor = "var(--ef-yellow)";
     }
 
-    centerValueHtml = `${sparkCount} <span style="font-size:12px;color:#666">/ 120</span>`;
+    centerValueHtml = `${sparkCount} <span style="font-size:12px;color:#666">/ ${targetLimit}</span>`;
   }
 
-  let nextProb = 2;
+  let nextProb = 0.8;
   let pityColor = "var(--ef-yellow)";
   let pitySubText = "SINCE LAST 6★";
-  if (currentPity >= 65) {
+  if (currentPity >= 65 && poolName !== "基础寻访") {
     pityColor = "#ff5722";
-    let extraRate = (currentPity - 64) * 5;
-    nextProb = 2 + extraRate;
+    let extraRate = (currentPity - 64) * 5; // 65抽开始抬概率
+    nextProb = 0.8 + extraRate;
     if (nextProb > 100) nextProb = 100;
-    pitySubText = `NEXT PROB: ~${nextProb}%`;
+    pitySubText = `NEXT PROB: ${nextProb}%`;
   }
 
   const total = items.length;
@@ -221,7 +243,7 @@ function createSummaryStrip(dataMap, poolName) {
         <div class="info-card">
             <div class="info-label">CURRENT PITY // 当前水位</div>
             <div class="info-value" style="color:${pityColor}">
-                ${currentPity} <span style="font-size:12px;color:#666">/ 80</span>
+                ${currentPity} <span style="font-size:12px;color:#666">/ ${pityCount}</span>
             </div>
             <div class="info-sub">${pitySubText}</div>
         </div>
@@ -231,7 +253,7 @@ function createSummaryStrip(dataMap, poolName) {
             <div class="info-value" style="color:${centerColor}">
                 ${centerValueHtml}
             </div>
-            <div class="info-sub">${centerSub}</div>
+            <div class="info-sub">${rightCornerSub}</div>
         </div>
         
         <div class="info-card">
@@ -277,13 +299,15 @@ function renderHistoryPage() {
     pageItems.forEach((item, index) => {
       const tr = document.createElement('tr');
       const displayNum = totalItems - (startIndex + index);
-      const name = getItemName(item); // 使用通用名称获取
+      const name = getItemName(item);
+      const isFree = item.isFree ? "YES" : "NO";
 
       tr.innerHTML = `
                 <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
                 <td class="rarity-${item.rarity}">${name}</td>
                 <td>${"★".repeat(item.rarity)}</td>
                 <td style="color:#444; font-size:10px;">[ ${currentPoolNameForPagination} ]</td>
+                <td style="color:#444; font-size:10px;">${isFree}</td>
             `;
       tbody.appendChild(tr);
     });
@@ -415,7 +439,7 @@ function startExitAnimation() {
   }, 400);
 }
 
-function resetToLogin() {
+function resetToAnalyze() {
   const loadingOverlay = document.getElementById("loadingOverlay"); loadingOverlay.style.display = "none"; loadingOverlay.style.transform = "";
   document.querySelector(".main-title").style.display = "none";
   document.getElementById("typeSwitcher").style.display = "none";
@@ -423,5 +447,5 @@ function resetToLogin() {
   document.getElementById("summaryStrip").style.display = "none";
   document.getElementById("dashboardPanel").style.display = "none";
   document.getElementById("historySection").style.display = "none";
-  const loginContainer = document.getElementById("loginContainer"); loginContainer.style.display = "flex"; void loginContainer.offsetWidth; loginContainer.style.opacity = "1";
+  const analyzeContainer = document.getElementById("analyzeContainer"); analyzeContainer.style.display = "flex"; void analyzeContainer.offsetWidth; analyzeContainer.style.opacity = "1";
 }
