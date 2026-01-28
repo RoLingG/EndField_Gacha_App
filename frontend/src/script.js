@@ -52,7 +52,6 @@ window.analyze = async function () {
 async function initApp() {
   const loadingText = document.querySelector('.loading-text');
   loadingText.textContent = 'SYSTEM SYNCHRONIZING...';
-
   // 并行获取角色和武器数据
   // 如果武器数据获取失败（比如没点过武器历史），允许容错，不让整个APP崩溃
   const p1 = RefreshCharGachaHistory().then(res => JSON.parse(res));
@@ -62,15 +61,11 @@ async function initApp() {
   });
 
   const [charData, weaponData] = await Promise.all([p1, p2]);
-
   globalCharData = charData;
   globalWeaponData = weaponData;
-
   loadingText.textContent = 'DATA STREAM RECEIVED';
-
   // 初始化显示 (默认显示角色)
   renderByType('char');
-
   // 执行入场动画
   startExitAnimation();
 }
@@ -91,26 +86,20 @@ window.switchType = function(type) {
 function renderByType(type) {
   const poolSelector = document.getElementById('poolSelector');
   poolSelector.innerHTML = '';
-
   // 确定当前使用的数据源
   const dataMap = (type === 'char') ? globalCharData : globalWeaponData;
-
   // 如果没有数据
   if(!dataMap || Object.keys(dataMap).length === 0) {
     poolSelector.innerHTML = '<div style="color:#666; padding:10px;">// NO DATA RECORDS FOUND</div>';
     clearDisplay();
     return;
   }
-
   // 重置当前选中的池子为第一个
   currentPool = Object.keys(dataMap)[0];
-
   // 创建池子按钮
   createPoolButtons(dataMap);
-
   // 更新主显示区
   updateDisplay(dataMap, currentPool);
-
   // 更新表头
   const thEl = document.getElementById('thName');
   if (thEl) {
@@ -390,7 +379,7 @@ function createRareCharsCard(dataMap, poolName) {
             </div>
             <div>
                 <div style="font-size:10px; color:#666; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
-                <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">${sixStarItems.length > 0 ? chipsHtml : emptyHtml}</div>
+                <div style=" display:flex; flex-wrap:wrap; margin-left:-4px;">${sixStarItems.length > 0 ? chipsHtml : emptyHtml}</div>
             </div>
         </div>
     `;
@@ -406,7 +395,7 @@ function startExitAnimation() {
 
   setTimeout(() => {
     loadingText.style.transition = "all 0.5s ease-in"; loadingText.style.opacity = "0"; loadingText.style.transform = "translateY(-20px)";
-    if(logoWrapper) { logoWrapper.style.transition = "all 0.5s ease-in"; logoWrapper.style.opacity = "0"; logoWrapper.style.transform = "scale(0.8)"; }
+    if(logoWrapper) { logoWrapper.style.transition = "all 0.5s ease-in"; logoWrapper.style.opacity = "0"; logoWrapper.style.transform = "scale(0.5)"; }
 
     setTimeout(() => {
       loadingOverlay.style.transition = "transform 0.6s cubic-bezier(0.8, 0, 0.2, 1)"; loadingOverlay.style.transform = "translateY(-100%)";
