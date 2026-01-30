@@ -1,16 +1,26 @@
 import {
-  RefreshCharGachaHistory,
-  RefreshWeaponGachaHistory,
+  LoadGachaTokens,
+  CheckLocalFiles,
+  GetCharacterData,
+  GetWeaponData,
   ReloadFrontend,
   WindowClose,
   WindowMinSize,
   WindowToggleMaxSize,
+  OpenDataFolder,
+  LoadLocalGachaHistory,
 } from "../wailsjs/go/main/App";
 
+// chart.js全局配置
 Chart.defaults.color = '#ffffff';
 Chart.defaults.borderColor = '#333333';
 Chart.defaults.font.family = "'Consolas', 'Monaco', monospace";
 
+// 默认是在线模式
+window.isOfflineSelection = false;
+
+// 窗口顶部栏双按钮逻辑处理
+window.handleOpenFolder = async () => await OpenDataFolder();
 window.handleReload = async () => await ReloadFrontend();
 
 const maxBtn = document.getElementById("maxBtn");
@@ -35,34 +45,177 @@ let globalCharData = null;
 let globalWeaponData = null;
 let currentType = 'char'; // 'char' | 'weapon'
 let currentPool = null;
+let gachaChartInstance = null; // 图表实例复用
 
-// 登录入口
-window.analyze = async function () {
-  const loadingOverlay = document.getElementById("loadingOverlay");
-  loadingOverlay.style.display = "flex"; loadingOverlay.style.opacity = "1"; loadingOverlay.style.transform = "translateY(0)";
-  const analyzeContainer = document.getElementById("analyzeContainer"); analyzeContainer.style.opacity = "0"; setTimeout(() => analyzeContainer.style.display = "none", 500);
-
-  try { await initApp(); } catch (err) {
-    console.error(err);
-    document.getElementById("analyzeError").textContent = "ERR: " + err;
-    resetToAnalyze();
-  }
-};
-
-async function initApp() {
-  const loadingText = document.querySelector('.loading-text');
-  loadingText.textContent = 'SYSTEM SYNCHRONIZING...';
-  // 并行获取角色和武器数据
-  // 如果武器数据获取失败（比如没点过武器历史），允许容错，不让整个APP崩溃
-  const p1 = RefreshCharGachaHistory().then(res => JSON.parse(res));
-  const p2 = RefreshWeaponGachaHistory().then(res => JSON.parse(res)).catch(err => {
-    console.warn("Weapon data load failed:", err);
-    return {};
+function groupDataByPool(flatList) {
+  const grouped = {};
+  if (!flatList || flatList.length === 0) return grouped;
+  flatList.forEach(item => {
+    const pool = item.poolName || "未知卡池";
+    if (!grouped[pool]) {
+      grouped[pool] = [];
+    }
+    grouped[pool].push(item);
   });
+  return grouped;
+}
 
-  const [charData, weaponData] = await Promise.all([p1, p2]);
-  globalCharData = charData;
-  globalWeaponData = weaponData;
+function showLoadingState(mainText, subText) {
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  loadingOverlay.style.display = "flex";
+  loadingOverlay.style.opacity = "1";
+  loadingOverlay.style.transform = "translateY(0)";
+  document.querySelector('.loading-text').textContent = mainText;
+  document.querySelector('.loading-subtext').textContent = subText;
+  const analyzeContainer = document.getElementById("analyzeContainer");
+  analyzeContainer.style.opacity = "0";
+  setTimeout(() => analyzeContainer.style.display = "none", 500);
+}
+
+// 双服选择逻辑处理
+window.onSelectServer = async function(serverName) {
+  // 启动全屏 Loading
+  const actionText = window.isOfflineSelection ? "LOADING ARCHIVE" : "TARGET LOCKED";
+  showLoadingState(actionText, `ACCESSING ${serverName.toUpperCase()} DATABASE...`);
+  try {
+    // 根据标志位决定调用哪个模式
+    if (window.isOfflineSelection) {
+      // 离线模式: true
+      await initApp(true, serverName);
+    } else {
+      // 在线模式: false
+      await initApp(false, serverName);
+    }
+  } catch (err) {
+    console.error(err);
+    resetToAnalyze();
+    document.getElementById("analyzeError").textContent = "INIT ERROR: " + err;
+  } finally {
+    // 重置标志位
+    window.isOfflineSelection = false;
+  }
+}
+
+// 在线分析逻辑处理
+window.analyze = async function () {
+  const btn = document.getElementById("analyzeBtn");
+  const originalText = btn.textContent;
+
+  btn.textContent = "CHECKING SIGNALS...";
+  btn.disabled = true;
+  document.getElementById("analyzeError").textContent = "";
+
+  try {
+    const tokens = await LoadGachaTokens();
+    console.log("Tokens Found:", tokens);
+    const hasOfficial = tokens.Official && tokens.Official.length > 0;
+    const hasBilibili = tokens.Bilibili && tokens.Bilibili.length > 0;
+
+    if (!hasOfficial && !hasBilibili) {
+      throw "NO TOKEN DETECTED // 未找到抽卡记录链接";
+    }
+
+    // === 双服逻辑 ===
+    if (hasOfficial && hasBilibili) {
+      // 此时界面还完全显示着，只需要切换内部的按钮区域
+      document.getElementById("defaultBtnGroup").style.display = "none";
+      document.getElementById("serverSelectArea").style.display = "block";
+
+      // 恢复按钮状态，以便下次取消回来时正常
+      btn.textContent = originalText;
+      btn.disabled = false;
+      return; // 停在这里等待用户点击选择
+    }
+
+    // === 单服逻辑 ===
+    let targetServer = "official";
+    if (hasBilibili) targetServer = "bilibili";
+
+    // 恢复按钮
+    btn.textContent = originalText;
+    btn.disabled = false;
+
+    // 启动全屏动画
+    showLoadingState("SYSTEM SYNCHRONIZING...", `TARGET CONFIRMED: ${targetServer.toUpperCase()}`);
+    await initApp(false, targetServer);
+
+  } catch (err) {
+    console.error(err);
+    // 出错恢复按钮
+    btn.textContent = originalText;
+    btn.disabled = false;
+    document.getElementById("analyzeError").textContent = "ERR: " + err;
+  }
+}
+
+
+// 离线分析文件
+window.loadLocal = async function () {
+  const btn = document.getElementById("localBtn");
+  const originalText = btn.textContent;
+  btn.textContent = "SCANNING FILES...";
+  btn.disabled = true;
+  document.getElementById("analyzeError").textContent = "";
+  try {
+    // 检查本地有哪些文件
+    const status = await CheckLocalFiles();
+    console.log("Local Files:", status);
+    const hasOfficial = status.hasOfficial;
+    const hasBilibili = status.hasBilibili;
+    if (!hasOfficial && !hasBilibili) {
+      throw "NO LOCAL ARCHIVES FOUND // 未找到本地历史记录";
+    }
+    // 如果两个都有，显示选择界面 (复用 analyze 的逻辑)
+    if (hasOfficial && hasBilibili) {
+      // 切换 DOM 显示 B 服/官服按钮
+      document.getElementById("defaultBtnGroup").style.display = "none";
+      document.getElementById("serverSelectArea").style.display = "block";
+
+      // 标记当前模式为 "offline"
+      window.isOfflineSelection = true;
+      btn.textContent = originalText;
+      btn.disabled = false;
+      return;
+    }
+    // 只有一个，直接加载
+    let targetServer = "official";
+    if (hasBilibili) targetServer = "bilibili";
+    btn.textContent = originalText;
+    btn.disabled = false;
+    showLoadingState("LOADING LOCAL ARCHIVES...", `TARGET: ${targetServer.toUpperCase()}`);
+    await initApp(true, targetServer);
+  } catch (err) {
+    console.error(err);
+    btn.textContent = originalText;
+    btn.disabled = false;
+    document.getElementById("analyzeError").textContent = "ERR: " + err;
+  }
+}
+
+async function initApp(isOfflineMode, serverName = "official") {
+  const loadingText = document.querySelector('.loading-text');
+  let charDataGrouped, weaponDataGrouped;
+  if (isOfflineMode) {
+    // 离线模式
+    loadingText.textContent = 'READING LOCAL FILES...';
+    const dataStruct = await LoadLocalGachaHistory(serverName);
+    charDataGrouped = JSON.parse(dataStruct.char || "{}");
+    weaponDataGrouped = JSON.parse(dataStruct.weapon || "{}");
+  } else {
+    // 在线模式
+    loadingText.textContent = 'FETCHING DATA ...';
+    const charList = await GetCharacterData(serverName);
+    charDataGrouped = groupDataByPool(charList);
+    let weaponList = [];
+    try {
+      weaponList = await GetWeaponData(serverName);
+    } catch (e) {
+      console.warn("Weapon data fetch failed:", e);
+    }
+    weaponDataGrouped = groupDataByPool(weaponList);
+  }
+  globalCharData = charDataGrouped;
+  globalWeaponData = weaponDataGrouped;
   loadingText.textContent = 'DATA STREAM RECEIVED';
   // 初始化显示 (默认显示角色)
   renderByType('char');
@@ -74,11 +227,9 @@ async function initApp() {
 window.switchType = function(type) {
   if(currentType === type) return;
   currentType = type;
-
   // UI 按钮状态
   document.getElementById('btnTypeChar').classList.toggle('active', type === 'char');
   document.getElementById('btnTypeWeapon').classList.toggle('active', type === 'weapon');
-
   // 重新渲染
   renderByType(type);
 }
@@ -109,23 +260,28 @@ function renderByType(type) {
 
 function createPoolButtons(dataMap) {
   const poolSelector = document.getElementById('poolSelector');
+  const fragment = document.createDocumentFragment();
   Object.keys(dataMap).forEach((poolName, index) => {
     const button = document.createElement("button");
     button.className = "pool-btn";
     button.textContent = poolName;
     if (index === 0) button.classList.add("active");
-
     button.addEventListener("click", () => {
       currentPool = poolName;
       document.querySelectorAll(".pool-btn").forEach(b => b.classList.remove("active"));
       button.classList.add("active");
       updateDisplay(dataMap, currentPool);
     });
-    poolSelector.appendChild(button);
+    fragment.appendChild(button);
   });
+  poolSelector.appendChild(fragment);
 }
 
 function clearDisplay() {
+  if (gachaChartInstance) {
+    gachaChartInstance.destroy();
+    gachaChartInstance = null;
+  }
   document.getElementById("chartContainer").innerHTML = "";
   document.getElementById("rareCharsContainer").innerHTML = "";
   document.getElementById("summaryStrip").innerHTML = "";
@@ -153,8 +309,8 @@ function createSummaryStrip(dataMap, poolName) {
     "熔火灼痕": "莱万汀",
   };
   const reversed = items.slice().reverse();
-  let currentPity = 0;
 
+  let currentPity = 0;
   for(let item of reversed) {
     if(item.rarity === 6) {
       currentPity = 0;
@@ -316,14 +472,20 @@ function createChart(dataMap, poolName) {
   const rarityCounts = {4: 0, 5: 0, 6: 0 };
   items.forEach(item => { if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1; });
 
+  // 如果实例存在，直接更新数据并重绘，绝不触碰 DOM
+  if (gachaChartInstance) {
+    gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
+    gachaChartInstance.update(); // 平滑过渡动画
+    return;
+  }
+
   const chartContainer = document.getElementById("chartContainer");
-  chartContainer.innerHTML = ''; // Clear old canvas
+  chartContainer.innerHTML = '';
 
   // 装饰
   const corner = document.createElement("div");
   corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid #fffa00; border-left:2px solid #fffa00; z-index:10;";
   chartContainer.appendChild(corner);
-
   const ctx = document.createElement("canvas");
   ctx.style.maxWidth = "280px"; ctx.style.maxHeight = "280px";
   chartContainer.appendChild(ctx);
@@ -342,6 +504,7 @@ function createChart(dataMap, poolName) {
     },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '70%',
+      animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { position: "bottom", labels: { color: "#fff", font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
         title: { display: false }
@@ -428,13 +591,44 @@ function startExitAnimation() {
   }, 400);
 }
 
-function resetToAnalyze() {
-  const loadingOverlay = document.getElementById("loadingOverlay"); loadingOverlay.style.display = "none"; loadingOverlay.style.transform = "";
+window.resetToAnalyze = function() {
+  // === 1. UI 界面复位 (从 APP 界面切回 登录界面) ===
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  loadingOverlay.style.display = "none";
+  loadingOverlay.style.transform = "";
+
+  // 隐藏APP内部的DOM
   document.querySelector(".main-title").style.display = "none";
   document.getElementById("typeSwitcher").style.display = "none";
   document.getElementById("poolSelectorWrapper").style.display = "none";
   document.getElementById("summaryStrip").style.display = "none";
   document.getElementById("dashboardPanel").style.display = "none";
   document.getElementById("historySection").style.display = "none";
-  const analyzeContainer = document.getElementById("analyzeContainer"); analyzeContainer.style.display = "flex"; void analyzeContainer.offsetWidth; analyzeContainer.style.opacity = "1";
+
+  // 显示登录卡片
+  const analyzeContainer = document.getElementById("analyzeContainer");
+  analyzeContainer.style.display = "flex";
+  void analyzeContainer.offsetWidth;
+  analyzeContainer.style.opacity = "1";
+
+  // === 2. 按钮状态复位 ===
+  // 无论是在“选择服务器”界面取消，还是报错退回，都强制显示“初始按钮组”
+  const serverSelectArea = document.getElementById("serverSelectArea");
+  if (serverSelectArea) serverSelectArea.style.display = "none";
+
+  const defaultBtnGroup = document.getElementById("defaultBtnGroup");
+  if (defaultBtnGroup) defaultBtnGroup.style.display = "block";
+
+  // 确保主按钮文字正常
+  const btn = document.getElementById("analyzeBtn");
+  if(btn) {
+    btn.textContent = "ONLINE INITIALIZE";
+    btn.disabled = false;
+  }
+
+  // 清空报错
+  const errDiv = document.getElementById("analyzeError");
+  if (errDiv) errDiv.textContent = "";
 }
+
+

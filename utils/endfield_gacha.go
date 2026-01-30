@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 // EndFieldGachaResponse 定义终末地角色池抽卡响应结构
@@ -78,30 +79,59 @@ type EndFieldWeaponPool struct {
 	PoolName string `json:"poolName"`
 }
 
-// GetEndFieldGachaURLFromLog 从HGWebview.log文件中解析角色池WebPortal URL
-func GetEndFieldGachaURLFromLog() (string, error) {
+// ServerTokens 用于返回解析出的双端 Token/URL
+type ServerTokens struct {
+	Official string // 官服
+	Bilibili string // B服
+}
+
+// parseLogForTokens 通用日志解析逻辑
+func parseLogForTokens() (ServerTokens, error) {
+	result := ServerTokens{}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("无法获取用户目录: %v", err)
+		return result, fmt.Errorf("无法获取用户目录: %v", err)
 	}
 
 	logPath := filepath.Join(homeDir, "AppData", "LocalLow", "Hypergryph", "Endfield", "sdklogs", "HGWebview.log")
-
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("HGWebview.log文件不存在: %s", logPath)
-	}
-
-	content, err := ioutil.ReadFile(logPath)
+	contentBytes, err := ioutil.ReadFile(logPath)
 	if err != nil {
-		return "", fmt.Errorf("读取HGWebview.log文件失败: %v", err)
+		return result, fmt.Errorf("读取日志失败: %v", err)
 	}
+	content := string(contentBytes)
+	// 正则匹配，同时匹配 char 和 weapon 的 URL
+	re := regexp.MustCompile(`https://ef-webview\.hypergryph\.com/page/gacha_(?:char|weapon)\?[^\s]+`)
 
-	re := regexp.MustCompile(`https://ef-webview\.hypergryph\.com/page/gacha_char\?[^\s]+`)
-	matches := re.FindString(string(content))
-	if matches == "" {
-		return "", fmt.Errorf("未在HGWebview.log中找到有效的WebPortal URL, (gacha_char)，请在游戏中打开一次角色卡池历史记录")
+	allMatches := re.FindAllString(content, -1)
+	if len(allMatches) == 0 {
+		return result, fmt.Errorf("未在日志中找到有效的抽卡记录链接")
 	}
-	return matches, nil
+	// 倒序遍历，获取最新的 Token
+	for i := len(allMatches) - 1; i >= 0; i-- {
+		uStr := allMatches[i]
+
+		// 官服特征: channel=1
+		if result.Official == "" && strings.Contains(uStr, "channel=1") {
+			result.Official = uStr
+		}
+		// B服特征: channel=2
+		if result.Bilibili == "" && strings.Contains(uStr, "channel=2") {
+			result.Bilibili = uStr
+		}
+		// 只要两个位置都填满了，就可以结束扫描
+		if result.Official != "" && result.Bilibili != "" {
+			break
+		}
+	}
+	if result.Official == "" && result.Bilibili == "" {
+		return result, fmt.Errorf("日志中未找到有效的最新 Token")
+	}
+	return result, nil
+}
+
+// GetGachaTokensFromLog 获取通用双端 Token
+func GetGachaTokensFromLog() (ServerTokens, error) {
+	return parseLogForTokens()
 }
 
 // GetEndFieldCharGachaData 获取单个角色卡池的数据
@@ -117,12 +147,11 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 	originalQuery := u.Query()
 
 	token := originalQuery.Get("u8_token")
-	if token == "" {
-		token = originalQuery.Get("token")
-	}
 	serverID := originalQuery.Get("server")
+	if serverID == "" {
+		serverID = "1" // 默认值
+	}
 	lang := originalQuery.Get("lang")
-
 	const apiBaseURL = "https://ef-webview.hypergryph.com/api/record/char"
 
 	for {
@@ -183,12 +212,10 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 }
 
 // GetEndFieldCharGachaDataAll 遍历所有卡池
-func GetEndFieldCharGachaDataAll() ([]EndFieldCharInfo, error) {
-	baseURL, err := GetEndFieldGachaURLFromLog()
-	if err != nil {
-		return nil, err
+func GetEndFieldCharGachaDataAll(baseURL string) ([]EndFieldCharInfo, error) {
+	if baseURL == "" {
+		return nil, fmt.Errorf("传入的 URL 为空，无法获取角色数据")
 	}
-
 	poolTypes := []string{
 		"E_CharacterGachaPoolType_Special",
 		"E_CharacterGachaPoolType_Standard",
@@ -213,32 +240,6 @@ func GetEndFieldCharGachaDataAll() ([]EndFieldCharInfo, error) {
 	return allData, nil
 }
 
-// GetEndFieldWeaponURLFromLog 从HGWebview.log文件中解析武器池WebPortal URL
-func GetEndFieldWeaponURLFromLog() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("无法获取用户目录: %v", err)
-	}
-
-	logPath := filepath.Join(homeDir, "AppData", "LocalLow", "Hypergryph", "Endfield", "sdklogs", "HGWebview.log")
-
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("HGWebview.log文件不存在: %s", logPath)
-	}
-
-	content, err := ioutil.ReadFile(logPath)
-	if err != nil {
-		return "", fmt.Errorf("读取HGWebview.log文件失败: %v", err)
-	}
-
-	re := regexp.MustCompile(`https://ef-webview\.hypergryph\.com/page/gacha_weapon\?[^\s]+`)
-	matches := re.FindString(string(content))
-	if matches == "" {
-		return "", fmt.Errorf("未在HGWebview.log中找到有效的WebPortal URL, (gacha_weapon)，请在游戏中打开一次武器卡池历史记录")
-	}
-	return matches, nil
-}
-
 // GetEndFieldWeaponPools 获取当前账号参与过的武器卡池列表
 func GetEndFieldWeaponPools(pageURL string) ([]EndFieldWeaponPool, error) {
 	u, err := url.Parse(pageURL)
@@ -247,8 +248,6 @@ func GetEndFieldWeaponPools(pageURL string) ([]EndFieldWeaponPool, error) {
 	}
 	originalQuery := u.Query()
 	token := originalQuery.Get("u8_token")
-
-	// 根据 URL 获取 server 参数
 	serverID := originalQuery.Get("server")
 	if serverID == "" {
 		serverID = "1" // 默认值
@@ -346,10 +345,9 @@ func GetEndFieldWeaponDataByPool(pageURL string, poolID string) ([]EndFieldWeapo
 	return allData, nil
 }
 
-func GetEndFieldWeaponDataAll() ([]EndFieldWeaponInfo, error) {
-	baseURL, err := GetEndFieldWeaponURLFromLog()
-	if err != nil {
-		return nil, err
+func GetEndFieldWeaponDataAll(baseURL string) ([]EndFieldWeaponInfo, error) {
+	if baseURL == "" {
+		return nil, fmt.Errorf("传入的 URL 为空，无法获取武器数据")
 	}
 	pools, err := GetEndFieldWeaponPools(baseURL)
 	if err != nil {

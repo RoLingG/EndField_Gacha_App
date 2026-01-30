@@ -18,6 +18,7 @@
 <header class="fake-menu">
     <div class="brand-tag">ENDFIELD // GACHA LOG</div>
     <span class="fake-menu-item" onclick="handleReload()">[ SYSTEM_RELOAD ]</span>
+    <span class="fake-menu-item" onclick="handleOpenFolder()">[ DATA_FOLDER ]</span>
     <div class="window-controls">
         <button class="win-btn" id="minBtn">_</button>
         <button class="win-btn" id="maxBtn">□</button>
@@ -34,10 +35,29 @@
             <img src="./src/assets/images/logo.jpg" class="analyze-logo" />
         </div>
         <div class="analyze-title">TERMINAL ACCESS<br><span style="font-size: 14px; color: #fff; opacity: 0.7;">终末地寻访记录</span></div>
+        <div class="analyze-desc">> ONLINE INITIALIZE 请求鹰角官方接口获取数据<br>> LOCAL INITIALIZE 读取本地 JSON 文件获取数据<br>> 获取官方数据一次之后就会在APP同目录下生成数据文件夹<br>> 每次 ONLINE INITIALIZE 都会同步一次官方的数据</div>
+        <div class="analyze-divider"></div>
         <div class="analyze-desc">> 请确定系统用户路径下终末地的 HGWebview.log 访问权限<br>> 点击按钮开始解析 HGWebview.log 日志文件并初始化记录</div>
-        <div class="analyze-important-desc">> 注意: 需要玩家看过游戏内本身抽卡记录才会产生相关日志</div>
+        <div class="analyze-important-desc">> 注意: 需要玩家看过游戏内卡池抽卡记录才会产生相关日志</div>
         <div id="analyzeError"></div>
-        <button id="analyzeBtn" class="ef-btn" onclick="analyze()">INITIALIZE</button>
+
+        <!-- === 新增：服务器选择区域 (默认隐藏) === -->
+        <div id="serverSelectArea" style="display:none; animation: fadeIn 0.5s;">
+            <div class="analyze-important-desc" style="margin-bottom: 12px; border-color: var(--ef-grey); color: var(--ef-yellow);">
+                > SIGNAL CONFLICT // 检测到多端数据<br>请选择要同步的服务器节点
+            </div>
+            <button class="ef-btn ef-btn-outline" onclick="onSelectServer('official')" style="margin-bottom: 10px;">OFFICIAL // 官服</button>
+            <button class="ef-btn ef-btn-outline" onclick="onSelectServer('bilibili')">BILIBILI // B服</button>
+            <div class="analyze-divider"></div>
+            <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
+        </div>
+        <!-- === 新增结束 === -->
+
+        <!-- 原有的按钮组，加了 ID 方便控制隐藏 -->
+        <div id="defaultBtnGroup">
+            <button id="analyzeBtn" class="ef-btn" onclick="analyze()">ONLINE INITIALIZE</button>
+            <button id="localBtn" class="ef-btn ef-btn-outline" onclick="loadLocal()" style="margin-top: 10px;">LOCAL INITIALIZE</button>
+        </div>
     </div>
 </div>
 
@@ -125,6 +145,12 @@
         --ef-grey: #444444;
     }
 
+    /* === 新增动画定义 === */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     /* 基础重置 */
     body {
         font-family: 'Consolas', 'Monaco', sans-serif;
@@ -168,10 +194,13 @@
     .analyze-logo { width: 80px; height: 80px; border: 2px solid var(--ef-white); }
     .analyze-title { text-align: center; color: var(--ef-yellow); font-size: 20px; font-weight: bold; letter-spacing: 2px; margin-bottom: 30px; font-family: 'Arial Black', sans-serif; }
     .analyze-desc { color: #888; font-size: 12px; padding-left: 10px; border-left: 2px solid var(--ef-grey); line-height: 1.6; }
-    .analyze-important-desc { color: var(--ef-yellow); font-size: 12px; margin-bottom: 30px; padding-left: 10px; border-left: 2px solid var(--ef-grey); line-height: 1.6; }
+    .analyze-divider {width: 100%;height: 1px;background: linear-gradient(90deg, transparent, #333, transparent);margin: 15px 0;}
+    .analyze-important-desc { color: var(--ef-yellow); font-size: 12px; padding-left: 10px; border-left: 2px solid var(--ef-grey); line-height: 1.6; }
     #analyzeError { color: #ff3333; height: 20px; margin-bottom: 12px; font-size: 12px; text-align: right; }
     .ef-btn { width: 100%; height: 48px; background: var(--ef-yellow); color: var(--ef-black); border: none; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; letter-spacing: 1px; }
     .ef-btn:hover { background: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.3); }
+    .ef-btn-outline {background: transparent;border: 1px solid var(--ef-yellow);color: var(--ef-yellow);font-size: 14px;}
+    .ef-btn-outline:hover {background: rgba(255, 250, 0, 0.1);box-shadow: 0 0 10px rgba(255, 250, 0, 0.2);color: #fff;}
     .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--ef-black); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: transform 0.6s cubic-bezier(0.8, 0, 0.2, 1); }
     .loading-grid-bg { position: absolute; width: 100%; height: 100%; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 30px 30px; z-index: -1; }
     .loading-content { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 300px; }
