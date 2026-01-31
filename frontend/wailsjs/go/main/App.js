@@ -6,6 +6,10 @@ export function CheckLocalFiles() {
   return window['go']['main']['App']['CheckLocalFiles']();
 }
 
+export function ExportData(arg1) {
+  return window['go']['main']['App']['ExportData'](arg1);
+}
+
 export function GetCharacterData(arg1) {
   return window['go']['main']['App']['GetCharacterData'](arg1);
 }

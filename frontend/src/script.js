@@ -5,6 +5,7 @@ import {
   GetCharacterData,
   GetWeaponData,
   ReloadFrontend,
+  ExportData,
   WindowClose,
   WindowMinSize,
   WindowToggleMaxSize,
@@ -23,6 +24,39 @@ window.isOfflineSelection = false;
 // 窗口顶部栏双按钮逻辑处理
 window.handleOpenFolder = async () => await OpenDataFolder();
 window.handleReload = async () => await ReloadFrontend();
+
+let currentServerType = "";
+window.handleExport = async function() {
+  // 校验：防止用户还没加载数据就点击导出
+  if (!currentServerType) {
+    mdui.snackbar({
+      message: "请先加载数据 (Please Initialize Data First)",
+      position: 'top'
+    });
+    return;
+  }
+
+  try {
+    const result = await ExportData(currentServerType);
+
+    if (result === "success") {
+      mdui.snackbar({
+        message: `[SUCCESS] 导出成功 / Export Completed`,
+        position: 'top',
+        textColor: '#fffa00' // 使用你的主题黄
+      });
+    } else if (result === "cancelled") {
+      console.log("User cancelled export");
+    }
+  } catch (err) {
+    console.error(err);
+    mdui.alert({
+      headline: 'EXPORT ERROR',
+      description: "导出失败: " + err,
+      confirmText: 'OK'
+    });
+  }
+}
 
 const maxBtn = document.getElementById("maxBtn");
 if(maxBtn){
@@ -94,6 +128,7 @@ window.onSelectServer = async function(serverName) {
   } finally {
     // 重置标志位
     window.isOfflineSelection = false;
+    currentServerType = serverName;
   }
 }
 

@@ -76,6 +76,46 @@ func (a *App) OpenDataFolder() {
 	}
 }
 
+// ExportData 导出数据为 Excel
+func (a *App) ExportData(serverType string) (string, error) {
+	utils.Log.Info("Frontend requested: ExportData", zap.String("server", serverType))
+	// 读取数据，为了保险，读取本地存储
+	charList, weaponList, err := utils.ReadLocalData(serverType)
+	if err != nil {
+		utils.Log.Error("Failed to read data for export", zap.Error(err))
+		return "", fmt.Errorf("读取数据失败，请确保已加载过抽卡记录")
+	}
+	if len(charList) == 0 && len(weaponList) == 0 {
+		return "", fmt.Errorf("当前没有任何数据可导出")
+	}
+	// 弹出保存文件对话框
+	// 默认文件名：endfield_gacha_export_20260131.xlsx
+	defaultName := fmt.Sprintf("endfield_data_%s.xlsx", serverType)
+
+	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "导出抽卡记录",
+		DefaultFilename: defaultName,
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+		},
+	})
+	if err != nil {
+		utils.Log.Error("Failed to open save dialog", zap.Error(err))
+		return "", err
+	}
+	// 用户点击了取消
+	if savePath == "" {
+		utils.Log.Info("User cancelled export")
+		return "cancelled", nil
+	}
+	// 3. 执行导出
+	if err := utils.ExportToExcel(savePath, charList, weaponList); err != nil {
+		utils.Log.Error("Export failed", zap.Error(err))
+		return "", fmt.Errorf("导出文件失败: %v", err)
+	}
+	return "success", nil
+}
+
 // GlobalTokens 双服Token存储结构
 var GlobalTokens utils.ServerTokens
 

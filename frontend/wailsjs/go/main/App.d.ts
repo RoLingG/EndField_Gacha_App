@@ -5,6 +5,8 @@ import {utils} from '../models';
 
 export function CheckLocalFiles():Promise<main.LocalFileStatus>;
 
+export function ExportData(arg1:string):Promise<string>;
+
 export function GetCharacterData(arg1:string):Promise<Array<utils.EndFieldCharInfo>>;
 
 export function GetWeaponData(arg1:string):Promise<Array<utils.EndFieldWeaponInfo>>;
