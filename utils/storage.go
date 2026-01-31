@@ -1,8 +1,10 @@
+// storage.go
 package utils
 
 import (
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,6 +29,7 @@ func GetStorageDir() (string, error) {
 	// 获取当前执行程序的路径
 	exePath, err := os.Executable()
 	if err != nil {
+		Log.Error("Failed to get executable path", zap.Error(err))
 		return "", err
 	}
 	// 获取该执行文件所在的目录 (例如 D:\GameTools\EndfieldGacha\)
@@ -37,6 +40,10 @@ func GetStorageDir() (string, error) {
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		mkErr := os.Mkdir(dataDir, 0755)
 		if mkErr != nil {
+			Log.Fatal("Failed to create userdata directory",
+				zap.String("path", dataDir),
+				zap.Error(mkErr),
+			)
 			return "", mkErr
 		}
 	}
@@ -52,10 +59,18 @@ func MergeAndSaveCharData(newData []EndFieldCharInfo, serverType string) ([]EndF
 
 	// 根据 serverType 获取对应的文件路径
 	filePath := getHistoryFilePath(dir, serverType, "char")
+	Log.Debug("Processing character archive", zap.String("file", filePath))
 	var localData []EndFieldCharInfo
 	fileContent, err := os.ReadFile(filePath)
 	if err == nil {
-		_ = json.Unmarshal(fileContent, &localData)
+		if jsonError := json.Unmarshal(fileContent, &localData); jsonError != nil {
+			Log.Warn("Local history file corrupted, starting fresh",
+				zap.String("file", filePath),
+				zap.Error(jsonError),
+			)
+		} else {
+			Log.Debug("Loaded existing records", zap.Int("count", len(localData)))
+		}
 	}
 	// Map 去重 (Key = SeqID)
 	dataMap := make(map[string]EndFieldCharInfo)
@@ -78,12 +93,21 @@ func MergeAndSaveCharData(newData []EndFieldCharInfo, serverType string) ([]EndF
 	})
 	outputData, err := json.MarshalIndent(mergedList, "", "  ")
 	if err != nil {
+		Log.Error("Failed to marshal JSON data", zap.Error(err))
 		return nil, err
 	}
 
 	// 写入对应的文件
 	err = os.WriteFile(filePath, outputData, 0644)
-	return mergedList, err
+	if err != nil {
+		Log.Error("Failed to write history file",
+			zap.String("file", filePath),
+			zap.Error(err),
+		)
+		return mergedList, err
+	}
+	Log.Info("Character history saved successfully", zap.Int("total_records", len(mergedList)))
+	return mergedList, nil
 }
 
 // MergeAndSaveWeaponData 合并新旧武器数据并保存 (基本逻辑与角色数据一致)
@@ -94,10 +118,16 @@ func MergeAndSaveWeaponData(newData []EndFieldWeaponInfo, serverType string) ([]
 	}
 	// 根据 serverType 获取对应的文件路径
 	filePath := getHistoryFilePath(dir, serverType, "weapon")
+	Log.Debug("Processing weapon archive", zap.String("file", filePath))
 	var localData []EndFieldWeaponInfo
 	fileContent, err := os.ReadFile(filePath)
 	if err == nil {
-		_ = json.Unmarshal(fileContent, &localData)
+		if jsonError := json.Unmarshal(fileContent, &localData); jsonError != nil {
+			Log.Warn("Local weapon file corrupted",
+				zap.String("file", filePath),
+				zap.Error(jsonError),
+			)
+		}
 	}
 	dataMap := make(map[string]EndFieldWeaponInfo)
 	for _, item := range localData {
@@ -118,11 +148,18 @@ func MergeAndSaveWeaponData(newData []EndFieldWeaponInfo, serverType string) ([]
 	})
 	outputData, err := json.MarshalIndent(mergedList, "", "  ")
 	if err != nil {
+		Log.Error("Failed to marshal JSON", zap.Error(err))
 		return nil, err
 	}
 
 	err = os.WriteFile(filePath, outputData, 0644)
-	return mergedList, err
+	if err != nil {
+		Log.Error("Failed to write weapon file", zap.String("file", filePath), zap.Error(err))
+		return mergedList, err
+	}
+
+	Log.Info("Weapon history saved successfully", zap.Int("total_records", len(mergedList)))
+	return mergedList, nil
 }
 
 // ReadLocalData 仅获取本地数据而不保存
@@ -135,13 +172,21 @@ func ReadLocalData(serverType string) ([]EndFieldCharInfo, []EndFieldWeaponInfo,
 	charPath := getHistoryFilePath(dir, serverType, "char")
 	var charList []EndFieldCharInfo
 	if bytes, err := os.ReadFile(charPath); err == nil {
-		json.Unmarshal(bytes, &charList)
+		if err := json.Unmarshal(bytes, &charList); err != nil {
+			Log.Warn("Failed to unmarshal local char data", zap.Error(err))
+		}
+	} else {
+		Log.Debug("No local char history found", zap.String("path", charPath))
 	}
 	// 读取武器
 	weaponPath := getHistoryFilePath(dir, serverType, "weapon")
 	var weaponList []EndFieldWeaponInfo
 	if bytes, err := os.ReadFile(weaponPath); err == nil {
-		json.Unmarshal(bytes, &weaponList)
+		if err := json.Unmarshal(bytes, &weaponList); err != nil {
+			Log.Warn("Failed to unmarshal local weapon data", zap.Error(err))
+		}
+	} else {
+		Log.Debug("No local weapon history found", zap.String("path", weaponPath))
 	}
 	return charList, weaponList, nil
 }
@@ -150,7 +195,6 @@ func ReadLocalData(serverType string) ([]EndFieldCharInfo, []EndFieldWeaponInfo,
 func CheckFilesExist(serverType string) bool {
 	dir, _ := GetStorageDir()
 	charPath := getHistoryFilePath(dir, serverType, "char")
-	// 只要有角色记录就算存在
 	if _, err := os.Stat(charPath); err == nil {
 		return true
 	}

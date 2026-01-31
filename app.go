@@ -1,3 +1,4 @@
+// app.go
 package main
 
 import (
@@ -5,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"os/exec"
 	"runtime"
 
@@ -54,8 +56,10 @@ func (a *App) WindowClose() {
 func (a *App) OpenDataFolder() {
 	dir, err := utils.GetStorageDir()
 	if err != nil {
+		utils.Log.Error("Failed to get storage dir", zap.Error(err))
 		return
 	}
+	utils.Log.Info("User requested to open data folder", zap.String("path", dir))
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		// Windows 下使用 explorer 命令
@@ -67,7 +71,9 @@ func (a *App) OpenDataFolder() {
 		// Linux
 		cmd = exec.Command("xdg-open", dir)
 	}
-	cmd.Start()
+	if err := cmd.Start(); err != nil {
+		utils.Log.Error("Failed to open folder explorer", zap.Error(err))
+	}
 }
 
 // GlobalTokens 双服Token存储结构
@@ -75,12 +81,17 @@ var GlobalTokens utils.ServerTokens
 
 // LoadGachaTokens 扫描日志，获取并缓存 Token
 func (a *App) LoadGachaTokens() (utils.ServerTokens, error) {
+	utils.Log.Info("Frontend requested: LoadGachaTokens")
 	tokens, err := utils.GetGachaTokensFromLog()
 	if err != nil {
+		utils.Log.Error("Token scan failed", zap.Error(err))
 		GlobalTokens = utils.ServerTokens{}
 		return utils.ServerTokens{}, fmt.Errorf("扫描失败: %v。请先在游戏中打开抽卡历史记录。", err)
 	}
-
+	utils.Log.Info("Tokens loaded successfully",
+		zap.Bool("official_found", tokens.Official != ""),
+		zap.Bool("bilibili_found", tokens.Bilibili != ""),
+	)
 	// 更新全局缓存
 	GlobalTokens = tokens
 	return tokens, nil
@@ -88,43 +99,54 @@ func (a *App) LoadGachaTokens() (utils.ServerTokens, error) {
 
 // GetCharacterData 获取并保存角色数据 serverType: "official" | "bilibili"
 func (a *App) GetCharacterData(serverType string) ([]utils.EndFieldCharInfo, error) {
-	// 获取 Token
+	utils.Log.Info("Frontend requested: GetCharacterData", zap.String("server", serverType))
 	targetToken := a.getTokenByServerType(serverType)
 	if targetToken == "" {
+		utils.Log.Warn("Operation aborted: Token missing", zap.String("server", serverType))
 		return nil, fmt.Errorf("未找到 %s 的 Token，请尝试先点击刷新 Token", serverType)
 	}
 	// 联网请求数据
 	newData, err := utils.GetEndFieldCharGachaDataAll(targetToken)
 	if err != nil {
+		utils.Log.Error("Network request failed",
+			zap.String("server", serverType),
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("数据请求失败: %v", err)
 	}
+	utils.Log.Info("Network data received", zap.Int("count", len(newData)))
 	//合并并保存到本地 JSON，保证离线模式也能看到最新数据
 	mergedData, err := utils.MergeAndSaveCharData(newData, serverType)
 	if err != nil {
-		fmt.Printf("警告: 数据保存失败: %v\n", err)
+		utils.Log.Warn("Failed to save data to JSON", zap.Error(err))
 		return newData, nil
 	}
+	utils.Log.Info("Process complete: Data merged and saved", zap.Int("total_records", len(mergedData)))
 	return mergedData, nil
 }
 
 // GetWeaponData 获取并保存武器数据
 func (a *App) GetWeaponData(serverType string) ([]utils.EndFieldWeaponInfo, error) {
-	// 获取 Token
+	utils.Log.Info("Frontend requested: GetWeaponData", zap.String("server", serverType))
 	targetToken := a.getTokenByServerType(serverType)
 	if targetToken == "" {
+		utils.Log.Warn("Operation aborted: Token missing", zap.String("server", serverType))
 		return nil, fmt.Errorf("未找到 %s 的 Token，请尝试先点击刷新 Token", serverType)
 	}
 	// 联网请求数据
 	newData, err := utils.GetEndFieldWeaponDataAll(targetToken)
 	if err != nil {
+		utils.Log.Error("Network request failed", zap.String("server", serverType), zap.Error(err))
 		return nil, fmt.Errorf("数据请求失败: %v", err)
 	}
+	utils.Log.Info("Network data received", zap.Int("count", len(newData)))
 	// 合并并保存到本地 JSON
 	mergedData, err := utils.MergeAndSaveWeaponData(newData, serverType)
 	if err != nil {
-		fmt.Printf("警告: 数据保存失败: %v\n", err)
+		utils.Log.Warn("Failed to save data to JSON", zap.Error(err))
 		return newData, nil
 	}
+	utils.Log.Info("Process complete: Data merged and saved", zap.Int("total_records", len(mergedData)))
 	return mergedData, nil
 }
 
@@ -158,10 +180,16 @@ func (a *App) CheckLocalFiles() LocalFileStatus {
 
 // LoadLocalGachaHistory 纯离线模式，只读取本地 JSON 数据返回给前端
 func (a *App) LoadLocalGachaHistory(serverType string) (LocalDataResponse, error) {
+	utils.Log.Info("Frontend requested: LoadLocalGachaHistory", zap.String("server", serverType))
 	charList, weaponList, err := utils.ReadLocalData(serverType)
 	if err != nil {
+		utils.Log.Error("Failed to read local history", zap.Error(err))
 		return LocalDataResponse{}, err
 	}
+	utils.Log.Info("Local history loaded",
+		zap.Int("char_count", len(charList)),
+		zap.Int("weapon_count", len(weaponList)),
+	)
 	charJson := "{}"
 	if len(charList) > 0 {
 		grouped := groupByCharPoolName(charList)

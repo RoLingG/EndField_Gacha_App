@@ -1,8 +1,10 @@
+// endfield_gacha.go
 package utils
 
 import (
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -90,12 +92,15 @@ func parseLogForTokens() (ServerTokens, error) {
 	result := ServerTokens{}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
+		Log.Error("Failed to get user home directory", zap.Error(err))
 		return result, fmt.Errorf("无法获取用户目录: %v", err)
 	}
 
 	logPath := filepath.Join(homeDir, "AppData", "LocalLow", "Hypergryph", "Endfield", "sdklogs", "HGWebview.log")
+	Log.Debug("Attempting to read log file", zap.String("path", logPath))
 	contentBytes, err := ioutil.ReadFile(logPath)
 	if err != nil {
+		Log.Warn("Failed to read log file", zap.Error(err))
 		return result, fmt.Errorf("读取日志失败: %v", err)
 	}
 	content := string(contentBytes)
@@ -104,6 +109,7 @@ func parseLogForTokens() (ServerTokens, error) {
 
 	allMatches := re.FindAllString(content, -1)
 	if len(allMatches) == 0 {
+		Log.Warn("No gacha URLs found in log file")
 		return result, fmt.Errorf("未在日志中找到有效的抽卡记录链接")
 	}
 	// 倒序遍历，获取最新的 Token
@@ -124,8 +130,13 @@ func parseLogForTokens() (ServerTokens, error) {
 		}
 	}
 	if result.Official == "" && result.Bilibili == "" {
+		Log.Warn("Tokens found but none matched expected channel IDs")
 		return result, fmt.Errorf("日志中未找到有效的最新 Token")
 	}
+	Log.Info("Log parsing successful",
+		zap.Bool("official", result.Official != ""),
+		zap.Bool("bilibili", result.Bilibili != ""),
+	)
 	return result, nil
 }
 
@@ -153,7 +164,7 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 	}
 	lang := originalQuery.Get("lang")
 	const apiBaseURL = "https://ef-webview.hypergryph.com/api/record/char"
-
+	Log.Debug("Starting API fetch loop", zap.String("pool_type", targetPoolType))
 	for {
 		apiParams := url.Values{}
 		apiParams.Set("lang", lang)
@@ -169,6 +180,7 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 
 		req, err := http.NewRequest("GET", finalAPIUrl, nil)
 		if err != nil {
+			Log.Error("Failed to create HTTP request", zap.Error(err))
 			return nil, fmt.Errorf("创建请求失败: %v", err)
 		}
 
@@ -177,6 +189,7 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 
 		resp, err := client.Do(req)
 		if err != nil {
+			Log.Error("HTTP transport error", zap.String("url", finalAPIUrl), zap.Error(err))
 			return nil, fmt.Errorf("发送请求失败: %v", err)
 		}
 
@@ -184,19 +197,32 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 		resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
+			Log.Error("API returned non-200 status",
+				zap.Int("status_code", resp.StatusCode),
+				zap.String("pool_type", targetPoolType),
+			)
 			return nil, fmt.Errorf("请求失败，状态码: %d", resp.StatusCode)
 		}
 
 		var response EndFieldGachaResponse
 		err = json.Unmarshal(body, &response)
 		if err != nil {
+			Log.Error("Failed to parse API JSON response", zap.Error(err))
 			return nil, fmt.Errorf("解析JSON失败: %v", err)
 		}
 
 		if response.Code != 0 {
+			Log.Warn("API business logic error",
+				zap.Int("code", response.Code),
+				zap.String("msg", response.Msg),
+			)
 			return nil, fmt.Errorf("API返回错误: %s", response.Msg)
 		}
 
+		Log.Debug("Page fetched",
+			zap.Int("count", len(response.Data.List)),
+			zap.Bool("has_more", response.Data.HasMore),
+		)
 		allData = append(allData, response.Data.List...)
 
 		if len(response.Data.List) > 0 {
@@ -227,7 +253,10 @@ func GetEndFieldCharGachaDataAll(baseURL string) ([]EndFieldCharInfo, error) {
 	for _, poolType := range poolTypes {
 		data, err := GetEndFieldCharGachaData(baseURL, poolType)
 		if err != nil {
-			fmt.Printf("获取卡池 %s 失败: %v\n", poolType, err)
+			Log.Warn("Failed to fetch specific pool",
+				zap.String("pool_type", poolType),
+				zap.Error(err),
+			)
 			continue
 		}
 		allData = append(allData, data...)
