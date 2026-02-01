@@ -48,7 +48,7 @@
 - **一键管理**: 内置 **[ DATA_FOLDER ]** 指令，快速打开数据存储目录进行备份或管理。
 - **安全解析**: 仅读取游戏日志中的 URL Token，零风险操作。
 
-### **📥 数据导出 (Data Export) **
+### 📥 数据导出 (Data Export) 
 
 - **UID 专属报表**: 导出文件名自动包含 UID（如 `endfield_data_011309408_official.xlsx`）。
 - **标准格式化**: 支持一键导出 `.xlsx` 格式的 Excel 表格。
