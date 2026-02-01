@@ -5,7 +5,7 @@ import {utils} from '../models';
 
 export function CheckLocalFiles():Promise<main.LocalFileStatus>;
 
-export function ExportData(arg1:string):Promise<string>;
+export function ExportData(arg1:string,arg2:string):Promise<string>;
 
 export function GetCharacterData(arg1:string):Promise<Array<utils.EndFieldCharInfo>>;
 
@@ -13,11 +13,15 @@ export function GetWeaponData(arg1:string):Promise<Array<utils.EndFieldWeaponInf
 
 export function LoadGachaTokens():Promise<utils.ServerTokens>;
 
-export function LoadLocalGachaHistory(arg1:string):Promise<main.LocalDataResponse>;
+export function LoadLocalGachaHistory(arg1:string,arg2:string):Promise<main.LocalDataResponse>;
+
+export function LoginAndFetchPlayers(arg1:string):Promise<main.LoginResponse>;
 
 export function OpenDataFolder():Promise<void>;
 
 export function ReloadFrontend():Promise<void>;
+
+export function SyncDataByChoice(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function WindowClose():Promise<void>;
 

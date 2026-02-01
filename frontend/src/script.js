@@ -11,20 +11,38 @@ import {
   WindowToggleMaxSize,
   OpenDataFolder,
   LoadLocalGachaHistory,
+  LoginAndFetchPlayers,
+  SyncDataByChoice,
 } from "../wailsjs/go/main/App";
 
 // chart.js全局配置
 Chart.defaults.color = '#ffffff';
 Chart.defaults.borderColor = '#333333';
 Chart.defaults.font.family = "'Consolas', 'Monaco', monospace";
+const maxBtn = document.getElementById("maxBtn");
+if(maxBtn){
+  maxBtn.onclick = async () => {
+    const isMax = await WindowToggleMaxSize();
+    maxBtn.textContent = isMax ? "❐" : "□";
+  };
+}
+document.getElementById("minBtn").onclick = () => WindowMinSize();
+document.getElementById("closeBtn").onclick = () => WindowClose();
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const container = document.getElementById('analyzeContainer');
+    if (container) container.classList.add('show');
+  }, 100);
+});
 
 // 默认是在线模式
 window.isOfflineSelection = false;
-
 // 窗口顶部栏双按钮逻辑处理
 window.handleOpenFolder = async () => await OpenDataFolder();
 window.handleReload = async () => await ReloadFrontend();
 
+let currentUid = "";
 let currentServerType = "";
 window.handleExport = async function() {
   // 校验：防止用户还没加载数据就点击导出
@@ -37,8 +55,7 @@ window.handleExport = async function() {
   }
 
   try {
-    const result = await ExportData(currentServerType);
-
+    const result = await ExportData(currentUid, currentServerType);
     if (result === "success") {
       mdui.snackbar({
         message: `[SUCCESS] 导出成功 / Export Completed`,
@@ -58,23 +75,97 @@ window.handleExport = async function() {
   }
 }
 
-const maxBtn = document.getElementById("maxBtn");
-if(maxBtn){
-  maxBtn.onclick = async () => {
-    const isMax = await WindowToggleMaxSize();
-    maxBtn.textContent = isMax ? "❐" : "□";
-  };
+// --------***用户主动输入 Token 数据获取方式***--------
+let cachedHgToken = ""; // 暂存前端用户发送的短 Token
+// 点击 WEB TOKEN SYNC 按钮，显示输入界面
+window.showTokenInputUI = function() {
+  document.getElementById("defaultBtnGroup").style.display = "none";
+  document.getElementById("analyzeDescription").style.display = "none";
+  document.getElementById("logModeTips").style.display = "none";
+  document.getElementById("tokenInputArea").style.display = "block";
+  document.getElementById("webTokenInput").focus();
+  document.getElementById("analyzeError").textContent = "";
 }
-document.getElementById("minBtn").onclick = () => WindowMinSize();
-document.getElementById("closeBtn").onclick = () => WindowClose();
 
-window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    const container = document.getElementById('analyzeContainer');
-    if (container) container.classList.add('show');
-  }, 100);
-});
+// 点击 CONNECT 按钮，执行第一步登录
+window.handleTokenStep1 = async function() {
+  const input = document.getElementById("webTokenInput");
+  const token = input.value.trim();
+  if (!token) {
+    document.getElementById("analyzeError").textContent = "ERR: TOKEN_EMPTY // 请输入 Token";
+    return;
+  }
 
+  // 锁定界面
+  input.disabled = true;
+  const btn = document.querySelector("#tokenInputArea button");
+  const orgText = btn.textContent;
+  btn.textContent = "CONNECTING...";
+
+  try {
+    const res = await LoginAndFetchPlayers(token);
+    cachedHgToken = res.hgToken;
+    // 如果只有一个角色，直接自动进入下一步
+    if (res.players && res.players.length === 1) {
+      await doTokenSync(res.players[0]);
+      return;
+    }
+    // 如果有多个角色，渲染列表
+    renderPlayerList(res.players);
+    // 切换 UI 到选择界面
+    document.getElementById("tokenInputArea").style.display = "none";
+    document.getElementById("playerSelectArea").style.display = "block";
+  } catch (err) {
+    console.error(err);
+    document.getElementById("analyzeError").textContent = "LOGIN ERR: " + err;
+    input.disabled = false;
+    btn.textContent = orgText;
+  }
+}
+
+// 渲染角色列表
+function renderPlayerList(players) {
+  const container = document.getElementById("playerListContainer");
+  container.innerHTML = "";
+
+  players.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "player-card";
+    div.innerHTML = `
+            <div class="player-info">
+                <span class="p-name">${p.nickName} <span style="font-size:10px;color:#888;">Lv.${p.level}</span></span>
+                <span class="p-uid">UID: ${p.uid}</span>
+            </div>
+            <div class="p-tag">${p.channelName}</div>
+        `;
+    div.onclick = () => doTokenSync(p);
+    container.appendChild(div);
+  });
+}
+
+// 执行最终同步
+async function doTokenSync(player) {
+  document.getElementById("tokenInputArea").style.display = "none";
+  document.getElementById("playerSelectArea").style.display = "none";
+  const serverName = player.serverType; // "official" or "bilibili"
+  currentServerType = serverName; // 更新全局变量，方便导出功能使用
+  showLoadingState("SYSTEM SYNCHRONIZING...", `UID: ${player.uid} // ${serverName.toUpperCase()}`);
+  try {
+    const res = await SyncDataByChoice(cachedHgToken, player.uid, serverName);
+    if (res === "success") {
+      // 同步成功后，数据已经落盘。直接复用 initApp(true) 读取刚刚存入的本地文件，这样不用担心内存数据不一致
+      setTimeout(async () => {
+        await initApp(true, serverName, player.uid);
+      }, 1000);
+    }
+  } catch (err) {
+    console.error(err);
+    resetToAnalyze();
+    document.getElementById("analyzeError").textContent = "SYNC ERR: " + err;
+  }
+}
+
+// --------***用户通过日志或者本地JSON获取数据***--------
 // 全局数据存储
 let globalCharData = null;
 let globalWeaponData = null;
@@ -173,7 +264,7 @@ window.analyze = async function () {
 
     // 启动全屏动画
     showLoadingState("SYSTEM SYNCHRONIZING...", `TARGET CONFIRMED: ${targetServer.toUpperCase()}`);
-    await initApp(false, targetServer);
+    await initApp(false, targetServer, "");
 
   } catch (err) {
     console.error(err);
@@ -183,7 +274,6 @@ window.analyze = async function () {
     document.getElementById("analyzeError").textContent = "ERR: " + err;
   }
 }
-
 
 // 离线分析文件
 window.loadLocal = async function () {
@@ -219,7 +309,7 @@ window.loadLocal = async function () {
     btn.textContent = originalText;
     btn.disabled = false;
     showLoadingState("LOADING LOCAL ARCHIVES...", `TARGET: ${targetServer.toUpperCase()}`);
-    await initApp(true, targetServer);
+    await initApp(true, targetServer, "");
   } catch (err) {
     console.error(err);
     btn.textContent = originalText;
@@ -228,13 +318,14 @@ window.loadLocal = async function () {
   }
 }
 
-async function initApp(isOfflineMode, serverName = "official") {
+async function initApp(isOfflineMode, serverName = "official", uid = "") {
+  currentUid = uid;
   const loadingText = document.querySelector('.loading-text');
   let charDataGrouped, weaponDataGrouped;
   if (isOfflineMode) {
     // 离线模式
     loadingText.textContent = 'READING LOCAL FILES...';
-    const dataStruct = await LoadLocalGachaHistory(serverName);
+    const dataStruct = await LoadLocalGachaHistory(uid, serverName);
     charDataGrouped = JSON.parse(dataStruct.char || "{}");
     weaponDataGrouped = JSON.parse(dataStruct.weapon || "{}");
   } else {
@@ -628,7 +719,7 @@ function startExitAnimation() {
 }
 
 window.resetToAnalyze = function() {
-  // === 1. UI 界面复位 (从 APP 界面切回 登录界面) ===
+  // UI 界面复位 (从 APP 界面切回 登录界面)
   const loadingOverlay = document.getElementById("loadingOverlay");
   loadingOverlay.style.display = "none";
   loadingOverlay.style.transform = "";
@@ -647,19 +738,43 @@ window.resetToAnalyze = function() {
   void analyzeContainer.offsetWidth;
   analyzeContainer.style.opacity = "1";
 
-  // === 2. 按钮状态复位 ===
-  // 无论是在“选择服务器”界面取消，还是报错退回，都强制显示“初始按钮组”
-  const serverSelectArea = document.getElementById("serverSelectArea");
-  if (serverSelectArea) serverSelectArea.style.display = "none";
+  // 按钮状态复位
+  document.getElementById("serverSelectArea").style.display = "none";
 
+  // 隐藏 Token 相关界面
+  document.getElementById("tokenInputArea").style.display = "none";
+  document.getElementById("playerSelectArea").style.display = "none";
+
+  // 恢复显示日志模式的提示
+  const adTips = document.getElementById("analyzeDescription")
+  if(adTips) adTips.style.display = "block";
+  const logTips = document.getElementById("logModeTips");
+  if(logTips) logTips.style.display = "block";
+
+  // 复位输入框
+  const input = document.getElementById("webTokenInput");
+  if(input) {
+    input.value = "";
+    input.disabled = false;
+  }
+  const tokenBtn = document.querySelector("#tokenInputArea button");
+  if(tokenBtn) tokenBtn.textContent = "CONNECT //";
+
+  // 显示默认按钮组
   const defaultBtnGroup = document.getElementById("defaultBtnGroup");
   if (defaultBtnGroup) defaultBtnGroup.style.display = "block";
-
-  // 确保主按钮文字正常
+  // 恢复 analyze 按钮
   const btn = document.getElementById("analyzeBtn");
   if(btn) {
-    btn.textContent = "ONLINE INITIALIZE";
+    btn.textContent = "ONLINE INITIALIZE (LOG)";
     btn.disabled = false;
+  }
+
+  // 恢复 local 按钮
+  const localBtn = document.getElementById("localBtn");
+  if(localBtn) {
+    localBtn.textContent = "LOCAL INITIALIZE";
+    localBtn.disabled = false;
   }
 
   // 清空报错

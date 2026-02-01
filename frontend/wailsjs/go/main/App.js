@@ -6,8 +6,8 @@ export function CheckLocalFiles() {
   return window['go']['main']['App']['CheckLocalFiles']();
 }
 
-export function ExportData(arg1) {
-  return window['go']['main']['App']['ExportData'](arg1);
+export function ExportData(arg1, arg2) {
+  return window['go']['main']['App']['ExportData'](arg1, arg2);
 }
 
 export function GetCharacterData(arg1) {
@@ -22,8 +22,12 @@ export function LoadGachaTokens() {
   return window['go']['main']['App']['LoadGachaTokens']();
 }
 
-export function LoadLocalGachaHistory(arg1) {
-  return window['go']['main']['App']['LoadLocalGachaHistory'](arg1);
+export function LoadLocalGachaHistory(arg1, arg2) {
+  return window['go']['main']['App']['LoadLocalGachaHistory'](arg1, arg2);
+}
+
+export function LoginAndFetchPlayers(arg1) {
+  return window['go']['main']['App']['LoginAndFetchPlayers'](arg1);
 }
 
 export function OpenDataFolder() {
@@ -32,6 +36,10 @@ export function OpenDataFolder() {
 
 export function ReloadFrontend() {
   return window['go']['main']['App']['ReloadFrontend']();
+}
+
+export function SyncDataByChoice(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SyncDataByChoice'](arg1, arg2, arg3);
 }
 
 export function WindowClose() {

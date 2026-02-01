@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go.uber.org/zap"
+	"net/url"
 	"os/exec"
 	"runtime"
 
@@ -77,10 +78,10 @@ func (a *App) OpenDataFolder() {
 }
 
 // ExportData 导出数据为 Excel
-func (a *App) ExportData(serverType string) (string, error) {
-	utils.Log.Info("Frontend requested: ExportData", zap.String("server", serverType))
+func (a *App) ExportData(uid string, serverType string) (string, error) {
+	utils.Log.Info("Frontend requested: ExportData", zap.String("uid", uid), zap.String("server", serverType))
 	// 读取数据，为了保险，读取本地存储
-	charList, weaponList, err := utils.ReadLocalData(serverType)
+	charList, weaponList, err := utils.ReadLocalData(uid, serverType)
 	if err != nil {
 		utils.Log.Error("Failed to read data for export", zap.Error(err))
 		return "", fmt.Errorf("读取数据失败，请确保已加载过抽卡记录")
@@ -91,29 +92,114 @@ func (a *App) ExportData(serverType string) (string, error) {
 	// 弹出保存文件对话框
 	// 默认文件名：endfield_gacha_export_20260131.xlsx
 	defaultName := fmt.Sprintf("endfield_data_%s.xlsx", serverType)
-
+	if uid != "" {
+		defaultName = fmt.Sprintf("endfield_data_%s_%s.xlsx", uid, serverType)
+	}
 	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
 		Title:           "导出抽卡记录",
 		DefaultFilename: defaultName,
 		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+			{
+				DisplayName: "Excel Files (*.xlsx)",
+				Pattern:     "*.xlsx",
+			},
 		},
 	})
 	if err != nil {
 		utils.Log.Error("Failed to open save dialog", zap.Error(err))
 		return "", err
 	}
-	// 用户点击了取消
 	if savePath == "" {
 		utils.Log.Info("User cancelled export")
 		return "cancelled", nil
 	}
-	// 3. 执行导出
+	// 执行导出
 	if err := utils.ExportToExcel(savePath, charList, weaponList); err != nil {
 		utils.Log.Error("Export failed", zap.Error(err))
 		return "", fmt.Errorf("导出文件失败: %v", err)
 	}
 	return "success", nil
+}
+
+type LoginResponse struct {
+	HgToken string                    `json:"hgToken"`
+	Players []utils.PlayerBindingInfo `json:"players"`
+}
+
+// LoginAndFetchPlayers 通过用户传入的 shortToken，获取 HgToken 和角色列表
+func (a *App) LoginAndFetchPlayers(shortToken string) (LoginResponse, error) {
+	utils.Log.Info("Frontend requested: LoginAndFetchPlayers")
+
+	hgToken, err := utils.GetGrantToken(shortToken)
+	if err != nil {
+		return LoginResponse{}, err
+	}
+	players, err := utils.GetPlayerBindings(hgToken)
+	if err != nil {
+		return LoginResponse{}, err
+	}
+	return LoginResponse{
+		HgToken: hgToken,
+		Players: players,
+	}, nil
+}
+
+func (a *App) parseParamsFromURL(rawURL string) (token, serverID, lang string, err error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", "", "", fmt.Errorf("URL 解析失败: %v", err)
+	}
+	q := u.Query()
+
+	// 尝试获取 token，通常 webview url 里叫 u8_token，有时也可能叫 token
+	token = q.Get("u8_token")
+	if token == "" {
+		token = q.Get("token")
+	}
+	if token == "" {
+		return "", "", "", fmt.Errorf("无法从 URL 中提取 Token")
+	}
+	serverID = q.Get("server")
+	if serverID == "" {
+		serverID = "1"
+	}
+	lang = q.Get("lang")
+	if lang == "" {
+		lang = "zh-cn"
+	}
+
+	return token, serverID, lang, nil
+}
+
+// SyncDataByChoice 前端选好角色后，传入 HgToken 和 UID 开始同步
+func (a *App) SyncDataByChoice(hgToken string, uid string, serverType string) (string, error) {
+	utils.Log.Info("Frontend requested: SyncDataByChoice", zap.String("uid", uid), zap.String("server", serverType))
+	u8Token, err := utils.GetU8Token(hgToken, uid)
+	if err != nil {
+		return "", err
+	}
+	if err := a.internalFetchAndSave(u8Token, "1", "zh-cn", uid, serverType); err != nil {
+		return "", err
+	}
+	return "success", nil
+}
+
+func (a *App) internalFetchAndSave(token, serverID, lang string, uid string, serverType string) error {
+	charData, err := utils.GetEndFieldCharGachaDataAll(token, serverID, lang)
+	if err != nil {
+		return fmt.Errorf("角色记录抓取失败: %v", err)
+	}
+	if _, err := utils.MergeAndSaveCharData(charData, uid, serverType); err != nil {
+		utils.Log.Warn("Characters' Json save warning", zap.Error(err))
+	}
+	weaponData, err := utils.GetEndFieldWeaponDataAll(token, serverID, lang)
+	if err != nil {
+		return fmt.Errorf("武器记录抓取失败: %v", err)
+	}
+	if _, err := utils.MergeAndSaveWeaponData(weaponData, uid, serverType); err != nil {
+		utils.Log.Warn("Weapons' Json save warning", zap.Error(err))
+	}
+	return nil
 }
 
 // GlobalTokens 双服Token存储结构
@@ -140,13 +226,20 @@ func (a *App) LoadGachaTokens() (utils.ServerTokens, error) {
 // GetCharacterData 获取并保存角色数据 serverType: "official" | "bilibili"
 func (a *App) GetCharacterData(serverType string) ([]utils.EndFieldCharInfo, error) {
 	utils.Log.Info("Frontend requested: GetCharacterData", zap.String("server", serverType))
-	targetToken := a.getTokenByServerType(serverType)
-	if targetToken == "" {
+	// 获取缓存的 URL
+	fullURL := a.getTokenByServerType(serverType)
+	if fullURL == "" {
 		utils.Log.Warn("Operation aborted: Token missing", zap.String("server", serverType))
 		return nil, fmt.Errorf("未找到 %s 的 Token，请尝试先点击刷新 Token", serverType)
 	}
+	// 解析 URL 提取参数
+	token, serverID, lang, err := a.parseParamsFromURL(fullURL)
+	if err != nil {
+		utils.Log.Error("Token parse failed", zap.Error(err))
+		return nil, fmt.Errorf("Token 解析失败，请重新刷新: %v", err)
+	}
 	// 联网请求数据
-	newData, err := utils.GetEndFieldCharGachaDataAll(targetToken)
+	newData, err := utils.GetEndFieldCharGachaDataAll(token, serverID, lang)
 	if err != nil {
 		utils.Log.Error("Network request failed",
 			zap.String("server", serverType),
@@ -156,7 +249,7 @@ func (a *App) GetCharacterData(serverType string) ([]utils.EndFieldCharInfo, err
 	}
 	utils.Log.Info("Network data received", zap.Int("count", len(newData)))
 	//合并并保存到本地 JSON，保证离线模式也能看到最新数据
-	mergedData, err := utils.MergeAndSaveCharData(newData, serverType)
+	mergedData, err := utils.MergeAndSaveCharData(newData, "", serverType)
 	if err != nil {
 		utils.Log.Warn("Failed to save data to JSON", zap.Error(err))
 		return newData, nil
@@ -168,20 +261,27 @@ func (a *App) GetCharacterData(serverType string) ([]utils.EndFieldCharInfo, err
 // GetWeaponData 获取并保存武器数据
 func (a *App) GetWeaponData(serverType string) ([]utils.EndFieldWeaponInfo, error) {
 	utils.Log.Info("Frontend requested: GetWeaponData", zap.String("server", serverType))
-	targetToken := a.getTokenByServerType(serverType)
-	if targetToken == "" {
+	// 获取包含 token 的完整 URL
+	fullURL := a.getTokenByServerType(serverType)
+	if fullURL == "" {
 		utils.Log.Warn("Operation aborted: Token missing", zap.String("server", serverType))
 		return nil, fmt.Errorf("未找到 %s 的 Token，请尝试先点击刷新 Token", serverType)
 	}
+	// 解析参数 (token, serverID, lang)
+	token, serverID, lang, err := a.parseParamsFromURL(fullURL)
+	if err != nil {
+		utils.Log.Error("Token parse failed", zap.Error(err))
+		return nil, fmt.Errorf("token 解析失败: %v", err)
+	}
 	// 联网请求数据
-	newData, err := utils.GetEndFieldWeaponDataAll(targetToken)
+	newData, err := utils.GetEndFieldWeaponDataAll(token, serverID, lang)
 	if err != nil {
 		utils.Log.Error("Network request failed", zap.String("server", serverType), zap.Error(err))
 		return nil, fmt.Errorf("数据请求失败: %v", err)
 	}
 	utils.Log.Info("Network data received", zap.Int("count", len(newData)))
 	// 合并并保存到本地 JSON
-	mergedData, err := utils.MergeAndSaveWeaponData(newData, serverType)
+	mergedData, err := utils.MergeAndSaveWeaponData(newData, "", serverType)
 	if err != nil {
 		utils.Log.Warn("Failed to save data to JSON", zap.Error(err))
 		return newData, nil
@@ -213,15 +313,15 @@ type LocalFileStatus struct {
 // CheckLocalFiles 检查本地是否存在对应服务器的数据文件
 func (a *App) CheckLocalFiles() LocalFileStatus {
 	return LocalFileStatus{
-		HasOfficial: utils.CheckFilesExist("official"),
-		HasBilibili: utils.CheckFilesExist("bilibili"),
+		HasOfficial: utils.CheckFilesExist("", "official"),
+		HasBilibili: utils.CheckFilesExist("", "bilibili"),
 	}
 }
 
 // LoadLocalGachaHistory 纯离线模式，只读取本地 JSON 数据返回给前端
-func (a *App) LoadLocalGachaHistory(serverType string) (LocalDataResponse, error) {
+func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataResponse, error) {
 	utils.Log.Info("Frontend requested: LoadLocalGachaHistory", zap.String("server", serverType))
-	charList, weaponList, err := utils.ReadLocalData(serverType)
+	charList, weaponList, err := utils.ReadLocalData(uid, serverType)
 	if err != nil {
 		utils.Log.Error("Failed to read local history", zap.Error(err))
 		return LocalDataResponse{}, err

@@ -5,13 +5,17 @@
 一个极简、安全且具有沉浸式**终末地 (Endfield) 工业风格**的明日方舟官服/B服抽卡记录分析工具。
 基于 Wails 构建，无需上传数据，完全本地解析日志文件，提供良好的数据可视化体验。
 
-![Preview](https://rolingg.top/images/EndField/ef1.png)
+![Preview](https://rolingg.top/images/EndField/efnew1.png)
 
-![Preview](https://rolingg.top/images/EndField/ef2.png)
+![Preview](https://rolingg.top/images/EndField/efnew2.png)
 
-![Preview](https://rolingg.top/images/EndField/ef3.png)
+![Preview](https://rolingg.top/images/EndField/efnew3.png)
 
-![Preview](https://rolingg.top/images/EndField/ef4.png)
+![Preview](https://rolingg.top/images/EndField/efnew4.png)
+
+![Preview](https://rolingg.top/images/EndField/efnew5.png)
+
+![Preview](https://rolingg.top/images/EndField/efnew6.png)
 
 ## ✨ 特性 (Features)
 
@@ -25,8 +29,15 @@
 
 - **多模式启动**:
   - **[ MODE A ] 在线同步**: 自动解析 `HGWebview.log` 获取最新数据并去重合并。
+  
   - **[ MODE B ] 离线回溯**: 无需启动游戏，直接读取本地历史存档 (`userdata`)。
+  
+  - **[ MODE C ] 手动短 Token**: 在鹰角官网通过 API 获取短 Token，在 App 内通过短 Token 调用接口获取数据。
+  
+    *注意：目前也只有 **[MODE C]** 支持同设备内多服多号（因为是通过官网短 Token 获取信息，可以拿到账号 UID 做区分）*
+  
 - **可视化仪表盘**:
+  
   - 动态环形图展示 4/5/6 星稀有度分布。
   - **智能水位分析**: 支持终末地特殊的保底机制（80抽保底 / 120、240 井）进度追踪，自动计算是否触发垫刀逻辑。
   - 详细的时间轴记录列表与分页查询。
@@ -39,6 +50,7 @@
 
 ### **📥 数据导出 (Data Export) **
 
+- **UID 专属报表**: 导出文件名自动包含 UID（如 `endfield_data_011309408_official.xlsx`）。
 - **标准格式化**: 支持一键导出 `.xlsx` 格式的 Excel 表格。
 - **多表分页**: 自动将“角色寻访”与“武器寻访”拆分为独立工作表（Sheet），方便整理与存档。
 
@@ -53,9 +65,9 @@
 
 - **网络环境**: 在线同步模式依赖终末地官方 API 接口，请确保您的网络环境可以正常访问游戏服务器。
 
-- **同设备单服多号冲突:** 由于 Token 获取途径问题，目前无法获得用户 `UID` 进行账号区分，目前只支持同设备一服一号，同设备登录多号极大概率会导致 JSON 数据同步出互篡，出现此类问题只能删除本地 JSON 落盘数据，重新累计抽卡历史数据。
+- **同设备单服多号冲突:** 由于 Token 获取途径问题，目前无法获得用户 `UID` 进行账号区分，**目前只支持同设备一服一号**，同设备登录多号极大概率会导致 JSON 数据同步出互篡，出现此类问题只能删除本地 JSON 落盘数据，重新累计抽卡历史数据。
 
-  > 要不出问题也简单，就是在打开软件在线同步前，再登录回累计数据的账号访问角色/武器池，让 `HGWebview.log` 日志文件追加写入最新账号的 Webview URL 访问记录。
+  > 要不出问题也简单，在打开软件在线同步前，再登录回累计数据的账号访问角色/武器池，让 `HGWebview.log` 日志文件追加写入最新账号的 Webview URL 访问记录。
   >
   > 这样软件拿到的最新 Token 就是累计账号用户的 Token，在登录其他账号访问卡池记录之前，不会获取其他账号的数据。
 
@@ -67,7 +79,7 @@
 
 ## 🛠️ 技术栈 (Tech Stack)
 
-- **Core Framework**: [Wails v2](https://wails.io/) (Go + Webview2)
+- **Core Framework**: [Wails v2](https://wails.io/)
 - **Backend**:
   - GoLang 1.20+
   - 标准库 `encoding/json` 处理数据存储
@@ -82,6 +94,8 @@
 
 ### 首次使用 / 更新数据 (Online Mode)
 
+#### 扫描日志的形式
+
 1. 启动《明日方舟：终末地》PC 客户端。
 2. 打开游戏内的【寻访】界面，并点击一次【历史记录】。
    *   *注：如果您同时游玩官服和B服，请分别登录并打开一次历史记录。*
@@ -89,6 +103,13 @@
 4. **服务器选择**:
    - 如果工具检测到单个账号，将自动同步。
    - 如果工具检测到**双端数据**，界面将弹出选择框，点击对应的服务器即可开始同步。
+
+#### 手输短Token的形式
+
+1. 在鹰角官网通过 F12 网络对应接口获取短 Token
+2. 打开本工具，点击 **[ WEB TOKEN SYNC]**。
+3. 在 Input 框内输入短 Token，并点击 **[ CONNECT]**。
+   - *注：如果您同时游玩官服和B服，并且B服有在鹰角账号做绑定，点击后会有区服角色选择。*
 
 ### 查看历史 / 离线模式 (Local Mode)
 
@@ -108,10 +129,17 @@
 
 ```cmd
 userdata/
-├── official_char_history.json    // 官服 - 角色池记录
-├── official_weapon_history.json  // 官服 - 武器池记录
-├── bilibili_char_history.json    // B服 - 角色池记录
-└── bilibili_weapon_history.json  // B服 - 武器池记录
+├── uid/                      		  // [精准模式] 特定UID存档
+│   ├── official_char_history.json    // 角色池记录
+│   └── official_weapon_history.json  // 武器池记录
+│
+├── local/                            // [通用模式] 日志扫描/旧版存档
+│   ├── bilibili_char_history.json    // B服角色
+│   ├── bilibili_weapon_history.json  // B服武器
+│   ├── official_char_history.json    // 官服角色
+│   └── official_weapon_history.json  // 官服武器
+│
+└── logs/                             // 软件运行日志
 ```
 
 ## ⚙️ 开发环境 (Development)

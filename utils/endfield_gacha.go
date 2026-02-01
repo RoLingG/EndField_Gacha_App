@@ -97,7 +97,6 @@ func parseLogForTokens() (ServerTokens, error) {
 	}
 
 	logPath := filepath.Join(homeDir, "AppData", "LocalLow", "Hypergryph", "Endfield", "sdklogs", "HGWebview.log")
-	Log.Debug("Attempting to read log file", zap.String("path", logPath))
 	contentBytes, err := ioutil.ReadFile(logPath)
 	if err != nil {
 		Log.Warn("Failed to read log file", zap.Error(err))
@@ -146,25 +145,23 @@ func GetGachaTokensFromLog() (ServerTokens, error) {
 }
 
 // GetEndFieldCharGachaData 获取单个角色卡池的数据
-func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndFieldCharInfo, error) {
+func GetEndFieldCharGachaData(token string, serverID string, lang string, targetPoolType string) ([]EndFieldCharInfo, error) {
 	client := &http.Client{}
 	allData := make([]EndFieldCharInfo, 0)
 	var seqID = ""
-
-	u, err := url.Parse(pageURL)
-	if err != nil {
-		return nil, fmt.Errorf("解析原始URL失败: %v", err)
-	}
-	originalQuery := u.Query()
-
-	token := originalQuery.Get("u8_token")
-	serverID := originalQuery.Get("server")
 	if serverID == "" {
-		serverID = "1" // 默认值
+		serverID = "1"
 	}
-	lang := originalQuery.Get("lang")
+	if lang == "" {
+		lang = "zh-cn"
+	}
+
+	refererValues := url.Values{}
+	refererValues.Set("u8_token", token)
+	refererValues.Set("server", serverID)
+	refererValues.Set("lang", lang)
+	constructedReferer := "https://ef-webview.hypergryph.com/page/gacha_char?" + refererValues.Encode()
 	const apiBaseURL = "https://ef-webview.hypergryph.com/api/record/char"
-	Log.Debug("Starting API fetch loop", zap.String("pool_type", targetPoolType))
 	for {
 		apiParams := url.Values{}
 		apiParams.Set("lang", lang)
@@ -177,7 +174,6 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 		}
 
 		finalAPIUrl := apiBaseURL + "?" + apiParams.Encode()
-
 		req, err := http.NewRequest("GET", finalAPIUrl, nil)
 		if err != nil {
 			Log.Error("Failed to create HTTP request", zap.Error(err))
@@ -185,7 +181,7 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 		}
 
 		req.Header.Set("Accept", "application/json, text/plain, */*")
-		req.Header.Set("Referer", pageURL)
+		req.Header.Set("Referer", constructedReferer)
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -219,10 +215,6 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 			return nil, fmt.Errorf("API返回错误: %s", response.Msg)
 		}
 
-		Log.Debug("Page fetched",
-			zap.Int("count", len(response.Data.List)),
-			zap.Bool("has_more", response.Data.HasMore),
-		)
 		allData = append(allData, response.Data.List...)
 
 		if len(response.Data.List) > 0 {
@@ -238,9 +230,15 @@ func GetEndFieldCharGachaData(pageURL string, targetPoolType string) ([]EndField
 }
 
 // GetEndFieldCharGachaDataAll 遍历所有卡池
-func GetEndFieldCharGachaDataAll(baseURL string) ([]EndFieldCharInfo, error) {
-	if baseURL == "" {
-		return nil, fmt.Errorf("传入的 URL 为空，无法获取角色数据")
+func GetEndFieldCharGachaDataAll(token, serverID, lang string) ([]EndFieldCharInfo, error) {
+	if token == "" {
+		return nil, fmt.Errorf("token 为空，无法获取角色数据")
+	}
+	if serverID == "" {
+		serverID = "1"
+	}
+	if lang == "" {
+		lang = "zh-cn"
 	}
 	poolTypes := []string{
 		"E_CharacterGachaPoolType_Special",
@@ -251,7 +249,7 @@ func GetEndFieldCharGachaDataAll(baseURL string) ([]EndFieldCharInfo, error) {
 	allData := make([]EndFieldCharInfo, 0)
 
 	for _, poolType := range poolTypes {
-		data, err := GetEndFieldCharGachaData(baseURL, poolType)
+		data, err := GetEndFieldCharGachaData(token, serverID, lang, poolType)
 		if err != nil {
 			Log.Warn("Failed to fetch specific pool",
 				zap.String("pool_type", poolType),
@@ -270,17 +268,19 @@ func GetEndFieldCharGachaDataAll(baseURL string) ([]EndFieldCharInfo, error) {
 }
 
 // GetEndFieldWeaponPools 获取当前账号参与过的武器卡池列表
-func GetEndFieldWeaponPools(pageURL string) ([]EndFieldWeaponPool, error) {
-	u, err := url.Parse(pageURL)
-	if err != nil {
-		return nil, fmt.Errorf("解析URL失败: %v", err)
-	}
-	originalQuery := u.Query()
-	token := originalQuery.Get("u8_token")
-	serverID := originalQuery.Get("server")
+func GetEndFieldWeaponPools(token, serverID, lang string) ([]EndFieldWeaponPool, error) {
 	if serverID == "" {
 		serverID = "1" // 默认值
 	}
+	if lang == "" {
+		lang = "zh-cn"
+	}
+	// 构造武器页面的 Referer
+	refererValues := url.Values{}
+	refererValues.Set("u8_token", token)
+	refererValues.Set("server", serverID)
+	refererValues.Set("lang", lang)
+	constructedReferer := "https://ef-webview.hypergryph.com/page/gacha_weapon?" + refererValues.Encode()
 	apiURL := "https://ef-webview.hypergryph.com/api/record/weapon/pool"
 	params := url.Values{}
 	params.Set("lang", "zh-cn")
@@ -290,7 +290,7 @@ func GetEndFieldWeaponPools(pageURL string) ([]EndFieldWeaponPool, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Referer", pageURL)
+	req.Header.Set("Referer", constructedReferer)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -312,21 +312,21 @@ func GetEndFieldWeaponPools(pageURL string) ([]EndFieldWeaponPool, error) {
 }
 
 // GetEndFieldWeaponDataByPool 获取单个武器池的具体记录
-func GetEndFieldWeaponDataByPool(pageURL string, poolID string) ([]EndFieldWeaponInfo, error) {
+func GetEndFieldWeaponDataByPool(token, serverID, lang string, poolID string) ([]EndFieldWeaponInfo, error) {
 	client := &http.Client{}
 	allData := make([]EndFieldWeaponInfo, 0)
 	var seqID = ""
-	u, err := url.Parse(pageURL)
-	if err != nil {
-		return nil, fmt.Errorf("解析URL失败: %v", err)
-	}
-	originalQuery := u.Query()
-	token := originalQuery.Get("u8_token")
-
-	serverID := originalQuery.Get("server")
 	if serverID == "" {
-		serverID = "1" // 默认值
+		serverID = "1"
 	}
+	if lang == "" {
+		lang = "zh-cn"
+	}
+	refererValues := url.Values{}
+	refererValues.Set("u8_token", token)
+	refererValues.Set("server", serverID)
+	refererValues.Set("lang", lang)
+	constructedReferer := "https://ef-webview.hypergryph.com/page/gacha_weapon?" + refererValues.Encode()
 	const apiBaseURL = "https://ef-webview.hypergryph.com/api/record/weapon"
 	for {
 		apiParams := url.Values{}
@@ -343,7 +343,7 @@ func GetEndFieldWeaponDataByPool(pageURL string, poolID string) ([]EndFieldWeapo
 			return nil, fmt.Errorf("创建请求失败: %v", err)
 		}
 		req.Header.Set("Accept", "application/json, text/plain, */*")
-		req.Header.Set("Referer", pageURL)
+		req.Header.Set("Referer", constructedReferer)
 		resp, err := client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("发送请求失败: %v", err)
@@ -374,19 +374,20 @@ func GetEndFieldWeaponDataByPool(pageURL string, poolID string) ([]EndFieldWeapo
 	return allData, nil
 }
 
-func GetEndFieldWeaponDataAll(baseURL string) ([]EndFieldWeaponInfo, error) {
-	if baseURL == "" {
-		return nil, fmt.Errorf("传入的 URL 为空，无法获取武器数据")
+func GetEndFieldWeaponDataAll(token, serverID, lang string) ([]EndFieldWeaponInfo, error) {
+	if token == "" {
+		return nil, fmt.Errorf("Token 为空，无法获取武器数据")
 	}
-	pools, err := GetEndFieldWeaponPools(baseURL)
+	pools, err := GetEndFieldWeaponPools(token, serverID, lang)
 	if err != nil {
 		return nil, fmt.Errorf("获取武器池列表失败: %v", err)
 	}
 	allData := make([]EndFieldWeaponInfo, 0)
 	for _, pool := range pools {
-		poolData, err := GetEndFieldWeaponDataByPool(baseURL, pool.PoolID)
+		poolData, err := GetEndFieldWeaponDataByPool(token, serverID, lang, pool.PoolID)
 		if err != nil {
-			return nil, fmt.Errorf("获取武器池 %v 数据失败: %v", pool.PoolName, err)
+			Log.Warn("Failed to fetch weapon pool", zap.String("pool_name", pool.PoolName), zap.Error(err))
+			continue
 		}
 		allData = append(allData, poolData...)
 	}
