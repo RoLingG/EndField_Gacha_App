@@ -30,7 +30,7 @@ export namespace main {
 	}
 	export class LoginResponse {
 	    hgToken: string;
-	    players: utils.PlayerBindingInfo[];
+	    players: model.PlayerBindingInfo[];
 	
 	    static createFrom(source: any = {}) {
 	        return new LoginResponse(source);
@@ -39,7 +39,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hgToken = source["hgToken"];
-	        this.players = this.convertValues(source["players"], utils.PlayerBindingInfo);
+	        this.players = this.convertValues(source["players"], model.PlayerBindingInfo);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -63,7 +63,7 @@ export namespace main {
 
 }
 
-export namespace utils {
+export namespace model {
 	
 	export class EndFieldCharInfo {
 	    charId: string;

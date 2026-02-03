@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Go_Arknights_Gacha_App/utils"
+	"Go_Arknights_Gacha_App/internal/logger"
 	"embed"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -14,13 +14,12 @@ var assets embed.FS
 
 func main() {
 	// Init logger
-	utils.InitLogger()
+	logger.InitLogger()
 	// When program exit, log will save on the disk
-	defer utils.SyncLog()
+	defer logger.Sync()
 
 	// Create an instance of the app structure
 	app := NewApp()
-	utils.Log.Info("Wails Application Starting...")
 
 	// Create application with options
 	err := wails.Run(&options.App{
@@ -39,8 +38,7 @@ func main() {
 			app,
 		},
 	})
-
 	if err != nil {
-		utils.Log.Fatal("Error during application run", zap.Error(err))
+		logger.Log.Fatal("Error during application run", zap.Error(err))
 	}
 }

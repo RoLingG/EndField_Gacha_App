@@ -51,7 +51,7 @@
             <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
         </div>
 
-        <!-- 新增：角色选择区域 -->
+        <!-- 角色选择区域 -->
         <div id="playerSelectArea" style="display:none; animation: fadeIn 0.5s;">
             <div class="analyze-important-desc" style="margin-bottom: 12px;">
                 > TARGET IDENTIFIED // 检测到多个角色<br>请选择要同步的档案
@@ -80,7 +80,7 @@
             <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
         </div>
 
-        <!-- 原有的按钮组，加了 ID 方便控制隐藏 -->
+        <!-- 按钮组 -->
         <div id="defaultBtnGroup">
             <button id="analyzeBtn" class="ef-btn" onclick="analyze()">ONLINE INITIALIZE</button>
             <button id="localBtn" class="ef-btn ef-btn-outline" onclick="loadLocal()" style="margin-top: 10px;">LOCAL INITIALIZE</button>
@@ -97,7 +97,7 @@
         </div>
         <div class="text-wrapper"><div class="loading-text">SYSTEM SYNCHRONIZING...</div><div class="loading-subtext">ACCESSING HG_WEBVIEW_LOG // SECURE</div></div>
         <div class="tech-progress-track"><div class="tech-progress-bar"></div></div>
-        <div class="tech-stat-row"><span>MEM: <span style="color:#fff">ALLOCATING</span></span><span>NET: <span style="color:#fffa00">CONNECTED</span></span><span>VER: <span style="color:#666">1.4.0</span></span></div>
+        <div class="tech-stat-row"><span>MEM: <span style="color:#fff">ALLOCATING</span></span><span>NET: <span style="color:#fffa00">CONNECTED</span></span><span>VER: <span style="color:#666">1.4.1</span></span></div>
     </div>
 </div>
 
@@ -173,7 +173,7 @@
         --ef-grey: #444444;
     }
 
-    /* === 新增动画定义 === */
+    /* 新增动画定义 */
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -258,7 +258,7 @@
     @keyframes stripe-move { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
     .tech-stat-row { display: flex; justify-content: space-between; width: 100%; font-size: 10px; color: #444; font-family: 'Consolas', monospace; margin-top: -10px; }
 
-    /* === 主界面布局 === */
+    /* 主界面布局 */
     .main-title {
         margin: 30px 0 20px 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px;
         border-left: 5px solid var(--ef-yellow); padding-left: 15px; width: 90%; text-align: left;
