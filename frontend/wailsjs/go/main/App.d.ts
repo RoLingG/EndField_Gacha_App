@@ -19,6 +19,8 @@ export function LoginAndFetchPlayers(arg1:string):Promise<main.LoginResponse>;
 
 export function OpenDataFolder():Promise<void>;
 
+export function OpenOfficialLoginWindow():Promise<main.LoginResponse>;
+
 export function ReloadFrontend():Promise<void>;
 
 export function SyncDataByChoice(arg1:string,arg2:string,arg3:string):Promise<string>;

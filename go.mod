@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/energye/systray v1.0.2
 	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	github.com/xuri/excelize/v2 v2.10.0
 	go.uber.org/zap v1.27.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1

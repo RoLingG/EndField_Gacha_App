@@ -6,6 +6,7 @@ import {
   GetWeaponData,
   ReloadFrontend,
   ExportData,
+  OpenOfficialLoginWindow,
   WindowClose,
   WindowMinSize,
   WindowToggleMaxSize,
@@ -87,8 +88,35 @@ window.showTokenInputUI = function() {
   document.getElementById("analyzeError").textContent = "";
 }
 
+// 处理官方登录窗口按钮点击
+window.handleOfficialLoginWindow = async function() {
+  const btn = document.getElementById("btnLoginWindow");
+  const originalText = btn.textContent;
+  btn.textContent = "WAITING FOR LOGIN...";
+  btn.disabled = true;
+  document.getElementById("analyzeError").textContent = "";
+  try {
+    const res = await OpenOfficialLoginWindow();
+    console.log("Login Success:", res);
+    cachedHgToken = res.hgToken;
+    if (res.players && res.players.length === 1) {
+      await doTokenSync(res.players[0]);
+    } else {
+      renderPlayerList(res.players);
+      document.getElementById("tokenInputArea").style.display = "none";
+      document.getElementById("playerSelectArea").style.display = "block";
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById("analyzeError").textContent = "LOGIN CANCELLED / FAILED";
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
 // 点击 CONNECT 按钮，执行第一步登录
-window.handleTokenStep1 = async function() {
+window.handleToken = async function() {
   const input = document.getElementById("webTokenInput");
   const token = input.value.trim();
   if (!token) {
@@ -98,7 +126,7 @@ window.handleTokenStep1 = async function() {
 
   // 锁定界面
   input.disabled = true;
-  const btn = document.querySelector("#tokenInputArea button");
+  const btn = document.getElementById("btnManualConnect"); // 给按钮加了个ID方便获取
   const orgText = btn.textContent;
   btn.textContent = "CONNECTING...";
 
@@ -757,8 +785,11 @@ window.resetToAnalyze = function() {
     input.value = "";
     input.disabled = false;
   }
-  const tokenBtn = document.querySelector("#tokenInputArea button");
-  if(tokenBtn) tokenBtn.textContent = "CONNECT //";
+  const officialBtn = document.getElementById("btnLoginWindow");
+  if(officialBtn) {
+    officialBtn.textContent = "CONNECT (OFFICIAL)";
+    officialBtn.disabled = false;
+  }
 
   // 显示默认按钮组
   const defaultBtnGroup = document.getElementById("defaultBtnGroup");

@@ -39,15 +39,30 @@
         <div id="analyzeDescription">
             <div class="analyze-desc">> ONLINE INITIALIZE 请求鹰角官方接口获取数据<br>> LOCAL INITIALIZE 读取本地 JSON 文件获取数据<br>> 获取官方数据一次之后就会在APP同目录下生成数据文件夹<br>> 每次 ONLINE INITIALIZE 都会同步一次官方的数据</div>
         </div>
+
         <div class="analyze-divider"></div>
 
         <div id="tokenInputArea" style="display:none; animation: fadeIn 0.5s;">
-            <div class="analyze-important-desc" style="margin-bottom: 12px;">
-                > ACCESS PROTOCOL // 请输入官网获取的 Token<br>
+            <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
+                > LOGIN PROTOCOL // 推荐方式<br>
             </div>
-            <input type="text" id="webTokenInput" class="ef-input" placeholder="PASTE_TOKEN_HERE //" />
-            <button class="ef-btn" onclick="handleTokenStep1()" style="margin-top: 15px;">CONNECT //</button>
+            <button id="btnLoginWindow" class="ef-btn ef-btn-outline" onclick="handleOfficialLoginWindow()" style="margin-bottom: 20px; border: 1px solid var(--ef-yellow);">
+                CONNECT (OFFICIAL)
+            </button>
+
+            <!-- 分割线 -->
             <div class="analyze-divider"></div>
+
+            <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
+                > MANUAL OVERRIDE // 手动粘贴 Token
+            </div>
+            <input type="text" id="webTokenInput" class="ef-input" placeholder="PASTE TOKEN HERE //" />
+            <button id="btnManualConnect" class="ef-btn ef-btn-outline" onclick="handleToken()" style="margin-top: 10px;">
+                CONNECT (LOCAL)
+            </button>
+
+            <div class="analyze-divider"></div>
+
             <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
         </div>
 
@@ -58,7 +73,6 @@
             </div>
             <!-- 角色列表容器 -->
             <div id="playerListContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;"></div>
-
             <div class="analyze-divider"></div>
             <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
         </div>
@@ -67,12 +81,13 @@
             <div class="analyze-desc">> 请确定系统用户路径下终末地的 HGWebview.log 访问权限<br>> 点击按钮开始解析 HGWebview.log 日志文件并初始化记录</div>
             <div class="analyze-important-desc">> 注意: 需要玩家看过游戏内卡池抽卡记录才会产生相关日志</div>
         </div>
-        <div id="analyzeError"></div>
+
+        <div class="analyze-divider" style="margin: 10px 0; opacity: 0.5;"></div>
 
         <!-- 服务器选择区域 (默认隐藏) -->
         <div id="serverSelectArea" style="display:none; animation: fadeIn 0.5s;">
             <div class="analyze-important-desc" style="margin-bottom: 12px; border-color: var(--ef-grey); color: var(--ef-yellow);">
-                > SIGNAL CONFLICT // 检测到多端数据<br>请选择要同步的服务器节点
+                > SIGNAL CONFLICT // 检测到多端数据<br>> SELECT YOUR SERVER // 请选择要同步的服务器节点
             </div>
             <button class="ef-btn ef-btn-outline" onclick="onSelectServer('official')" style="margin-bottom: 10px;">OFFICIAL // 官服</button>
             <button class="ef-btn ef-btn-outline" onclick="onSelectServer('bilibili')">BILIBILI // B服</button>
@@ -86,6 +101,8 @@
             <button id="localBtn" class="ef-btn ef-btn-outline" onclick="loadLocal()" style="margin-top: 10px;">LOCAL INITIALIZE</button>
             <button id="webTokenBtn" class="ef-btn ef-btn-outline" onclick="showTokenInputUI()" style="margin-top: 10px;">WEB TOKEN SYNC</button>
         </div>
+
+        <div id="analyzeError"></div>
     </div>
 </div>
 
@@ -97,7 +114,7 @@
         </div>
         <div class="text-wrapper"><div class="loading-text">SYSTEM SYNCHRONIZING...</div><div class="loading-subtext">ACCESSING HG_WEBVIEW_LOG // SECURE</div></div>
         <div class="tech-progress-track"><div class="tech-progress-bar"></div></div>
-        <div class="tech-stat-row"><span>MEM: <span style="color:#fff">ALLOCATING</span></span><span>NET: <span style="color:#fffa00">CONNECTED</span></span><span>VER: <span style="color:#666">1.4.1</span></span></div>
+        <div class="tech-stat-row"><span>MEM: <span style="color:#fff">ALLOCATING</span></span><span>NET: <span style="color:#fffa00">CONNECTED</span></span><span>VER: <span style="color:#666">1.5.0</span></span></div>
     </div>
 </div>
 
@@ -119,7 +136,7 @@
     <!-- 数据概览条 -->
     <div class="info-strip" id="summaryStrip" style="display:none;"></div>
 
-    <!-- 核心仪表盘 (合并后的图表+详情) -->
+    <!-- 核心仪表盘 -->
     <div class="dashboard-panel" id="dashboardPanel" style="display:none;">
         <!-- 左侧：图表 -->
         <div class="panel-left" id="chartContainer"></div>
@@ -224,7 +241,8 @@
     .analyze-desc { color: #888; font-size: 12px; padding-left: 10px; border-left: 2px solid var(--ef-grey); line-height: 1.6; }
     .analyze-divider {width: 100%;height: 1px;background: linear-gradient(90deg, transparent, #333, transparent);margin: 15px 0;}
     .analyze-important-desc { color: var(--ef-yellow); font-size: 12px; padding-left: 10px; border-left: 2px solid var(--ef-grey); line-height: 1.6; }
-    #analyzeError { color: #ff3333; height: 20px; margin-bottom: 12px; font-size: 12px; text-align: right; }
+    #analyzeError { color: #ff3333;min-height: 20px;margin-top: 15px;margin-bottom: 12px;font-size: 12px;text-align: center;width: 100%;font-weight: bold;letter-spacing: 1px; }
+    #defaultBtnGroup{ margin-top: 20px }
     .ef-btn { width: 100%; height: 48px; background: var(--ef-yellow); color: var(--ef-black); border: none; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; letter-spacing: 1px; }
     .ef-btn:hover { background: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.3); }
     .ef-btn-outline {background: transparent;border: 1px solid var(--ef-yellow);color: var(--ef-yellow);font-size: 14px;}

@@ -34,6 +34,10 @@ export function OpenDataFolder() {
   return window['go']['main']['App']['OpenDataFolder']();
 }
 
+export function OpenOfficialLoginWindow() {
+  return window['go']['main']['App']['OpenOfficialLoginWindow']();
+}
+
 export function ReloadFrontend() {
   return window['go']['main']['App']['ReloadFrontend']();
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"Go_Arknights_Gacha_App/internal/api"
+	"Go_Arknights_Gacha_App/internal/auth"
 	"Go_Arknights_Gacha_App/internal/export"
 	"Go_Arknights_Gacha_App/internal/logger"
 	"Go_Arknights_Gacha_App/internal/model"
@@ -354,6 +355,32 @@ func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataRes
 	return LocalDataResponse{
 		CharJson:   charJson,
 		WeaponJson: weaponJson,
+	}, nil
+}
+
+// OpenOfficialLoginWindow 用户输入自主登录官网获取 Token
+func (a *App) OpenOfficialLoginWindow() (LoginResponse, error) {
+	logger.Log.Info("Frontend requested: OpenOfficialLoginWindow")
+	token, err := auth.OpenLoginWindow()
+	if err != nil {
+		logger.Log.Warn("Login window closed or failed", zap.Error(err))
+		return LoginResponse{}, err
+	}
+	logger.Log.Info("Token retrieved successfully", zap.String("token_part", token[:10]+"..."))
+	hgToken, err := api.GetGrantToken(token)
+	if err != nil {
+		logger.Log.Error("Failed to exchange grant token", zap.Error(err))
+		return LoginResponse{}, fmt.Errorf("hgToken 获取失败: %v", err)
+	}
+	logger.Log.Info("Grant Token exchanged successfully")
+	players, err := api.GetPlayerBindings(hgToken)
+	if err != nil {
+		logger.Log.Error("Failed to fetch players with token", zap.Error(err))
+		return LoginResponse{}, err
+	}
+	return LoginResponse{
+		HgToken: hgToken,
+		Players: players,
 	}, nil
 }
 
