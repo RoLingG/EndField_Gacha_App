@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+var tokenRegex = regexp.MustCompile(`https://ef-webview\.hypergryph\.com/page/gacha_(?:char|weapon)\?[^\s]+`)
+
 // ScanLogForTokens 扫描本地日志获取 Token
 func ScanLogForTokens() (model.ServerTokens, error) {
 	result := model.ServerTokens{}
@@ -27,9 +29,7 @@ func ScanLogForTokens() (model.ServerTokens, error) {
 	}
 
 	content := string(contentBytes)
-	// 匹配 URL
-	re := regexp.MustCompile(`https://ef-webview\.hypergryph\.com/page/gacha_(?:char|weapon)\?[^\s]+`)
-	matches := re.FindAllString(content, -1)
+	matches := tokenRegex.FindAllString(content, -1)
 
 	if len(matches) == 0 {
 		return result, fmt.Errorf("未在日志中找到 Token 链接")

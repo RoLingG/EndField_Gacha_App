@@ -76,7 +76,6 @@ window.handleExport = async function() {
   }
 }
 
-// --------***用户主动输入 Token 数据获取方式***--------
 let cachedHgToken = ""; // 暂存前端用户发送的短 Token
 // 点击 WEB TOKEN SYNC 按钮，显示输入界面
 window.showTokenInputUI = function() {
@@ -175,13 +174,12 @@ function renderPlayerList(players) {
 async function doTokenSync(player) {
   document.getElementById("tokenInputArea").style.display = "none";
   document.getElementById("playerSelectArea").style.display = "none";
-  const serverName = player.serverType; // "official" or "bilibili"
+  const serverName = player.serverType;
   currentServerType = serverName; // 更新全局变量，方便导出功能使用
   showLoadingState("SYSTEM SYNCHRONIZING...", `UID: ${player.uid} // ${serverName.toUpperCase()}`);
   try {
     const res = await SyncDataByChoice(cachedHgToken, player.uid, serverName);
     if (res === "success") {
-      // 同步成功后，数据已经落盘。直接复用 initApp(true) 读取刚刚存入的本地文件，这样不用担心内存数据不一致
       setTimeout(async () => {
         await initApp(true, serverName, player.uid);
       }, 1000);
@@ -193,7 +191,6 @@ async function doTokenSync(player) {
   }
 }
 
-// --------***用户通过日志或者本地JSON获取数据***--------
 // 全局数据存储
 let globalCharData = null;
 let globalWeaponData = null;
@@ -252,7 +249,7 @@ window.onSelectServer = async function(serverName) {
 }
 
 // 在线分析逻辑处理
-window.analyze = async function () {
+window. analyze = async function () {
   const btn = document.getElementById("analyzeBtn");
   const originalText = btn.textContent;
 
@@ -282,7 +279,7 @@ window.analyze = async function () {
       return; // 停在这里等待用户点击选择
     }
 
-    // === 单服逻辑 ===
+    // 单服逻辑
     let targetServer = "official";
     if (hasBilibili) targetServer = "bilibili";
 
@@ -812,5 +809,3 @@ window.resetToAnalyze = function() {
   const errDiv = document.getElementById("analyzeError");
   if (errDiv) errDiv.textContent = "";
 }
-
-

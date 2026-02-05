@@ -211,62 +211,59 @@ func (a *App) LoadGachaTokens() (model.ServerTokens, error) {
 
 // ================= Fetch Data (Log Mode) =================
 
+// prepareFetchParams 统一处理从 Token获取 到 解析参数 的流程
+func (a *App) prepareFetchParams(serverType string) (token, serverID, lang string, err error) {
+	fullURL := a.getTokenByServerType(serverType)
+	if fullURL == "" {
+		return "", "", "", fmt.Errorf("未找到 %s 的 Token", serverType)
+	}
+	token, serverID, lang, err = a.parseParamsFromURL(fullURL)
+	if err != nil {
+		return "", "", "", fmt.Errorf("Token 解析失败: %v", err)
+	}
+	return token, serverID, lang, nil
+}
+
 // GetCharacterData 获取并保存角色数据
 func (a *App) GetCharacterData(serverType string) ([]model.EndFieldCharInfo, error) {
 	logger.Log.Info("Frontend requested: GetCharacterData", zap.String("server", serverType))
-
-	fullURL := a.getTokenByServerType(serverType)
-	if fullURL == "" {
-		return nil, fmt.Errorf("未找到 %s 的 Token", serverType)
-	}
-
-	token, serverID, lang, err := a.parseParamsFromURL(fullURL)
+	// 获取 params 参数
+	token, serverID, lang, err := a.prepareFetchParams(serverType)
 	if err != nil {
-		return nil, fmt.Errorf("Token 解析失败: %v", err)
+		return nil, err
 	}
-
 	// 联网请求
 	newData, err := api.FetchCharDataAll(token, serverID, lang)
 	if err != nil {
 		logger.Log.Error("Network request failed", zap.Error(err))
 		return nil, fmt.Errorf("数据请求失败: %v", err)
 	}
-
 	mergedData, err := storage.MergeAndSaveData(newData, "", serverType, model.PoolTypeChar)
 	if err != nil {
 		logger.Log.Warn("Failed to save data", zap.Error(err))
 		return newData, nil
 	}
-
 	return mergedData, nil
 }
 
 // GetWeaponData 获取并保存武器数据
 func (a *App) GetWeaponData(serverType string) ([]model.EndFieldWeaponInfo, error) {
 	logger.Log.Info("Frontend requested: GetWeaponData", zap.String("server", serverType))
-
-	fullURL := a.getTokenByServerType(serverType)
-	if fullURL == "" {
-		return nil, fmt.Errorf("未找到 %s 的 Token", serverType)
-	}
-
-	token, serverID, lang, err := a.parseParamsFromURL(fullURL)
+	// 获取 params 参数
+	token, serverID, lang, err := a.prepareFetchParams(serverType)
 	if err != nil {
-		return nil, fmt.Errorf("Token 解析失败: %v", err)
+		return nil, err
 	}
-
 	newData, err := api.FetchWeaponDataAll(token, serverID, lang)
 	if err != nil {
 		logger.Log.Error("Network request failed", zap.Error(err))
 		return nil, fmt.Errorf("数据请求失败: %v", err)
 	}
-
 	mergedData, err := storage.MergeAndSaveData(newData, "", serverType, model.PoolTypeWeapon)
 	if err != nil {
 		logger.Log.Warn("Failed to save data", zap.Error(err))
 		return newData, nil
 	}
-
 	return mergedData, nil
 }
 

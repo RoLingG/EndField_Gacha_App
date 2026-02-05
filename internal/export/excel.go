@@ -8,52 +8,120 @@ import (
 	"go.uber.org/zap"
 )
 
+// sheetConfig 定义单个 Sheet 的配置，使用泛型 T 避免类型断言
+type sheetConfig[T any] struct {
+	SheetName string
+	Headers   []string
+	Data      []T
+	Mapper    func(item T) []interface{}
+}
+
+// SaveToExcel 导出数据到 Excel
 func SaveToExcel(filePath string, chars []model.EndFieldCharInfo, weapons []model.EndFieldWeaponInfo) error {
 	f := excelize.NewFile()
-	defer func() { _ = f.Close() }()
-
-	// 角色 Sheet
-	charSheet := "角色寻访"
-	f.SetSheetName("Sheet1", charSheet)
-	writeHeader(f, charSheet, []string{"时间", "干员", "稀有度", "卡池"})
-	for i, c := range chars {
-		row := i + 2
-		f.SetCellValue(charSheet, fmt.Sprintf("A%d", row), c.GachaTs)
-		f.SetCellValue(charSheet, fmt.Sprintf("B%d", row), c.CharName)
-		f.SetCellValue(charSheet, fmt.Sprintf("C%d", row), c.Rarity)
-		f.SetCellValue(charSheet, fmt.Sprintf("D%d", row), c.PoolName)
-	}
-
-	// 武器 Sheet
-	if len(weapons) > 0 {
-		wpSheet := "武器寻访"
-		f.NewSheet(wpSheet)
-		writeHeader(f, wpSheet, []string{"时间", "武器", "类型", "稀有度", "卡池"})
-		for i, w := range weapons {
-			row := i + 2
-			f.SetCellValue(wpSheet, fmt.Sprintf("A%d", row), w.GachaTs)
-			f.SetCellValue(wpSheet, fmt.Sprintf("B%d", row), w.WeaponName)
-			f.SetCellValue(wpSheet, fmt.Sprintf("C%d", row), w.WeaponType)
-			f.SetCellValue(wpSheet, fmt.Sprintf("D%d", row), w.Rarity)
-			f.SetCellValue(wpSheet, fmt.Sprintf("E%d", row), w.PoolName)
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.Log.Error("Failed to close excel file", zap.Error(err))
 		}
-	}
+	}()
 
+	charCfg := sheetConfig[model.EndFieldCharInfo]{
+		SheetName: "角色寻访",
+		Headers:   []string{"时间戳", "干员", "稀有度", "卡池", "SeqID"},
+		Data:      chars,
+		Mapper:    mapCharToRow,
+	}
+	writeSheet(f, charCfg)
+	if len(weapons) > 0 {
+		f.NewSheet("武器寻访")
+		wpCfg := sheetConfig[model.EndFieldWeaponInfo]{
+			SheetName: "武器寻访",
+			Headers:   []string{"时间戳", "武器ID", "武器名", "类型", "稀有度", "卡池", "SeqID"},
+			Data:      weapons,
+			Mapper:    mapWeaponToRow,
+		}
+		writeSheet(f, wpCfg)
+	}
 	if err := f.SaveAs(filePath); err != nil {
-		logger.Log.Error("Export failed", zap.Error(err))
+		logger.Log.Error("Export failed", zap.String("path", filePath), zap.Error(err))
 		return err
 	}
+	logger.Log.Info("Excel export success", zap.String("path", filePath))
 	return nil
 }
 
-func writeHeader(f *excelize.File, sheet string, headers []string) {
-	style, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true},
-		Fill: excelize.Fill{Type: "pattern", Color: []string{"#DDDDDD"}, Pattern: 1},
+// writeSheet 通用 EXCEL 写入函数
+func writeSheet[T any](f *excelize.File, cfg sheetConfig[T]) {
+	if cfg.SheetName != "Sheet1" && f.GetSheetName(0) == "Sheet1" {
+		_ = f.SetSheetName("Sheet1", cfg.SheetName)
+	}
+
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#E0E0E0"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
 	})
-	for i, h := range headers {
-		cell := fmt.Sprintf("%c1", 65+i)
-		f.SetCellValue(sheet, cell, h)
-		f.SetCellStyle(sheet, cell, cell, style)
+	dataStyle, _ := f.NewStyle(&excelize.Style{
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+	})
+
+	_ = f.SetSheetRow(cfg.SheetName, "A1", &cfg.Headers)
+	lastHeaderCol, _ := excelize.CoordinatesToCellName(len(cfg.Headers), 1)
+	_ = f.SetCellStyle(cfg.SheetName, "A1", lastHeaderCol, headerStyle)
+
+	for i, item := range cfg.Data {
+		rowData := cfg.Mapper(item)
+		rowIdx := i + 2
+		cellAddr, _ := excelize.CoordinatesToCellName(1, rowIdx)
+		if err := f.SetSheetRow(cfg.SheetName, cellAddr, &rowData); err != nil {
+			logger.Log.Warn("Failed to write row",
+				zap.String("sheet", cfg.SheetName),
+				zap.Int("row", rowIdx),
+				zap.Error(err))
+		}
+	}
+
+	if len(cfg.Data) > 0 {
+		lastColName, _ := excelize.ColumnNumberToName(len(cfg.Headers))
+		lastRowIdx := len(cfg.Data) + 1
+		bottomRightCell := fmt.Sprintf("%s%d", lastColName, lastRowIdx)
+		_ = f.SetCellStyle(cfg.SheetName, "A2", bottomRightCell, dataStyle)
+		_ = f.AutoFilter(cfg.SheetName, fmt.Sprintf("A1:%s", bottomRightCell), []excelize.AutoFilterOptions{})
+	}
+
+	_ = f.SetPanes(cfg.SheetName, &excelize.Panes{
+		Freeze:      true,
+		Split:       false,
+		XSplit:      0,
+		YSplit:      1,
+		TopLeftCell: "A2",
+		ActivePane:  "bottomLeft",
+	})
+
+	lastColName, _ := excelize.ColumnNumberToName(len(cfg.Headers))
+	_ = f.SetColWidth(cfg.SheetName, "A", lastColName, 20)
+}
+
+// mapCharToRow 将角色结构体转换为切片
+func mapCharToRow(c model.EndFieldCharInfo) []interface{} {
+	return []interface{}{
+		c.GachaTs,
+		c.CharName,
+		c.Rarity,
+		c.PoolName,
+		c.SeqID,
+	}
+}
+
+// mapWeaponToRow 将武器结构体转换为切片
+func mapWeaponToRow(w model.EndFieldWeaponInfo) []interface{} {
+	return []interface{}{
+		w.GachaTs,
+		w.WeaponID,
+		w.WeaponName,
+		w.WeaponType,
+		w.Rarity,
+		w.PoolName,
+		w.SeqID,
 	}
 }

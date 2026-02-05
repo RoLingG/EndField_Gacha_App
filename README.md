@@ -5,17 +5,15 @@
 一个极简、安全且具有沉浸式**终末地 (Endfield) 工业风格**的明日方舟官服/B服抽卡记录分析工具。
 基于 Wails 构建，无需上传数据，完全本地解析日志文件，提供良好的数据可视化体验。
 
-![Preview](https://rolingg.top/images/EndField/efnew1.png)
+![Preview](https://rolingg.top/images/EndField/efneww1.png)
 
-![Preview](https://rolingg.top/images/EndField/efnew2.png)
+![Preview](https://rolingg.top/images/EndField/efneww2.png)
 
-![Preview](https://rolingg.top/images/EndField/efnew3.png)
+![Preview](https://rolingg.top/images/EndField/efneww3.png)
 
-![Preview](https://rolingg.top/images/EndField/efnew4.png)
+![Preview](https://rolingg.top/images/EndField/efneww4.png)
 
-![Preview](https://rolingg.top/images/EndField/efnew5.png)
-
-![Preview](https://rolingg.top/images/EndField/efnew6.png)
+![Preview](https://rolingg.top/images/EndField/efneww5.png)
 
 ## ✨ 特性 (Features)
 

@@ -28,6 +28,21 @@ func GetStorageDir() (string, error) {
 	return dataDir, nil
 }
 
+// cleanTempFiles 清理目录中的 .tmp 文件
+func cleanTempFiles(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".tmp" {
+			tmpPath := filepath.Join(dir, entry.Name())
+			os.Remove(tmpPath)
+			logger.Log.Info("Cleaned temp file", zap.String("file", tmpPath))
+		}
+	}
+}
+
 // GetProfileDir 获取 UID 或 Local 文件夹
 func GetProfileDir(uid string) (string, error) {
 	baseDir, err := GetStorageDir()
@@ -44,6 +59,8 @@ func GetProfileDir(uid string) (string, error) {
 			return "", err
 		}
 	}
+	// 清理残留临时文件
+	cleanTempFiles(profileDir)
 	return profileDir, nil
 }
 
@@ -79,7 +96,8 @@ func MergeAndSaveData[T model.GachaItem](newData []T, uid, serverType, category 
 	}
 
 	// 去重 (使用 Map, Key = SeqID)
-	dataMap := make(map[string]T)
+	expectedSize := len(localData) + len(newData)
+	dataMap := make(map[string]T, expectedSize)
 	for _, item := range localData {
 		dataMap[item.GetSeqID()] = item
 	}
@@ -106,11 +124,41 @@ func MergeAndSaveData[T model.GachaItem](newData []T, uid, serverType, category 
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(filePath, outputData, 0644); err != nil {
-		logger.Log.Error("Failed to write file", zap.Error(err))
-		return mergedList, err
+
+	// 写入临时文件
+	tempFile := filePath + ".tmp"
+	if err := os.WriteFile(tempFile, outputData, 0644); err != nil {
+		logger.Log.Error("Failed to write temp file", zap.Error(err))
+		return mergedList, fmt.Errorf("写入临时文件失败: %v", err)
 	}
 
+	// 备份旧文件（如果存在）
+	if _, err := os.Stat(filePath); err == nil {
+		backupFile := filePath + ".bak"
+		if err := os.Rename(filePath, backupFile); err != nil {
+			// 备份失败，删除临时文件
+			os.Remove(tempFile)
+			logger.Log.Error("Failed to backup old file", zap.Error(err))
+			return mergedList, fmt.Errorf("备份旧文件失败: %v", err)
+		}
+	}
+
+	// 重命名临时文件为正式文件
+	if err := os.Rename(tempFile, filePath); err != nil {
+		// 重命名失败，尝试恢复备份
+		backupFile := filePath + ".bak"
+		if _, statErr := os.Stat(backupFile); statErr == nil {
+			os.Rename(backupFile, filePath)
+			logger.Log.Warn("Restored from backup", zap.String("file", filePath))
+		}
+		logger.Log.Error("Failed to save file", zap.Error(err))
+		return mergedList, fmt.Errorf("保存文件失败: %v", err)
+	}
+	// 保存成功后删除备份文件
+	backupFile := filePath + ".bak"
+	if _, err := os.Stat(backupFile); err == nil {
+		os.Remove(backupFile)
+	}
 	logger.Log.Info("Data saved successfully",
 		zap.String("category", category),
 		zap.String("uid", uid),
