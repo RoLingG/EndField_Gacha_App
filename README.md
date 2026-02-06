@@ -44,6 +44,9 @@
 - **原子备份**: 数据会先写入临时文件，意外出错能够保留 `.bak` 备份文件，随时回退到旧版有效记录。
 - **一键管理**: 内置 **[ DATA_FOLDER ]** 指令，快速打开数据存储目录进行备份或管理。
 - **安全解析**: Log 模式下仅读取游戏日志中的 URL Token，零风险操作。
+- **智能归档**: 
+  - 自动识别并复用已存在的 UID 目录，避免数据碎片化。
+  - 新账号首次同步时，自动创建带 **高可读性时间戳** 的专属目录（如 `uid_2023-10-27_14-30`）。
 
 ### 📥 数据导出 (Data Export) 
 
@@ -64,20 +67,8 @@
 ### ⚠️ 注意事项 (Operation Notes)
 
 - **Win 客户端限定**: 目前仅适用于 **Windows** 系统，不支持 MacOS/Linux 系统，也不支持 Android/iOS 移动端直接读取。（手机游玩的用户如有需求，可以使用短 Token 的形式获取抽卡数据）
-
 - **网络环境**: Log 模式依赖终末地官方 API 接口，请确保您的网络环境可以正常访问游戏服务器。
-
 - **可执行文件生成**: 使用**内置登录窗口方式**登录会自动获取短 Token，但使用这个方式会在软件同目录下生成一个 `login_helper.exe` 的可执行文件。该文件可能会触发杀毒软件拦截，本项目承诺该可执行文件完全无毒、无任何涉及用户隐私的违规操作。
-
-- **Log 模式下同设备单服多号冲突:** 由于 Log 模式 Token 获取方法导致目前无法通过 Log 文件进行账号区分，**导致目前同步落盘的数据只支持同设备一服一号**，同设备登录多号极大概率会导致 JSON 数据同步出互篡，出现此类问题只能删除本地 JSON 落盘数据，重新累计抽卡历史数据。
-
-  > 要不出问题也简单，在打开软件在线同步前，再登录回累计抽卡数据的账号访问角色/武器池，让 `HGWebview.log` 日志文件追加写入最新的 Webview URL 访问记录。
-  >
-  > 这样软件通过日志拿到的最新 Token 即是累计抽卡数据的账号 Token，在登录其他账号访问抽卡记录之前，不会获取其他账号的数据。
-  >
-  > OR
-  >
-  > 使用短 Token 方式获取抽卡数据，当然和 Log 模式同步落盘的数据互不冲突，有做落盘数据隔离。
 
 ### 🛑 严重安全警告 (CRITICAL WARNING)
 
@@ -132,7 +123,7 @@
 
 ```cmd
 userdata/
-├── uid/                      		  // [精准模式] 特定UID存档
+├── uid_timeStamp/                      		  // [精准模式] 特定UID存档
 │   ├── official_char_history.json    // 角色池记录
 │   └── official_weapon_history.json  // 武器池记录
 │
@@ -158,10 +149,10 @@ userdata/
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
 # 克隆项目
-git clone https://github.com/your-username/Endfield-Gacha-Log.git
+git clone https://github.com/RoLingG/EndField_Gacha_App.git
 
 # 进入目录
-cd Endfield-Gacha-Log
+cd Endfield_Gacha_App
 
 # 启动开发模式 (热重载)
 wails dev

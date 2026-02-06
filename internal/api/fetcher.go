@@ -11,12 +11,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 const (
 	BaseUrlChar       = "https://ef-webview.hypergryph.com/api/record/char"
 	BaseUrlWeapon     = "https://ef-webview.hypergryph.com/api/record/weapon"
 	BaseUrlWeaponPool = "https://ef-webview.hypergryph.com/api/record/weapon/pool"
+	BaseUrlRoleQuery  = "https://u8.hypergryph.com/game/role/v1/query_role_list"
 	AppCodeEndfield   = "endfield"
 	AppCodeLogin      = "be36d44aa36bfb5b"
 )
@@ -345,4 +347,39 @@ func GetU8Token(hgToken, hgUid string) (string, error) {
 		return "", fmt.Errorf("获取游戏Token失败: %s", result.Msg)
 	}
 	return result.Data.Token, nil
+}
+
+func GetUIDByU8Token(u8Token string, serverId string) (string, error) {
+	sId, err := strconv.Atoi(serverId)
+	if err != nil {
+		sId = 1
+	}
+	reqBody := model.QueryRoleRequest{
+		Token:  u8Token,
+		Server: sId,
+	}
+	jsonBody, _ := json.Marshal(reqBody)
+	req, err := http.NewRequest("POST", BaseUrlRoleQuery, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		logger.Log.Error("Network error in UID Query", zap.Error(err))
+		return "", fmt.Errorf("网络请求失败(QueryRole): %v", err)
+	}
+	defer resp.Body.Close()
+	var result model.QueryRoleResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("解析响应失败(QueryRole): %v", err)
+	}
+	if result.Status != 0 {
+		logger.Log.Error("QueryRole API error",
+			zap.Int("status", result.Status),
+			zap.String("msg", result.Msg),
+		)
+		return "", fmt.Errorf("获取角色信息失败: %s", result.Msg)
+	}
+	return result.Data.Uid, nil
 }

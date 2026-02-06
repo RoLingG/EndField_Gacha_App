@@ -211,7 +211,7 @@ func (a *App) LoadGachaTokens() (model.ServerTokens, error) {
 
 // ================= Fetch Data (Log Mode) =================
 
-// prepareFetchParams 统一处理从 Token获取 到 解析参数 的流程
+// prepareFetchParams 统一处理从 Token 获取到解析参数的流程
 func (a *App) prepareFetchParams(serverType string) (token, serverID, lang string, err error) {
 	fullURL := a.getTokenByServerType(serverType)
 	if fullURL == "" {
@@ -232,13 +232,19 @@ func (a *App) GetCharacterData(serverType string) ([]model.EndFieldCharInfo, err
 	if err != nil {
 		return nil, err
 	}
+	uid, err := api.GetUIDByU8Token(token, serverID)
+	if err != nil {
+		logger.Log.Warn("Failed to resolve UID from Token, using fallback", zap.Error(err))
+		uid = ""
+		return nil, err
+	}
 	// 联网请求
 	newData, err := api.FetchCharDataAll(token, serverID, lang)
 	if err != nil {
 		logger.Log.Error("Network request failed", zap.Error(err))
 		return nil, fmt.Errorf("数据请求失败: %v", err)
 	}
-	mergedData, err := storage.MergeAndSaveData(newData, "", serverType, model.PoolTypeChar)
+	mergedData, err := storage.MergeAndSaveData(newData, uid, serverType, model.PoolTypeChar)
 	if err != nil {
 		logger.Log.Warn("Failed to save data", zap.Error(err))
 		return newData, nil
@@ -254,12 +260,18 @@ func (a *App) GetWeaponData(serverType string) ([]model.EndFieldWeaponInfo, erro
 	if err != nil {
 		return nil, err
 	}
+	uid, err := api.GetUIDByU8Token(token, serverID)
+	if err != nil {
+		logger.Log.Warn("Failed to resolve UID from Token, using fallback", zap.Error(err))
+		uid = ""
+		return nil, err
+	}
 	newData, err := api.FetchWeaponDataAll(token, serverID, lang)
 	if err != nil {
 		logger.Log.Error("Network request failed", zap.Error(err))
 		return nil, fmt.Errorf("数据请求失败: %v", err)
 	}
-	mergedData, err := storage.MergeAndSaveData(newData, "", serverType, model.PoolTypeWeapon)
+	mergedData, err := storage.MergeAndSaveData(newData, uid, serverType, model.PoolTypeWeapon)
 	if err != nil {
 		logger.Log.Warn("Failed to save data", zap.Error(err))
 		return newData, nil

@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+	"time"
 )
 
 const DataDirectoryName = "userdata"
@@ -49,19 +51,40 @@ func GetProfileDir(uid string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dirName := "local"
-	if uid != "" {
-		dirName = uid
+	if uid == "" {
+		localDir := filepath.Join(baseDir, "local")
+		if _, err := os.Stat(localDir); os.IsNotExist(err) {
+			if err := os.Mkdir(localDir, 0755); err != nil {
+				return "", err
+			}
+		}
+		cleanTempFiles(localDir)
+		return localDir, nil
 	}
-	profileDir := filepath.Join(baseDir, dirName)
-	if _, err := os.Stat(profileDir); os.IsNotExist(err) {
-		if err := os.Mkdir(profileDir, 0755); err != nil {
-			return "", err
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return "", fmt.Errorf("扫描 userdata 失败: %w", err)
+	}
+	// 遍历目录，寻找 uid 对应的文件夹
+	for _, entry := range entries {
+		if entry.IsDir() {
+			name := entry.Name()
+			if strings.HasPrefix(name, uid+"_") {
+				// 找到目录
+				targetDir := filepath.Join(baseDir, name)
+				cleanTempFiles(targetDir)
+				return targetDir, nil
+			}
 		}
 	}
-	// 清理残留临时文件
-	cleanTempFiles(profileDir)
-	return profileDir, nil
+	// 未找到目录，则创建目录
+	timeStr := time.Now().Format("2006-01-02_15-04-05")
+	newDirName := fmt.Sprintf("%s_%s", uid, timeStr)
+	finalPath := filepath.Join(baseDir, newDirName)
+	if err := os.Mkdir(finalPath, 0755); err != nil {
+		return "", fmt.Errorf("创建存档目录失败: %w", err)
+	}
+	return finalPath, nil
 }
 
 // getFilePath 内部辅助函数
