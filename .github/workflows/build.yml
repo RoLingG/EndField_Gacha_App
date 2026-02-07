@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+
 env:
   NODE_OPTIONS: "--max-old-space-size=4096"
 
@@ -48,7 +49,7 @@ jobs:
             build-essential \
             pkg-config
 
-      - name: Build wails
+      - name: Build with Wails
         uses: RoLingG/wails-build-action@main
         with:
           build-name: ${{ matrix.build.name }}
@@ -57,8 +58,36 @@ jobs:
           disable-release: true
           go-version: '1.22'
 
-      - name: Upload build artifacts
+      - name: Prepare Windows binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+
+          if ("${{ matrix.build.platform }}" -eq "windows/amd64") {
+            $out = "EndField_Gacha_App_Windows_x64.exe"
+          } elseif ("${{ matrix.build.platform }}" -eq "windows/386") {
+            $out = "EndField_Gacha_App_Windows_x86.exe"
+          } else {
+            Write-Error "Unknown Windows platform"
+            exit 1
+          }
+
+          Get-ChildItem build/bin -Recurse -Filter *.exe |
+            Select-Object -First 1 |
+            ForEach-Object {
+              Copy-Item $_.FullName "dist/$out"
+            }
+
+      - name: Prepare Linux binary
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          cp build/bin/* dist/EndField_Gacha_App_Linux
+          chmod +x dist/EndField_Gacha_App_Linux
+
+      - name: Upload final artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build.name }}
-          path: build/bin/*
+          path: dist/*
