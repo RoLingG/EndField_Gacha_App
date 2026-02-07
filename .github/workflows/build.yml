@@ -14,30 +14,32 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - name: 'EndField_Gacha_App_Linux'
-            platform: 'linux/amd64'
-            os: 'ubuntu-latest'
+          - name: EndField_Gacha_App_Linux
+            platform: linux/amd64
+            os: ubuntu-latest
 
-          - name: 'EndField_Gacha_App_Windows_x64'
-            platform: 'windows/amd64'
-            os: 'windows-latest'
+          - name: EndField_Gacha_App_Windows_x64
+            platform: windows/amd64
+            os: windows-latest
 
-          - name: 'EndField_Gacha_App_Windows_x86'
-            platform: 'windows/386'
-            os: 'windows-latest'
+          - name: EndField_Gacha_App_Windows_x86
+            platform: windows/386
+            os: windows-latest
 
     runs-on: ${{ matrix.build.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Linux deps
+      - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -52,48 +54,12 @@ jobs:
         with:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
-          package: true
+          package: false          # 不让 action 自己 upload / release
           disable-release: true
           go-version: '1.22'
 
-      # -------------------------
-      # Windows：动态发现 exe
-      # -------------------------
-      - name: Prepare Windows binary
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path dist
-
-          $exe = Get-ChildItem build/bin -Recurse -Filter "*.exe" |
-                 Where-Object { $_.Name -like "${{ matrix.build.name }}*" }
-
-          if ($exe.Count -ne 1) {
-            Write-Error "Expected exactly one exe, found $($exe.Count)"
-            $exe | Format-List FullName
-            exit 1
-          }
-
-          Copy-Item $exe.FullName "dist/${{ matrix.build.name }}.exe"
-
-      # -------------------------
-      # Linux：确定唯一 ELF
-      # -------------------------
-      - name: Prepare Linux binary
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p dist
-          file="build/bin/${{ matrix.build.name }}"
-          if [ ! -f "$file" ]; then
-            echo "Binary not found: $file"
-            ls -lah build/bin
-            exit 1
-          fi
-          cp "$file" "dist/${{ matrix.build.name }}"
-          chmod +x "dist/${{ matrix.build.name }}"
-
-      - name: Upload final artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build.name }}
-          path: dist/*
+          path: build/bin/*
