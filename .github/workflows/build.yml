@@ -1,9 +1,12 @@
-name: Wails build
+name: Wails CI Build
 
 on:
   push:
+    branches:
+      - main
     tags:
       - '*'
+  workflow_dispatch:
 
 env:
   NODE_OPTIONS: "--max-old-space-size=4096"
@@ -17,9 +20,11 @@ jobs:
           - name: 'EndField_Gacha_App_Linux'
             platform: 'linux/amd64'
             os: 'ubuntu-latest'
-          - name: 'EndField_Gacha_App_Windows'
+
+          - name: 'EndField_Gacha_App_Windows_x64'
             platform: 'windows/amd64'
             os: 'windows-latest'
+
           - name: 'EndField_Gacha_App_Windows_x86'
             platform: 'windows/386'
             os: 'windows-latest'
@@ -49,9 +54,14 @@ jobs:
 
       - name: Build wails
         uses: dAppServer/wails-build-action@main
-        id: build
         with:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
           package: true
           go-version: '1.22'
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.build.name }}
+          path: build/bin/*
