@@ -18,11 +18,11 @@ jobs:
             platform: linux/amd64
             os: ubuntu-latest
 
-          - name: EndField_Gacha_App_Windows_x64
+          - name: EndField_Gacha_App_Windows_x64.exe
             platform: windows/amd64
             os: windows-latest
 
-          - name: EndField_Gacha_App_Windows_x86
+          - name: EndField_Gacha_App_Windows_x86.exe
             platform: windows/386
             os: windows-latest
 
