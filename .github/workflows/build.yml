@@ -29,17 +29,15 @@ jobs:
     runs-on: ${{ matrix.build.os }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Linux dependencies
+      - name: Install Linux deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -54,12 +52,12 @@ jobs:
         with:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
-          package: false
+          package: true
           disable-release: true
           go-version: '1.22'
 
       # -------------------------
-      # Windows：精确拿 exe
+      # Windows：动态发现 exe
       # -------------------------
       - name: Prepare Windows binary
         if: runner.os == 'Windows'
@@ -67,37 +65,34 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
 
-          $name = "${{ matrix.build.name }}"
-          $src = "build/bin/$name.exe"
+          $exe = Get-ChildItem build/bin -Recurse -Filter "*.exe" |
+                 Where-Object { $_.Name -like "${{ matrix.build.name }}*" }
 
-          if (!(Test-Path $src)) {
-            Write-Error "Expected binary not found: $src"
-            Get-ChildItem build/bin
+          if ($exe.Count -ne 1) {
+            Write-Error "Expected exactly one exe, found $($exe.Count)"
+            $exe | Format-List FullName
             exit 1
           }
 
-          Copy-Item $src "dist/$name.exe"
+          Copy-Item $exe.FullName "dist/${{ matrix.build.name }}.exe"
 
       # -------------------------
-      # Linux：精确拿可执行文件
+      # Linux：确定唯一 ELF
       # -------------------------
       - name: Prepare Linux binary
         if: runner.os == 'Linux'
         run: |
           mkdir -p dist
-          src="build/bin/${{ matrix.build.name }}"
-          if [ ! -f "$src" ]; then
-            echo "Expected binary not found: $src"
+          file="build/bin/${{ matrix.build.name }}"
+          if [ ! -f "$file" ]; then
+            echo "Binary not found: $file"
             ls -lah build/bin
             exit 1
           fi
-          cp "$src" "dist/${{ matrix.build.name }}"
+          cp "$file" "dist/${{ matrix.build.name }}"
           chmod +x "dist/${{ matrix.build.name }}"
 
-      # -------------------------
-      # 上传最终产物
-      # -------------------------
-      - name: Upload final artifacts
+      - name: Upload final artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build.name }}
