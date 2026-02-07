@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 //go:embed login_helper.exe
@@ -30,7 +29,7 @@ func OpenLoginWindow() (string, error) {
 
 	logger.Log.Info(fmt.Sprintf("Target helper path: %s", helperPath))
 
-	// 尝试写入文件，如果是因为权限不够导致写入失败且文件不存在，才报错。(这样就不用外置可执行程序了)
+	// 尝试写入文件，如果是因为权限不够导致写入失败且文件不存在，才报错 (这样就不用外置可执行程序了)
 	err = os.WriteFile(helperPath, loginHelperBinary, 0755)
 	if err != nil {
 		// 检查文件是否已经存在
@@ -46,11 +45,7 @@ func OpenLoginWindow() (string, error) {
 	}
 
 	cmd := exec.Command(helperPath)
-
-	const CreateNoWindow = 0x08000000
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: CreateNoWindow,
-	}
+	applyNoWindowAttr(cmd)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out

@@ -20,6 +20,9 @@ jobs:
           - name: 'EndField_Gacha_App_Windows'
             platform: 'windows/amd64'
             os: 'windows-latest'
+          - name: 'EndField_Gacha_App_Windows_x86'
+            platform: 'windows/386'
+            os: 'windows-latest'
 
     runs-on: ${{ matrix.build.os }}
 
@@ -52,10 +55,3 @@ jobs:
           build-platform: ${{ matrix.build.platform }}
           package: true
           go-version: '1.22'
-
-      - name: Release
-        if: startsWith(github.ref,'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/bin/*
-          body: "Automated release for ${{ github.ref_name }}."
