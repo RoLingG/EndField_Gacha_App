@@ -14,20 +14,6 @@ export namespace main {
 	        this.weapon = source["weapon"];
 	    }
 	}
-	export class LocalFileStatus {
-	    hasOfficial: boolean;
-	    hasBilibili: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new LocalFileStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.hasOfficial = source["hasOfficial"];
-	        this.hasBilibili = source["hasBilibili"];
-	    }
-	}
 	export class LoginResponse {
 	    hgToken: string;
 	    players: model.PlayerBindingInfo[];
@@ -119,6 +105,24 @@ export namespace model {
 	        this.isNew = source["isNew"];
 	        this.gachaTs = source["gachaTs"];
 	        this.seqId = source["seqId"];
+	    }
+	}
+	export class LocalArchive {
+	    uid: string;
+	    timestamp: string;
+	    path: string;
+	    servers: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalArchive(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uid = source["uid"];
+	        this.timestamp = source["timestamp"];
+	        this.path = source["path"];
+	        this.servers = source["servers"];
 	    }
 	}
 	export class PlayerBindingInfo {

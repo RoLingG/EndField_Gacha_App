@@ -145,6 +145,13 @@ type BindingResponse struct {
 	} `json:"data"`
 }
 
+type LocalArchive struct {
+	Uid       string   `json:"uid"`
+	Timestamp string   `json:"timestamp"`
+	Path      string   `json:"path"`
+	Servers   []string `json:"servers"`
+}
+
 type ServerTokens struct {
 	Official string
 	Bilibili string

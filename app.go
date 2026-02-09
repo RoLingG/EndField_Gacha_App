@@ -318,24 +318,15 @@ type LocalDataResponse struct {
 	WeaponJson string `json:"weapon"`
 }
 
-type LocalFileStatus struct {
-	HasOfficial bool `json:"hasOfficial"`
-	HasBilibili bool `json:"hasBilibili"`
-}
-
 // CheckLocalFiles 检查本地文件是否存在
-func (a *App) CheckLocalFiles() LocalFileStatus {
-	check := func(serverType string) bool {
-		// 只要有角色或武器记录任意一个文件，就认为有数据
-		_, errChar := storage.ReadData[model.EndFieldCharInfo]("", serverType, model.PoolTypeChar)
-		_, errWp := storage.ReadData[model.EndFieldWeaponInfo]("", serverType, model.PoolTypeWeapon)
-		return errChar == nil || errWp == nil
+func (a *App) CheckLocalFiles() ([]model.LocalArchive, error) {
+	logger.Log.Info("Frontend requested: CheckLocalFiles")
+	archives, err := api.ScanLocalArchives()
+	if err != nil {
+		logger.Log.Error("Failed to scan local archives", zap.Error(err))
+		return []model.LocalArchive{}, err
 	}
-
-	return LocalFileStatus{
-		HasOfficial: check("official"),
-		HasBilibili: check("bilibili"),
-	}
+	return archives, nil
 }
 
 // LoadLocalGachaHistory 读取本地历史

@@ -145,6 +145,7 @@ window.handleToken = async function() {
   } catch (err) {
     console.error(err);
     document.getElementById("analyzeError").textContent = "LOGIN ERR: " + err;
+    resetToAnalyze();
     input.disabled = false;
     btn.textContent = orgText;
   }
@@ -186,8 +187,8 @@ async function doTokenSync(player) {
     }
   } catch (err) {
     console.error(err);
-    resetToAnalyze();
     document.getElementById("analyzeError").textContent = "SYNC ERR: " + err;
+    resetToAnalyze();
   }
 }
 
@@ -308,38 +309,79 @@ window.loadLocal = async function () {
   btn.disabled = true;
   document.getElementById("analyzeError").textContent = "";
   try {
-    // 检查本地有哪些文件
-    const status = await CheckLocalFiles();
-    console.log("Local Files:", status);
-    const hasOfficial = status.hasOfficial;
-    const hasBilibili = status.hasBilibili;
-    if (!hasOfficial && !hasBilibili) {
+    const archives = await CheckLocalFiles();
+    console.log("Local Archives:", archives);
+    if (!archives || archives.length === 0) {
       throw "NO LOCAL ARCHIVES FOUND // 未找到本地历史记录";
     }
-    // 如果两个都有，显示选择界面 (复用 analyze 的逻辑)
-    if (hasOfficial && hasBilibili) {
-      // 切换 DOM 显示 B 服/官服按钮
-      document.getElementById("defaultBtnGroup").style.display = "none";
-      document.getElementById("serverSelectArea").style.display = "block";
-
-      // 标记当前模式为 "offline"
-      window.isOfflineSelection = true;
+    // 只有一个存档，且该存档只有一个服务器数据 -> 直接加载
+    if (archives.length === 1 && archives[0].servers.length === 1) {
+      const targetArchive = archives[0];
+      const targetServer = targetArchive.servers[0]; // "official" or "bilibili"
+      const targetUid = targetArchive.uid;
       btn.textContent = originalText;
       btn.disabled = false;
+      window.isOfflineSelection = true;
+      showLoadingState("LOADING LOCAL ARCHIVE...", `UID: ${targetUid} // ${targetServer.toUpperCase()}`);
+      await initApp(true, targetServer, targetUid);
       return;
     }
-    // 只有一个，直接加载
-    let targetServer = "official";
-    if (hasBilibili) targetServer = "bilibili";
+    // 有多个存档，或者一个存档有双服数据 -> 显示选择界面
+    renderLocalArchiveList(archives);
+    document.getElementById("defaultBtnGroup").style.display = "none";
+    document.getElementById("logModeTips").style.display = "none";
+    document.getElementById("playerSelectArea").style.display = "block";
+    const desc = document.querySelector("#playerSelectArea .analyze-important-desc");
+    if(desc) desc.innerHTML = "> LOCAL ARCHIVES FOUND // 发现本地存档<br>> SELECT DATA SOURCE // 请选择要加载的记录";
     btn.textContent = originalText;
     btn.disabled = false;
-    showLoadingState("LOADING LOCAL ARCHIVES...", `TARGET: ${targetServer.toUpperCase()}`);
-    await initApp(true, targetServer, "");
   } catch (err) {
     console.error(err);
     btn.textContent = originalText;
     btn.disabled = false;
     document.getElementById("analyzeError").textContent = "ERR: " + err;
+  }
+}
+// 渲染本地存档列表
+function renderLocalArchiveList(archives) {
+  const container = document.getElementById("playerListContainer");
+  container.innerHTML = "";
+  archives.forEach(arc => {
+    // arc.servers 是一个数组，比如 ["official", "bilibili"]
+    arc.servers.forEach(server => {
+      const div = document.createElement("div");
+      div.className = "player-card";
+      // 格式化时间戳，去掉多余的字符看起来更整洁
+      let displayTime = arc.timestamp;
+      if (displayTime.length > 10) displayTime = displayTime.replace("_", " ");
+      div.innerHTML = `
+            <div class="player-info">
+                <span class="p-name">UID: ${arc.uid}</span>
+                <span class="p-uid" style="color:#888;">DATE: ${displayTime}</span>
+            </div>
+            <div class="p-tag" style="border-color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}; color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}">
+                ${server.toUpperCase()}
+            </div>
+        `;
+      div.onclick = () => {
+        doLocalLoad(arc.uid, server);
+      };
+      container.appendChild(div);
+    });
+  });
+}
+// 执行选中的本地加载
+async function doLocalLoad(uid, serverName) {
+  document.getElementById("playerSelectArea").style.display = "none";
+  window.isOfflineSelection = true;
+  currentServerType = serverName;
+  showLoadingState("LOADING LOCAL DATABASE...", `TARGET: UID ${uid} // ${serverName.toUpperCase()}`);
+  try {
+    await initApp(true, serverName, uid);
+  } catch (err) {
+    console.error(err);
+    resetToAnalyze();
+    document.getElementById("analyzeError").textContent = "LOAD ERR: " + err;
   }
 }
 
@@ -666,21 +708,41 @@ function createChart(dataMap, poolName) {
 }
 
 function createRareCharsCard(dataMap, poolName) {
-  const items = dataMap[poolName];
-  const sixStarItems = [];
-  items.forEach(item => {
+  const items = dataMap[poolName] || [];
+  const chronological = items.slice().reverse();
+  const sixStarDetails = [];
+  let currentPityCounter = 0;
+  chronological.forEach(item => {
+    const isFree = item.isFree === true;
+
     if (item.rarity === 6) {
-      sixStarItems.push(getItemName(item));
-      if (sixStarItems.length > 12) sixStarItems.shift();
+      if (isFree) {
+        sixStarDetails.push({
+          name: getItemName(item),
+          pityText: "FREE"
+        });
+      } else {
+        currentPityCounter++;
+        sixStarDetails.push({
+          name: getItemName(item),
+          pityText: currentPityCounter
+        });
+        currentPityCounter = 0;
+      }
+    } else {
+      if (!isFree) currentPityCounter++;
     }
   });
 
+  const recentSixStars = sixStarDetails.slice();
   const container = document.getElementById("rareCharsContainer");
   container.style.padding = "24px";
-
   const labelText = (currentType === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
+  const styleStr = "display: inline-block; border: 1px solid #ff5722; color: #ff5722; background: rgba(255, 87, 34, 0.1); padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';";
+  const chipsHtml = recentSixStars.map(item => {
+    return `<span style="${styleStr}">${item.name} [${item.pityText}]</span>`;
+  }).join("");
 
-  const chipsHtml = sixStarItems.map(name => `<span style="display: inline-block; border: 1px solid #ff5722; color: #ff5722; background: rgba(255, 87, 34, 0.1); padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';">${name}</span>`).join("");
   const emptyHtml = `<span style="color:#444; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
 
   container.innerHTML = `
@@ -688,13 +750,17 @@ function createRareCharsCard(dataMap, poolName) {
         <div style="margin-left: 8px;">
             <div style="font-size:10px; color:#666; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">TARGET POOL IDENTIFIED</div>
             <div style="font-size:18px; font-weight:bold; color:#fffa00; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${poolName}</div>
+            
             <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #333; padding-bottom:12px; margin-bottom:12px;">
                 <div style="font-size:12px; color:#fff;">TOTAL RECORDS:</div>
                 <div style="font-size:20px; color:#fff; font-weight:bold;">${items.length}</div>
             </div>
+            
             <div>
                 <div style="font-size:10px; color:#666; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
-                <div style=" display:flex; flex-wrap:wrap; margin-left:-4px;">${sixStarItems.length > 0 ? chipsHtml : emptyHtml}</div>
+                <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
+                    ${recentSixStars.length > 0 ? chipsHtml : emptyHtml}
+                </div>
             </div>
         </div>
     `;
