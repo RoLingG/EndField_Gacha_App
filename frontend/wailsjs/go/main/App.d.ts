@@ -11,6 +11,8 @@ export function GetCharacterData(arg1:string):Promise<Array<model.EndFieldCharIn
 
 export function GetWeaponData(arg1:string):Promise<Array<model.EndFieldWeaponInfo>>;
 
+export function ImportTemporaryJson():Promise<main.ImportResponse>;
+
 export function LoadGachaTokens():Promise<model.ServerTokens>;
 
 export function LoadLocalGachaHistory(arg1:string,arg2:string):Promise<main.LocalDataResponse>;

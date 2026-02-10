@@ -19,7 +19,7 @@
     <div class="brand-tag">ENDFIELD // GACHA LOG</div>
     <span class="fake-menu-item" onclick="handleReload()">[ SYSTEM_RELOAD ]</span>
     <span class="fake-menu-item" onclick="handleOpenFolder()">[ DATA_FOLDER ]</span>
-    <span class="fake-menu-item" onclick="handleExport()">[ EXPORT_EXCEL ]</span>
+    <span class="fake-menu-item" id="btnExportExcel" onclick="handleExport()">[ EXPORT_EXCEL ]</span>
     <div class="window-controls">
         <button class="win-btn" id="minBtn">_</button>
         <button class="win-btn" id="maxBtn">□</button>
@@ -100,6 +100,7 @@
             <button id="analyzeBtn" class="ef-btn" onclick="analyze()">ONLINE INITIALIZE</button>
             <button id="localBtn" class="ef-btn ef-btn-outline" onclick="loadLocal()" style="margin-top: 10px;">LOCAL INITIALIZE</button>
             <button id="webTokenBtn" class="ef-btn ef-btn-outline" onclick="showTokenInputUI()" style="margin-top: 10px;">WEB TOKEN SYNC</button>
+            <button id="importBtn" class="ef-btn ef-btn-outline" onclick="handleImportTemp()" style="margin-top: 10px; border-style: dashed;">IMPORT TEMP JSON</button>
         </div>
 
         <div id="analyzeError"></div>

@@ -1,5 +1,19 @@
 export namespace main {
 	
+	export class ImportResponse {
+	    type: string;
+	    jsonData: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.jsonData = source["jsonData"];
+	    }
+	}
 	export class LocalDataResponse {
 	    char: string;
 	    weapon: string;

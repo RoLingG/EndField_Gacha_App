@@ -6,6 +6,7 @@ import {
   GetWeaponData,
   ReloadFrontend,
   ExportData,
+  ImportTemporaryJson,
   OpenOfficialLoginWindow,
   WindowClose,
   WindowMinSize,
@@ -46,7 +47,7 @@ window.handleReload = async () => await ReloadFrontend();
 let currentUid = "";
 let currentServerType = "";
 window.handleExport = async function() {
-  // 校验：防止用户还没加载数据就点击导出
+  // 防止用户还没加载数据就点击导出
   if (!currentServerType) {
     mdui.snackbar({
       message: "请先加载数据 (Please Initialize Data First)",
@@ -54,14 +55,13 @@ window.handleExport = async function() {
     });
     return;
   }
-
   try {
     const result = await ExportData(currentUid, currentServerType);
     if (result === "success") {
       mdui.snackbar({
         message: `[SUCCESS] 导出成功 / Export Completed`,
         position: 'top',
-        textColor: '#fffa00' // 使用你的主题黄
+        textColor: '#fffa00'
       });
     } else if (result === "cancelled") {
       console.log("User cancelled export");
@@ -128,7 +128,6 @@ window.handleToken = async function() {
   const btn = document.getElementById("btnManualConnect"); // 给按钮加了个ID方便获取
   const orgText = btn.textContent;
   btn.textContent = "CONNECTING...";
-
   try {
     const res = await LoginAndFetchPlayers(token);
     cachedHgToken = res.hgToken;
@@ -268,7 +267,7 @@ window. analyze = async function () {
       throw "NO TOKEN DETECTED // 未找到抽卡记录链接";
     }
 
-    // === 双服逻辑 ===
+    // 双服逻辑
     if (hasOfficial && hasBilibili) {
       // 此时界面还完全显示着，只需要切换内部的按钮区域
       document.getElementById("defaultBtnGroup").style.display = "none";
@@ -288,7 +287,6 @@ window. analyze = async function () {
     btn.textContent = originalText;
     btn.disabled = false;
 
-    // 启动全屏动画
     showLoadingState("SYSTEM SYNCHRONIZING...", `TARGET CONFIRMED: ${targetServer.toUpperCase()}`);
     await initApp(false, targetServer, "");
 
@@ -347,7 +345,6 @@ function renderLocalArchiveList(archives) {
   const container = document.getElementById("playerListContainer");
   container.innerHTML = "";
   archives.forEach(arc => {
-    // arc.servers 是一个数组，比如 ["official", "bilibili"]
     arc.servers.forEach(server => {
       const div = document.createElement("div");
       div.className = "player-card";
@@ -382,6 +379,52 @@ async function doLocalLoad(uid, serverName) {
     console.error(err);
     resetToAnalyze();
     document.getElementById("analyzeError").textContent = "LOAD ERR: " + err;
+  }
+}
+
+// 临时导入浏览 (不落盘)
+window.handleImportTemp = async function() {
+  try {
+    const res = await ImportTemporaryJson();
+    showLoadingState("ANALYZING EXTERNAL DATA...", `TYPE: ${res.type.toUpperCase()} // TEMPORARY VIEW`);
+    let rawList = JSON.parse(res.jsonData);
+    if (!Array.isArray(rawList)) {
+      if (rawList.list) rawList = rawList.list;
+      else rawList = [];
+    }
+    const groupedData = groupDataByPool(rawList);
+    if (res.type === 'char') {
+      globalCharData = groupedData;
+      globalWeaponData = {};
+      currentType = 'char';
+    } else {
+      globalWeaponData = groupedData;
+      globalCharData = {};
+      currentType = 'weapon';
+    }
+    const exportBtn = document.getElementById("btnExportExcel");
+    if(exportBtn) exportBtn.style.display = "none";
+    setTimeout(() => {
+      const loadingText = document.querySelector('.loading-text');
+      if(loadingText) loadingText.textContent = 'DATA PARSED SUCCESS';
+      const btnChar = document.getElementById('btnTypeChar');
+      const btnWeapon = document.getElementById('btnTypeWeapon');
+      if(btnChar) btnChar.classList.toggle('active', res.type === 'char');
+      if(btnWeapon) btnWeapon.classList.toggle('active', res.type === 'weapon');
+      renderByType(res.type);
+      startExitAnimation();
+      currentServerType = "imported_temp";
+      currentUid = "temp_file";
+    }, 600);
+  } catch (err) {
+    console.error(err);
+    if (err && !err.toString().includes("cancelled")) {
+      mdui.snackbar({
+        message: "Import Failed: " + err,
+        position: 'top'
+      });
+    }
+    resetToAnalyze();
   }
 }
 
@@ -421,6 +464,7 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
 window.switchType = function(type) {
   if(currentType === type) return;
   currentType = type;
+  currentHistoryPage = 1
   // UI 按钮状态
   document.getElementById('btnTypeChar').classList.toggle('active', type === 'char');
   document.getElementById('btnTypeWeapon').classList.toggle('active', type === 'weapon');
@@ -436,6 +480,12 @@ function renderByType(type) {
   // 如果没有数据
   if(!dataMap || Object.keys(dataMap).length === 0) {
     poolSelector.innerHTML = '<div style="color:#666; padding:10px;">// NO DATA RECORDS FOUND</div>';
+    const pageInfo = document.getElementById('pageIndicator');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    if(pageInfo) pageInfo.textContent = "PAGE 0 / 0";
+    if(prevBtn) prevBtn.disabled = true;
+    if(nextBtn) nextBtn.disabled = true;
     clearDisplay();
     return;
   }
@@ -501,6 +551,7 @@ function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName] || [];
   const poolUpCharConfig = {
     "熔火灼痕": "莱万汀",
+    "轻飘飘的信使": "洁尔佩塔",
   };
   const reversed = items.slice().reverse();
 

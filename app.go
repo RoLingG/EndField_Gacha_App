@@ -15,8 +15,10 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.uber.org/zap"
 	"net/url"
+	"os"
 	"os/exec"
 	runtimeOs "runtime"
+	"strings"
 )
 
 // App struct
@@ -382,6 +384,51 @@ func (a *App) OpenOfficialLoginWindow() (LoginResponse, error) {
 		HgToken: hgToken,
 		Players: players,
 	}, nil
+}
+
+type ImportResponse struct {
+	Type     string `json:"type"`     // "char" 或 "weapon"
+	JsonData string `json:"jsonData"` // JSON 内容字符串
+}
+
+// ImportTemporaryJson 读取本地文件但不保存
+func (a *App) ImportTemporaryJson() (ImportResponse, error) {
+	selection, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "临时导入数据",
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+		},
+	})
+	if err != nil {
+		return ImportResponse{}, err
+	}
+	if selection == "" {
+		return ImportResponse{}, fmt.Errorf("cancelled")
+	}
+	bytes, err := os.ReadFile(selection)
+	if err != nil {
+		return ImportResponse{}, fmt.Errorf("读取文件失败: %v", err)
+	}
+	contentStr := string(bytes)
+	isChar := false
+	isWeapon := false
+	if strings.Contains(contentStr, "\"charId\"") || strings.Contains(selection, "char") {
+		isChar = true
+	} else if strings.Contains(contentStr, "\"weaponId\"") || strings.Contains(selection, "weapon") {
+		isWeapon = true
+	}
+	if isChar {
+		return ImportResponse{
+			Type:     "char",
+			JsonData: contentStr,
+		}, nil
+	} else if isWeapon {
+		return ImportResponse{
+			Type:     "weapon",
+			JsonData: contentStr,
+		}, nil
+	}
+	return ImportResponse{}, fmt.Errorf("无法识别文件类型 (必须包含 char 或 weapon 数据)")
 }
 
 // ================= Data Grouping Helpers =================

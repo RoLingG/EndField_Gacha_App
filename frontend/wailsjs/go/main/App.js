@@ -18,6 +18,10 @@ export function GetWeaponData(arg1) {
   return window['go']['main']['App']['GetWeaponData'](arg1);
 }
 
+export function ImportTemporaryJson() {
+  return window['go']['main']['App']['ImportTemporaryJson']();
+}
+
 export function LoadGachaTokens() {
   return window['go']['main']['App']['LoadGachaTokens']();
 }
