@@ -5,15 +5,17 @@
 一个极简、安全且具有沉浸式**终末地 (Endfield) 工业风格**的明日方舟官服/B服抽卡记录分析工具。
 基于 Wails 构建，无需上传数据，完全本地解析日志文件，提供良好的数据可视化体验。
 
-![Preview](https://rolingg.top/images/EndField/efneww1.png)
+![Preview](https://rolingg.top/images/EndField/efwww1.png)
 
-![Preview](https://rolingg.top/images/EndField/efneww2.png)
+![Preview](https://rolingg.top/images/EndField/efwww2.png)
 
-![Preview](https://rolingg.top/images/EndField/efneww3.png)
+![Preview](https://rolingg.top/images/EndField/efwww3.png)
 
-![Preview](https://rolingg.top/images/EndField/efneww4.png)
+![Preview](https://rolingg.top/images/EndField/efwww4.png)
 
-![Preview](https://rolingg.top/images/EndField/efneww5.png)
+![Preview](https://rolingg.top/images/EndField/efwww5.png)
+
+![Preview](https://rolingg.top/images/EndField/efwww6.png)
 
 ## ✨ 特性 (Features)
 
@@ -31,7 +33,7 @@
   - **[ MODE C ] Web Token 同步**: 
     - **支持内置登录窗口**: 直接在软件内唤起官方登录页，安全快捷获取 Token。
     - **支持手动短 Token**: 兼容从浏览器开发者工具手动获取的 Token。
-    - *注意：**[ Mode C ]** 支持通过 UID 区分同设备内的多个账号。*
+    - *注意：**[ MODE C ]** 支持通过 UID 区分同设备内的多个账号。*
   - **[ MODE D ] 临时导入 Json 文件**: 导入 Json 文件读取数据。
     - *注意：**[ MODE D ]** 仅支持本软件同步下来的 Json 文件，导入其他软件的 Json 文件可能会出错。*
 - **可视化仪表盘**:
