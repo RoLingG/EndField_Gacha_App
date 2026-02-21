@@ -163,7 +163,9 @@ function renderPlayerList(players) {
                 <span class="p-name">${p.nickName} <span style="font-size:10px;color:#888;">Lv.${p.level}</span></span>
                 <span class="p-uid">UID: ${p.uid}</span>
             </div>
-            <div class="p-tag">${p.channelName}</div>
+            <div class="p-tag" style="border-color: ${p.channelName === "官服" ? 'var(--ef-yellow)' : '#23ade5'}; color: ${p.channelName === "官服" ? 'var(--ef-yellow)' : '#23ade5'}">
+                ${p.channelName === "官服" ? "OFFICIAL" : "BILIBILI"}
+            </div>
         `;
     div.onclick = () => doTokenSync(p);
     container.appendChild(div);
@@ -502,6 +504,77 @@ function renderByType(type) {
   }
 }
 
+// 白天模式
+let globalTheme = "night"
+const themeStorageKey = "ef-theme";
+
+function applyTheme(theme) {
+  const body = document.body;
+  const btn = document.getElementById("themeToggle");
+  if (!body || !btn) return;
+  const rootStyle = document.documentElement.style;
+  let chartTextColor, chartBorderColor;
+  if (theme === "day") {
+    globalTheme = "day"
+    body.classList.add("theme-day");
+    btn.textContent = "[ MODE: DAY ]";
+    rootStyle.setProperty("--ef-accent", "#d9b500");
+    rootStyle.setProperty("--ef-text-strong", "#1f1f1f");
+    rootStyle.setProperty("--ef-text-muted", "#777");
+    rootStyle.setProperty("--ef-divider", "#cfcfc7");
+    rootStyle.setProperty("--ef-empty", "#777");
+    rootStyle.setProperty("--ef-chip-border", "#d45a2a");
+    rootStyle.setProperty("--ef-chip-text", "#d45a2a");
+    rootStyle.setProperty("--ef-chip-bg", "rgba(212, 90, 42, 0.12)");
+    chartTextColor = "#1f1f1f";
+    chartBorderColor = "#cfcfc7";
+  } else {
+    globalTheme = "night"
+    body.classList.remove("theme-day");
+    btn.textContent = "[ MODE: NIGHT ]";
+    rootStyle.setProperty("--ef-accent", "#fffa00");
+    rootStyle.setProperty("--ef-text-strong", "#cccccc");
+    rootStyle.setProperty("--ef-text-muted", "#666");
+    rootStyle.setProperty("--ef-divider", "#333");
+    rootStyle.setProperty("--ef-empty", "#444");
+    rootStyle.setProperty("--ef-chip-border", "#ff5722");
+    rootStyle.setProperty("--ef-chip-text", "#ff5722");
+    rootStyle.setProperty("--ef-chip-bg", "rgba(255, 87, 34, 0.1)");
+    chartTextColor = "#ffffff";
+    chartBorderColor = "#333333";
+  }
+  Chart.defaults.color = chartTextColor;
+  Chart.defaults.borderColor = chartBorderColor;
+  if (gachaChartInstance) {
+    gachaChartInstance.destroy();
+    gachaChartInstance = null;
+  }
+
+  if (currentPool) {
+    const dataMap = (currentType === 'char') ? globalCharData : globalWeaponData;
+    if (dataMap && dataMap[currentPool]) {
+      createChart(dataMap, currentPool);
+    }
+  }
+}
+
+(function initThemeToggle() {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+
+  const saved = localStorage.getItem(themeStorageKey) || "night";
+  applyTheme(saved);
+
+  btn.addEventListener("click", () => {
+    const next = document.body.classList.contains("theme-day") ? "night" : "day";
+    localStorage.setItem(themeStorageKey, next);
+    applyTheme(next);
+    if (typeof window.onThemeChanged === "function") {
+      window.onThemeChanged(next);
+    }
+  });
+})();
+
 function createPoolButtons(dataMap) {
   const poolSelector = document.getElementById('poolSelector');
   const fragment = document.createDocumentFragment();
@@ -715,34 +788,31 @@ window.changePage = function(delta) {
 function createChart(dataMap, poolName) {
   const items = dataMap[poolName];
   const rarityCounts = {4: 0, 5: 0, 6: 0 };
-  items.forEach(item => { if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1; });
-
-  // 如果实例存在，直接更新数据并重绘，绝不触碰 DOM
+  items.forEach(item => {
+    if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
+  });
   if (gachaChartInstance) {
     gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
-    gachaChartInstance.update(); // 平滑过渡动画
+    gachaChartInstance.update();
     return;
   }
-
   const chartContainer = document.getElementById("chartContainer");
   chartContainer.innerHTML = '';
-
-  // 装饰
   const corner = document.createElement("div");
   corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid #fffa00; border-left:2px solid #fffa00; z-index:10;";
   chartContainer.appendChild(corner);
+
   const ctx = document.createElement("canvas");
   ctx.style.maxWidth = "280px"; ctx.style.maxHeight = "280px";
   chartContainer.appendChild(ctx);
-
-  new Chart(ctx, {
+  gachaChartInstance = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: ["4★", "5★", "6★"],
       datasets: [{
         data: [rarityCounts[4], rarityCounts[5], rarityCounts[6]],
         backgroundColor: ["#9c27b0", "#ffca28", "#ff5722"],
-        borderColor: "#191919",
+        borderColor: Chart.defaults.borderColor,
         borderWidth: 2,
         hoverOffset: 8
       }]
@@ -751,7 +821,7 @@ function createChart(dataMap, poolName) {
       responsive: true, maintainAspectRatio: false, cutout: '70%',
       animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
-        legend: { position: "bottom", labels: { color: "#fff", font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
+        legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
         title: { display: false }
       }
     }
@@ -788,27 +858,34 @@ function createRareCharsCard(dataMap, poolName) {
   const recentSixStars = sixStarDetails.slice();
   const container = document.getElementById("rareCharsContainer");
   container.style.padding = "24px";
+  const accentColor = "var(--ef-accent)";
+  const textStrong = "var(--ef-text-strong)";
+  const textMuted = "var(--ef-text-muted)";
+  const emptyColor = "var(--ef-empty)";
+  const chipBorderColor = "var(--ef-chip-border)";
+  const chipTextColor = "var(--ef-chip-text)";
+  const chipBgColor = "var(--ef-chip-bg)";
   const labelText = (currentType === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
-  const styleStr = "display: inline-block; border: 1px solid #ff5722; color: #ff5722; background: rgba(255, 87, 34, 0.1); padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';";
+  const styleStr = `display: inline-block; border: 1px solid ${chipBorderColor}; color: ${chipTextColor}; background: ${chipBgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
   const chipsHtml = recentSixStars.map(item => {
     return `<span style="${styleStr}">${item.name} [${item.pityText}]</span>`;
   }).join("");
 
-  const emptyHtml = `<span style="color:#444; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
+  const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
 
   container.innerHTML = `
-        <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:#fffa00;"></div>
+        <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
         <div style="margin-left: 8px;">
-            <div style="font-size:10px; color:#666; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">TARGET POOL IDENTIFIED</div>
-            <div style="font-size:18px; font-weight:bold; color:#fffa00; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${poolName}</div>
+            <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">TARGET POOL IDENTIFIED</div>
+            <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${poolName}</div>
             
-            <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #333; padding-bottom:12px; margin-bottom:12px;">
-                <div style="font-size:12px; color:#fff;">TOTAL RECORDS:</div>
-                <div style="font-size:20px; color:#fff; font-weight:bold;">${items.length}</div>
+            <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid; padding-bottom:12px; margin-bottom:12px;">
+                <div style="font-size:16px; font-weight: bold; color:${textStrong};">TOTAL RECORDS:</div>
+                <div style="font-size:16px; font-weight: bold; color:${textStrong}; font-weight:bold;">${items.length}</div>
             </div>
             
             <div>
-                <div style="font-size:10px; color:#666; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
+                <div style="font-size:10px; color:${textMuted}; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
                 <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
                     ${recentSixStars.length > 0 ? chipsHtml : emptyHtml}
                 </div>

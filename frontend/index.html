@@ -20,6 +20,7 @@
     <span class="fake-menu-item" onclick="handleReload()">[ SYSTEM_RELOAD ]</span>
     <span class="fake-menu-item" onclick="handleOpenFolder()">[ DATA_FOLDER ]</span>
     <span class="fake-menu-item" id="btnExportExcel" onclick="handleExport()">[ EXPORT_EXCEL ]</span>
+    <span class="fake-menu-item theme-toggle" id="themeToggle">[ MODE: NIGHT ]</span>
     <div class="window-controls">
         <button class="win-btn" id="minBtn">_</button>
         <button class="win-btn" id="maxBtn">□</button>
@@ -115,7 +116,11 @@
         </div>
         <div class="text-wrapper"><div class="loading-text">SYSTEM SYNCHRONIZING...</div><div class="loading-subtext">ACCESSING HG_WEBVIEW_LOG // SECURE</div></div>
         <div class="tech-progress-track"><div class="tech-progress-bar"></div></div>
-        <div class="tech-stat-row"><span>MEM: <span style="color:#fff">ALLOCATING</span></span><span>NET: <span style="color:#fffa00">CONNECTED</span></span><span>VER: <span style="color:#666">1.5.4</span></span></div>
+        <div class="tech-stat-row">
+            <span>MEM: <span class="ls-val-primary">ALLOCATING</span></span>
+            <span>NET: <span class="ls-val-accent">CONNECTED</span></span>
+            <span>VER: <span class="ls-val-muted">1.5.5</span></span>
+        </div>
     </div>
 </div>
 
@@ -276,6 +281,11 @@
     .tech-progress-bar { width: 100%; height: 100%; background: repeating-linear-gradient(45deg, var(--ef-yellow), var(--ef-yellow) 10px, #c7c300 10px, #c7c300 20px); animation: stripe-move 1s linear infinite; box-shadow: 0 0 10px rgba(255, 250, 0, 0.3); }
     @keyframes stripe-move { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
     .tech-stat-row { display: flex; justify-content: space-between; width: 100%; font-size: 10px; color: #444; font-family: 'Consolas', monospace; margin-top: -10px; }
+
+    /* === 新增/修改：Loading 界面状态栏文字颜色适配 === */
+    .ls-val-primary { color: #fff; transition: color 0.3s; }
+    .ls-val-accent { color: var(--ef-yellow); transition: color 0.3s; }
+    .ls-val-muted { color: #666; transition: color 0.3s; }
 
     /* 主界面布局 */
     .main-title {
@@ -479,4 +489,176 @@
     ::-webkit-scrollbar-track { background: var(--ef-black); }
     ::-webkit-scrollbar-thumb { background: var(--ef-grey); }
     ::-webkit-scrollbar-thumb:hover { background: var(--ef-yellow); }
+
+    /* 白天主题 */
+    .theme-toggle {
+        border: 1px solid transparent;
+        padding: 4px 10px;
+    }
+    .theme-toggle:hover {
+        border-color: var(--ef-yellow);
+    }
+
+    .theme-day {
+        --ef-yellow: #d9b500;
+        --ef-black: #f6f6f2;
+        --ef-dark-grey: #eeeeea;
+        --ef-white: #1f1f1f;
+        --ef-grey: #cfcfc7;
+    }
+
+    .theme-day body {
+        background-color: var(--ef-black);
+        color: var(--ef-white);
+    }
+
+    /* 背景网格 */
+    .theme-day .bg-grid {
+        background-image:
+                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+    }
+
+    /* 顶部栏 */
+    .theme-day .fake-menu {
+        background: #f2f2ee;
+        border-bottom: 1px solid #cfcfc7;
+    }
+    .theme-day .fake-menu-item { color: #666; }
+    .theme-day .fake-menu-item:hover { color: #1f1f1f; text-shadow: none; }
+    .theme-day .win-btn { color: #333; }
+    .theme-day .win-btn:hover { background: #e8e2c0; color: #1f1f1f; }
+    .theme-day .win-btn.close:hover { background: #ff3333; color: #fff; }
+
+    /* 登录/分析卡片 */
+    .theme-day #analyzeContainer { background: #f6f6f2; }
+    .theme-day .analyze-card {
+        background: #f9f9f5;
+        border: 1px solid #cfcfc7;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .theme-day .analyze-desc { color: #666; border-left-color: #cfcfc7; }
+    .theme-day .analyze-important-desc { border-left-color: #cfcfc7; }
+    .theme-day .analyze-divider {
+        background: linear-gradient(90deg, transparent, #cfcfc7, transparent);
+    }
+    .theme-day #analyzeError { color: #d03a3a; }
+
+    /* 输入/按钮 */
+    .theme-day .ef-input {
+        background: #ffffff;
+        border-color: #cfcfc7;
+        color: #1f1f1f;
+    }
+    .theme-day .ef-input::placeholder { color: #999; }
+    .theme-day .ef-btn-outline {
+        color: #6b5a00;
+        border-color: #d9b500;
+    }
+    .theme-day .ef-btn-outline:hover {
+        background: #fff8f0; /* 极浅的橙色 */
+        color: #e65100;      /* 深橙色文字 */
+        border-color: #ff9800;
+    }
+
+    .theme-day .ef-btn:hover {
+        background: #ff9800; /* 明亮的橙色 */
+        color: #fff;         /* 白色文字 */
+        box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+    }
+
+    /* 玩家卡片 */
+    .theme-day .player-card {
+        background: #fdfdfb;
+        border-color: #cfcfc7;
+    }
+    .theme-day .p-uid { color: #1f1f1f; }
+    .theme-day .p-name { color: #1f1f1f; }
+    .theme-day .p-tag { color: #777; border-color: #bdbdb0; }
+
+    /* Loading */
+    .theme-day .loading-overlay { background: #f6f6f2; }
+    .theme-day .loading-grid-bg {
+        background-image:
+                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+    }
+    .theme-day .loading-text { color: #8a7400; text-shadow: none; }
+    .theme-day .loading-subtext { color: #777; }
+    .theme-day .tech-progress-track { background: #e6e6e0; border-color: #cfcfc7; }
+    .theme-day .tech-stat-row { color: #777; }
+
+    /* Loading 界面状态栏文字颜色适配 */
+    .theme-day .ls-val-primary { color: #1f1f1f; }
+    .theme-day .ls-val-accent { color: #d9b500; }
+    .theme-day .ls-val-muted { color: #777; }
+
+    /* 主内容 */
+    .theme-day .main-title { color: #1f1f1f; }
+    .theme-day .type-btn { color: #666; border-color: #cfcfc7; }
+    .theme-day .type-btn:hover { color: #1f1f1f; background: #f0efe8; }
+    .theme-day .type-btn.active {
+        color: #1f1f1f;
+        background: #efe6b5;
+        border-color: #d9b500;
+        box-shadow: none;
+    }
+    .theme-day .pool-selector { border-color: #cfcfc7; background: #f9f9f5; }
+    .theme-day .pool-btn { color: #666; border-right-color: #cfcfc7; }
+    .theme-day .pool-btn:hover { background: #f0efe8; color: #1f1f1f; }
+    .theme-day .pool-btn.active { background: #efe6b5; color: #1f1f1f; }
+
+    /* 信息条 */
+    .theme-day .info-card {
+        background: #f9f9f5;
+        border-color: #cfcfc7;
+    }
+    .theme-day .info-label { color: #666; }
+    .theme-day .info-value { color: #1f1f1f; }
+    .theme-day .info-sub { color: #777; }
+
+    /* Dashboard */
+    .theme-day .dashboard-panel {
+        background: #f9f9f5;
+        border-color: #cfcfc7;
+    }
+    .theme-day .panel-left { border-right-color: #cfcfc7; }
+
+    /* 表格 */
+    .theme-day .history-table-container {
+        border-color: #cfcfc7;
+        background: #f9f9f5;
+    }
+    .theme-day .ef-table th {
+        background: #f0efe8;
+        color: #666;
+        border-bottom-color: #cfcfc7;
+    }
+    .theme-day .ef-table td { color: #333; border-bottom-color: #e2e2da; }
+    .theme-day .ef-table tr:hover { background: #f6f1d6; }
+
+    /* 分页 */
+    .theme-day .pagination-controls {
+        border-top-color: #cfcfc7;
+        background: #f0efe8;
+    }
+    .theme-day .page-btn { color: #666; }
+    .theme-day .page-btn:hover:not(:disabled) {
+        color: #1f1f1f;
+        text-shadow: none;
+        background: #efe6b5;
+    }
+    .theme-day #pageIndicator { color: #1f1f1f; }
+
+    /* 页脚 */
+    .theme-day .system-footer {
+        background: #f0efe8;
+        border-top-color: #cfcfc7;
+        color: #666;
+    }
+
+    /* Scrollbar */
+    .theme-day ::-webkit-scrollbar-track { background: #f6f6f2; }
+    .theme-day ::-webkit-scrollbar-thumb { background: #cfcfc7; }
+    .theme-day ::-webkit-scrollbar-thumb:hover { background: #d9b500; }
 </style>
