@@ -527,7 +527,7 @@ function applyTheme(theme) {
     rootStyle.setProperty("--ef-chip-text", "#d45a2a");
     rootStyle.setProperty("--ef-chip-bg", "rgba(212, 90, 42, 0.12)");
     chartTextColor = "#1f1f1f";
-    chartBorderColor = "#cfcfc7";
+    chartBorderColor = "#333333";
   } else {
     globalTheme = "night"
     body.classList.remove("theme-day");
@@ -799,7 +799,7 @@ function createChart(dataMap, poolName) {
   const chartContainer = document.getElementById("chartContainer");
   chartContainer.innerHTML = '';
   const corner = document.createElement("div");
-  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid #fffa00; border-left:2px solid #fffa00; z-index:10;";
+  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
   chartContainer.appendChild(corner);
 
   const ctx = document.createElement("canvas");
@@ -818,7 +818,7 @@ function createChart(dataMap, poolName) {
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '70%',
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
       animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
@@ -879,7 +879,7 @@ function createRareCharsCard(dataMap, poolName) {
             <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">TARGET POOL IDENTIFIED</div>
             <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${poolName}</div>
             
-            <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid; padding-bottom:12px; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
                 <div style="font-size:16px; font-weight: bold; color:${textStrong};">TOTAL RECORDS:</div>
                 <div style="font-size:16px; font-weight: bold; color:${textStrong}; font-weight:bold;">${items.length}</div>
             </div>
@@ -900,17 +900,36 @@ function startExitAnimation() {
   const loadingTrack = document.querySelector('.tech-progress-track');
   const logoWrapper = document.querySelector('.logo-wrapper');
 
-  if(loadingTrack) loadingTrack.style.opacity = "0";
+  if (loadingTrack) {
+    loadingTrack.style.transition = "transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease";
+    loadingTrack.style.transform = "scaleX(0)";
+    loadingTrack.style.opacity = "0";
+  }
 
   setTimeout(() => {
-    loadingText.style.transition = "all 0.5s ease-in"; loadingText.style.opacity = "0"; loadingText.style.transform = "translateY(-20px)";
-    if(logoWrapper) { logoWrapper.style.transition = "all 0.5s ease-in"; logoWrapper.style.opacity = "0"; logoWrapper.style.transform = "scale(0.5)"; }
-
+    if(loadingText) {
+      loadingText.style.transition = "all 0.5s ease-in";
+      loadingText.style.opacity = "0";
+      loadingText.style.transform = "translateY(-20px)";
+    }
+    if(logoWrapper) {
+      logoWrapper.style.transition = "all 0.5s ease-in";
+      logoWrapper.style.opacity = "0";
+      logoWrapper.style.transform = "scale(0.5)";
+    }
     setTimeout(() => {
-      loadingOverlay.style.transition = "transform 0.6s cubic-bezier(0.8, 0, 0.2, 1)"; loadingOverlay.style.transform = "translateY(-100%)";
+      loadingOverlay.style.transition = "transform 0.6s cubic-bezier(0.8, 0, 0.2, 1)";
+      loadingOverlay.style.transform = "translateY(-100%)";
+
       setTimeout(() => {
         loadingOverlay.style.display = "none";
-
+        if(loadingTrack) {
+          loadingTrack.style.transition = "none";
+          loadingTrack.style.transform = "scaleX(1)";
+          loadingTrack.style.opacity = "1";
+        }
+        if(logoWrapper) logoWrapper.style.transform = "";
+        if(loadingText) loadingText.style.transform = "";
         const elements = [
           document.querySelector(".main-title"),
           document.getElementById("typeSwitcher"),
@@ -919,7 +938,6 @@ function startExitAnimation() {
           document.getElementById("dashboardPanel"),
           document.getElementById("historySection")
         ];
-
         elements.forEach((el) => {
           if(el) {
             if(el.id === 'summaryStrip' || el.id === 'dashboardPanel' || el.id === 'typeSwitcher') el.style.display = 'flex';
@@ -927,8 +945,7 @@ function startExitAnimation() {
             el.style.opacity = "0"; el.style.transform = "translateY(20px)";
           }
         });
-
-        // 此时数据已经准备好，动画展示出来
+        // 依次执行入场动画
         elements.forEach((el, index) => {
           if(el) { setTimeout(() => { el.style.transition = "all 0.5s ease-out"; el.style.opacity = "1"; el.style.transform = "translateY(0)"; }, index * 100); }
         });
