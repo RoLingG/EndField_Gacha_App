@@ -15,6 +15,8 @@ import {
   LoadLocalGachaHistory,
   LoginAndFetchPlayers,
   SyncDataByChoice,
+  UpdatePoolConfig,
+  GetPoolConfig,
 } from "../wailsjs/go/main/App";
 
 // chart.js全局配置
@@ -199,6 +201,26 @@ let globalWeaponData = null;
 let currentType = 'char'; // 'char' | 'weapon'
 let currentPool = null;
 let gachaChartInstance = null; // 图表实例复用
+
+// 更新卡池配置（可选功能，可以在设置中调用）
+window.updatePoolConfig = async function() {
+  try {
+    await UpdatePoolConfig();
+    globalPoolConfig = null; // 清除缓存
+    await loadPoolConfig(); // 重新加载
+    mdui.snackbar({
+      message: "卡池配置已更新 / Pool config updated",
+      position: 'top',
+      textColor: '#fffa00'
+    });
+  } catch (err) {
+    console.error("Failed to update pool config:", err);
+    mdui.snackbar({
+      message: "更新失败 / Update failed: " + err,
+      position: 'top'
+    });
+  }
+}
 
 function groupDataByPool(flatList) {
   const grouped = {};
@@ -433,6 +455,7 @@ window.handleImportTemp = async function() {
 async function initApp(isOfflineMode, serverName = "official", uid = "") {
   currentUid = uid;
   const loadingText = document.querySelector('.loading-text');
+
   let charDataGrouped, weaponDataGrouped;
   if (isOfflineMode) {
     // 离线模式
@@ -441,7 +464,7 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
     charDataGrouped = JSON.parse(dataStruct.char || "{}");
     weaponDataGrouped = JSON.parse(dataStruct.weapon || "{}");
   } else {
-    // 在线模式
+    // 在线模式：先获取数据
     loadingText.textContent = 'FETCHING DATA ...';
     const charList = await GetCharacterData(serverName);
     charDataGrouped = groupDataByPool(charList);
@@ -453,6 +476,17 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
     }
     weaponDataGrouped = groupDataByPool(weaponList);
   }
+
+  // 获取数据后再更新卡池配置
+  try {
+    await window.updatePoolConfig();
+  } catch (err) {
+    console.warn("Auto-update pool config failed:", err);
+  }
+
+  // 加载卡池配置
+  await loadPoolConfig();
+
   globalCharData = charDataGrouped;
   globalWeaponData = weaponDataGrouped;
   loadingText.textContent = 'DATA STREAM RECEIVED';
@@ -620,18 +654,41 @@ function getItemName(item) {
   return item.charName || item.weaponName || "UNKNOWN";
 }
 
+// 全局卡池配置缓存
+let globalPoolConfig = null;
+
+// 加载卡池配置
+async function loadPoolConfig() {
+  if (globalPoolConfig) return globalPoolConfig;
+  try {
+    const config = await GetPoolConfig();
+    if (config && config.pools && config.pools.length > 0) {
+      globalPoolConfig = {};
+      config.pools.forEach(pool => {
+        globalPoolConfig[pool.poolName] = pool.up6Name;
+      });
+      console.log("Pool config loaded:", globalPoolConfig);
+    }
+  } catch (err) {
+    console.warn("Failed to load pool config, using fallback:", err);
+    // 使用默认配置作为后备
+    globalPoolConfig = {
+      "熔火灼痕": "莱万汀",
+      "轻飘飘的信使": "洁尔佩塔",
+      "热烈色彩": "伊冯",
+    };
+  }
+  return globalPoolConfig;
+}
+
 function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName] || [];
-  const poolUpCharConfig = {
-    "熔火灼痕": "莱万汀",
-    "轻飘飘的信使": "洁尔佩塔",
-    "热烈色彩": "伊冯",
-  };
+  const poolUpCharConfig = globalPoolConfig
   const reversed = items.slice().reverse();
 
   let currentPity = 0;
   for(let item of reversed) {
-    if(item.rarity === 6) {
+    if(item.rarity === 6 && !item.isFree) {
       currentPity = 0;
     } else if (!item.isFree) {
       currentPity++;

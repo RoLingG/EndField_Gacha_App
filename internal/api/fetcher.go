@@ -4,6 +4,7 @@ import (
 	"Go_Arknights_Gacha_App/internal/logger"
 	"Go_Arknights_Gacha_App/internal/model"
 	"Go_Arknights_Gacha_App/internal/retry"
+	"Go_Arknights_Gacha_App/internal/storage"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -15,12 +16,13 @@ import (
 )
 
 const (
-	BaseUrlChar       = "https://ef-webview.hypergryph.com/api/record/char"
-	BaseUrlWeapon     = "https://ef-webview.hypergryph.com/api/record/weapon"
-	BaseUrlWeaponPool = "https://ef-webview.hypergryph.com/api/record/weapon/pool"
-	BaseUrlRoleQuery  = "https://u8.hypergryph.com/game/role/v1/query_role_list"
-	AppCodeEndfield   = "endfield"
-	AppCodeLogin      = "be36d44aa36bfb5b"
+	BaseUrlChar        = "https://ef-webview.hypergryph.com/api/record/char"
+	BaseUrlWeapon      = "https://ef-webview.hypergryph.com/api/record/weapon"
+	BaseUrlWeaponPool  = "https://ef-webview.hypergryph.com/api/record/weapon/pool"
+	BaseUrlPoolContent = "https://ef-webview.hypergryph.com/api/content"
+	BaseUrlRoleQuery   = "https://u8.hypergryph.com/game/role/v1/query_role_list"
+	AppCodeEndfield    = "endfield"
+	AppCodeLogin       = "be36d44aa36bfb5b"
 )
 
 // gachaSession 通用上下文信息
@@ -95,6 +97,22 @@ func FetchCharDataAll(token, serverID, lang string) ([]model.EndFieldCharInfo, e
 	if successCount == 0 {
 		return nil, fmt.Errorf("未获取到任何角色数据")
 	}
+
+	// 提取所有限定池的 pool_id 并保存
+	poolIDSet := make(map[string]struct{})
+	for _, item := range allData {
+		if len(item.PoolID) >= 7 && item.PoolID[:7] == "special" {
+			poolIDSet[item.PoolID] = struct{}{}
+		}
+	}
+	poolIDs := make([]string, 0, len(poolIDSet))
+	for id := range poolIDSet {
+		poolIDs = append(poolIDs, id)
+	}
+	if err := storage.SaveDiscoveredPoolIDs(poolIDs); err != nil {
+		logger.Log.Warn("Failed to save discovered pool IDs", zap.Error(err))
+	}
+
 	return allData, nil
 }
 
@@ -382,4 +400,39 @@ func GetUIDByU8Token(u8Token string, serverId string) (string, error) {
 		return "", fmt.Errorf("获取角色信息失败: %s", result.Msg)
 	}
 	return result.Data.Uid, nil
+}
+
+// FetchPoolContent 获取卡池详情（不需要token）
+func FetchPoolContent(poolID, serverID, lang string) (*model.PoolContentResponse, error) {
+	params := url.Values{}
+	params.Set("lang", lang)
+	params.Set("pool_id", poolID)
+	params.Set("server_id", serverID)
+
+	reqUrl := BaseUrlPoolContent + "?" + params.Encode()
+	req, err := http.NewRequest("GET", reqUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("网络请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP Status: %d", resp.StatusCode)
+	}
+
+	var result model.PoolContentResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %v", err)
+	}
+
+	if result.Code != 0 {
+		return nil, fmt.Errorf("API Error: %s", result.Msg)
+	}
+
+	return &result, nil
 }

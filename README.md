@@ -94,6 +94,12 @@
 
 ## 🚀 使用指南 (Usage)
 
+### 使用前须知
+
+使用本软件前，请先将仓库里 `config` 目录下的 `poolConfig` 目录 `ctrl + c/v` 到软件目录下，以便于软件获取到终末地历史卡池信息（可选）。使用该软件也会检测并记录当前版本抽取过的卡池的数据信息，生成的 `json` 文件位于软件同级目录下。本项目也会持续维护该卡池信息文件，如有需要也可以自行下载覆盖替换。
+
+> 注：如果维护不及时，可以提出 pr 申请更改对应卡池信息文件。
+
 ### 方式一：日志扫描 (Online Mode)
 
 1. 启动《明日方舟：终末地》PC 客户端。
@@ -136,12 +142,9 @@ userdata/
 ├── uid_timeStamp/                      		  // [精准模式] 特定UID存档
 │   ├── official_char_history.json    // 角色池记录
 │   └── official_weapon_history.json  // 武器池记录
-│
-├── local/                            // [通用模式] 日志扫描/旧版存档
-│   ├── bilibili_char_history.json    // B服角色
-│   ├── bilibili_weapon_history.json  // B服武器
-│   ├── official_char_history.json    // 官服角色
-│   └── official_weapon_history.json  // 官服武器
+│   or
+│   ├── bilibili_char_history.json    // 角色池记录
+│   └── bilibili_weapon_history.json  // 武器池记录
 │
 └── logs/                             // 软件运行日志
 ```

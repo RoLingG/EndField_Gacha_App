@@ -14,6 +14,10 @@ export function GetCharacterData(arg1) {
   return window['go']['main']['App']['GetCharacterData'](arg1);
 }
 
+export function GetPoolConfig() {
+  return window['go']['main']['App']['GetPoolConfig']();
+}
+
 export function GetWeaponData(arg1) {
   return window['go']['main']['App']['GetWeaponData'](arg1);
 }
@@ -48,6 +52,10 @@ export function ReloadFrontend() {
 
 export function SyncDataByChoice(arg1, arg2, arg3) {
   return window['go']['main']['App']['SyncDataByChoice'](arg1, arg2, arg3);
+}
+
+export function UpdatePoolConfig() {
+  return window['go']['main']['App']['UpdatePoolConfig']();
 }
 
 export function WindowClose() {

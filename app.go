@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	runtimeOs "runtime"
 	"strings"
+	"time"
 )
 
 // App struct
@@ -429,6 +430,86 @@ func (a *App) ImportTemporaryJson() (ImportResponse, error) {
 		}, nil
 	}
 	return ImportResponse{}, fmt.Errorf("无法识别文件类型 (必须包含 char 或 weapon 数据)")
+}
+
+// ================= Pool Config Management =================
+
+// UpdatePoolConfig 更新卡池配置
+func (a *App) UpdatePoolConfig() error {
+	logger.Log.Info("Frontend requested: UpdatePoolConfig")
+
+	// 从文件读取已发现的卡池ID列表
+	discovered, err := storage.LoadDiscoveredPoolIDs()
+	if err != nil {
+		return fmt.Errorf("加载卡池ID列表失败: %v", err)
+	}
+
+	poolIDs := discovered.PoolIDs
+	if len(poolIDs) == 0 {
+		return fmt.Errorf("未发现任何卡池ID，请先获取抽卡记录")
+	}
+
+	var configs []model.PoolConfig
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+	serverID := "1"
+	lang := "zh-cn"
+
+	for _, poolID := range poolIDs {
+		resp, err := api.FetchPoolContent(poolID, serverID, lang)
+		if err != nil {
+			logger.Log.Warn("Failed to fetch pool content",
+				zap.String("pool_id", poolID),
+				zap.Error(err))
+			continue
+		}
+		// 提取需要的信息
+		config := model.PoolConfig{
+			PoolName:   resp.Data.Pool.PoolName,
+			PoolType:   resp.Data.Pool.PoolType,
+			Up6Name:    resp.Data.Pool.Up6Name,
+			GachaType:  resp.Data.Pool.PoolGachaType,
+			LastUpdate: currentTime,
+		}
+		// 如果有角色列表，取第一个6星角色的ID
+		if len(resp.Data.Pool.All) > 0 {
+			for _, char := range resp.Data.Pool.All {
+				if char.Rarity == 6 {
+					config.Up6CharID = char.ID
+					break
+				}
+			}
+		}
+		configs = append(configs, config)
+	}
+
+	if len(configs) == 0 {
+		return fmt.Errorf("未获取到任何有效的卡池配置")
+	}
+
+	// 保存到文件
+	configList := model.PoolConfigList{
+		Pools:      configs,
+		LastUpdate: currentTime,
+	}
+	err = storage.SavePoolConfig(configList)
+	if err != nil {
+		logger.Log.Error("Failed to save pool config", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+// GetPoolConfig 获取卡池配置
+func (a *App) GetPoolConfig() (*model.PoolConfigList, error) {
+	logger.Log.Info("Frontend requested: GetPoolConfig")
+	config, err := storage.LoadPoolConfig()
+	if err != nil {
+		logger.Log.Error("Failed to load pool config", zap.Error(err))
+		return nil, err
+	}
+	return config, nil
 }
 
 // ================= Data Grouping Helpers =================

@@ -161,6 +161,60 @@ export namespace model {
 	        this.serverType = source["serverType"];
 	    }
 	}
+	export class PoolConfig {
+	    poolName: string;
+	    poolType: string;
+	    up6Name: string;
+	    up6CharId: string;
+	    gachaType: string;
+	    lastUpdate: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PoolConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.poolName = source["poolName"];
+	        this.poolType = source["poolType"];
+	        this.up6Name = source["up6Name"];
+	        this.up6CharId = source["up6CharId"];
+	        this.gachaType = source["gachaType"];
+	        this.lastUpdate = source["lastUpdate"];
+	    }
+	}
+	export class PoolConfigList {
+	    pools: PoolConfig[];
+	    lastUpdate: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PoolConfigList(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pools = this.convertValues(source["pools"], PoolConfig);
+	        this.lastUpdate = source["lastUpdate"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ServerTokens {
 	    Official: string;
 	    Bilibili: string;

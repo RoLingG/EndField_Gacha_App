@@ -9,6 +9,8 @@ export function ExportData(arg1:string,arg2:string):Promise<string>;
 
 export function GetCharacterData(arg1:string):Promise<Array<model.EndFieldCharInfo>>;
 
+export function GetPoolConfig():Promise<model.PoolConfigList>;
+
 export function GetWeaponData(arg1:string):Promise<Array<model.EndFieldWeaponInfo>>;
 
 export function ImportTemporaryJson():Promise<main.ImportResponse>;
@@ -26,6 +28,8 @@ export function OpenOfficialLoginWindow():Promise<main.LoginResponse>;
 export function ReloadFrontend():Promise<void>;
 
 export function SyncDataByChoice(arg1:string,arg2:string,arg3:string):Promise<string>;
+
+export function UpdatePoolConfig():Promise<void>;
 
 export function WindowClose():Promise<void>;
 

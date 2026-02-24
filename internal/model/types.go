@@ -156,3 +156,39 @@ type ServerTokens struct {
 	Official string
 	Bilibili string
 }
+
+// PoolContentResponse 卡池详情接口响应
+type PoolContentResponse struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		Pool struct {
+			PoolGachaType string `json:"pool_gacha_type"`
+			PoolName      string `json:"pool_name"`
+			PoolType      string `json:"pool_type"`
+			Up6Name       string `json:"up6_name"`
+			Up6Image      string `json:"up6_image"`
+			All           []struct {
+				ID     string `json:"id"`
+				Name   string `json:"name"`
+				Rarity int    `json:"rarity"`
+			} `json:"all"`
+		} `json:"pool"`
+	} `json:"data"`
+}
+
+// PoolConfig 卡池配置（用于前端）
+type PoolConfig struct {
+	PoolName   string `json:"poolName"`
+	PoolType   string `json:"poolType"`
+	Up6Name    string `json:"up6Name"`
+	Up6CharID  string `json:"up6CharId"`
+	GachaType  string `json:"gachaType"`
+	LastUpdate string `json:"lastUpdate"`
+}
+
+// PoolConfigList 卡池配置列表
+type PoolConfigList struct {
+	Pools      []PoolConfig `json:"pools"`
+	LastUpdate string       `json:"lastUpdate"`
+}
