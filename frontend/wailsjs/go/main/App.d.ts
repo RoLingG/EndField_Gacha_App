@@ -29,7 +29,7 @@ export function ReloadFrontend():Promise<void>;
 
 export function SyncDataByChoice(arg1:string,arg2:string,arg3:string):Promise<string>;
 
-export function UpdatePoolConfig():Promise<void>;
+export function UpdatePoolConfig():Promise<string>;
 
 export function WindowClose():Promise<void>;
 

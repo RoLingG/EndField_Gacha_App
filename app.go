@@ -435,18 +435,18 @@ func (a *App) ImportTemporaryJson() (ImportResponse, error) {
 // ================= Pool Config Management =================
 
 // UpdatePoolConfig 更新卡池配置
-func (a *App) UpdatePoolConfig() error {
+func (a *App) UpdatePoolConfig() (string, error) {
 	logger.Log.Info("Frontend requested: UpdatePoolConfig")
 
 	// 从文件读取已发现的卡池ID列表
 	discovered, err := storage.LoadDiscoveredPoolIDs()
 	if err != nil {
-		return fmt.Errorf("加载卡池ID列表失败: %v", err)
+		return "", fmt.Errorf("加载卡池ID列表失败: %v", err)
 	}
 
 	poolIDs := discovered.PoolIDs
 	if len(poolIDs) == 0 {
-		return fmt.Errorf("未发现任何卡池ID，请先获取抽卡记录")
+		return "", fmt.Errorf("未发现任何卡池ID，请先获取抽卡记录")
 	}
 
 	var configs []model.PoolConfig
@@ -484,7 +484,7 @@ func (a *App) UpdatePoolConfig() error {
 	}
 
 	if len(configs) == 0 {
-		return fmt.Errorf("未获取到任何有效的卡池配置")
+		return "", fmt.Errorf("未获取到任何有效的卡池配置")
 	}
 
 	// 保存到文件
@@ -492,13 +492,13 @@ func (a *App) UpdatePoolConfig() error {
 		Pools:      configs,
 		LastUpdate: currentTime,
 	}
-	err = storage.SavePoolConfig(configList)
+	msg, err := storage.SavePoolConfig(configList)
 	if err != nil {
 		logger.Log.Error("Failed to save pool config", zap.Error(err))
-		return err
+		return "", err
 	}
 
-	return nil
+	return msg, nil
 }
 
 // GetPoolConfig 获取卡池配置

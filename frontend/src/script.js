@@ -205,11 +205,11 @@ let gachaChartInstance = null; // 图表实例复用
 // 更新卡池配置（可选功能，可以在设置中调用）
 window.updatePoolConfig = async function() {
   try {
-    await UpdatePoolConfig();
+    let msg = await UpdatePoolConfig();
     globalPoolConfig = null; // 清除缓存
     await loadPoolConfig(); // 重新加载
     mdui.snackbar({
-      message: "卡池配置已更新 / Pool config updated",
+      message: msg,
       position: 'top',
       textColor: '#fffa00'
     });

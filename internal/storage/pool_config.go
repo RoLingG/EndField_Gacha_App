@@ -108,11 +108,11 @@ func LoadDiscoveredPoolIDs() (*DiscoveredPoolIDs, error) {
 }
 
 // SavePoolConfig 保存卡池配置到文件（追加写入，自动去重）
-func SavePoolConfig(configList model.PoolConfigList) error {
+func SavePoolConfig(configList model.PoolConfigList) (string, error) {
 	// 先加载现有配置
 	existing, err := LoadPoolConfig()
 	if err != nil {
-		return fmt.Errorf("加载现有配置失败: %v", err)
+		return "", fmt.Errorf("加载现有配置失败: %v", err)
 	}
 
 	// 构建现有卡池名称的集合，用于快速查重
@@ -130,6 +130,11 @@ func SavePoolConfig(configList model.PoolConfigList) error {
 			addedCount++
 		}
 	}
+	
+	msg := fmt.Sprintf("卡池配置已更新 %d 项卡池数据 / Pool config updated", addedCount)
+	if addedCount == 0 {
+		msg = fmt.Sprintf("卡池配置无变动 / Pool config unchanged")
+	}
 
 	// 更新时间戳
 	if configList.LastUpdate != "" {
@@ -138,17 +143,17 @@ func SavePoolConfig(configList model.PoolConfigList) error {
 
 	poolConfigDir, err := getPoolConfigDir()
 	if err != nil {
-		return fmt.Errorf("获取配置目录失败: %v", err)
+		return "", fmt.Errorf("获取配置目录失败: %v", err)
 	}
 	configPath := filepath.Join(poolConfigDir, poolConfigFileName)
 
 	data, err := json.MarshalIndent(existing, "", "  ")
 	if err != nil {
-		return fmt.Errorf("序列化配置失败: %v", err)
+		return "", fmt.Errorf("序列化配置失败: %v", err)
 	}
 
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
-		return fmt.Errorf("写入配置文件失败: %v", err)
+		return "", fmt.Errorf("写入配置文件失败: %v", err)
 	}
 
 	logger.Log.Info("Pool config saved successfully",
@@ -156,7 +161,7 @@ func SavePoolConfig(configList model.PoolConfigList) error {
 		zap.Int("total_pools", len(existing.Pools)),
 		zap.Int("new_pools_added", addedCount))
 
-	return nil
+	return msg, nil
 }
 
 // LoadPoolConfig 加载卡池配置
