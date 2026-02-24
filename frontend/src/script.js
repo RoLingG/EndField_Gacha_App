@@ -625,6 +625,7 @@ function createSummaryStrip(dataMap, poolName) {
   const poolUpCharConfig = {
     "熔火灼痕": "莱万汀",
     "轻飘飘的信使": "洁尔佩塔",
+    "热烈色彩": "伊冯",
   };
   const reversed = items.slice().reverse();
 
