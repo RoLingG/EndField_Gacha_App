@@ -509,13 +509,16 @@ window.switchType = function(type) {
 }
 
 function renderByType(type) {
-  const poolSelector = document.getElementById('poolSelector');
-  poolSelector.innerHTML = '';
+  const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
+
   // 确定当前使用的数据源
   const dataMap = (type === 'char') ? globalCharData : globalWeaponData;
+
   // 如果没有数据
   if(!dataMap || Object.keys(dataMap).length === 0) {
-    poolSelector.innerHTML = '<div style="color:#666; padding:10px;">// NO DATA RECORDS FOUND</div>';
+    if (poolSelectorWrapper) {
+      poolSelectorWrapper.innerHTML = '<div style="color:#666; padding:10px;">// NO DATA RECORDS FOUND</div>';
+    }
     const pageInfo = document.getElementById('pageIndicator');
     const prevBtn = document.getElementById('prevPageBtn');
     const nextBtn = document.getElementById('nextPageBtn');
@@ -525,6 +528,7 @@ function renderByType(type) {
     clearDisplay();
     return;
   }
+
   // 重置当前选中的池子为第一个
   currentPool = Object.keys(dataMap)[0];
   // 创建池子按钮
@@ -610,22 +614,76 @@ function applyTheme(theme) {
 })();
 
 function createPoolButtons(dataMap) {
-  const poolSelector = document.getElementById('poolSelector');
-  const fragment = document.createDocumentFragment();
-  Object.keys(dataMap).forEach((poolName, index) => {
-    const button = document.createElement("button");
-    button.className = "pool-btn";
-    button.textContent = poolName;
-    if (index === 0) button.classList.add("active");
-    button.addEventListener("click", () => {
+  const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
+  if (!poolSelectorWrapper) {
+    console.warn('poolSelectorWrapper element not found');
+    return;
+  }
+  poolSelectorWrapper.innerHTML = '';
+
+  const container = document.createElement('div');
+  container.className = 'pool-select-container';
+
+  const label = document.createElement('label');
+  label.className = 'pool-select-label';
+  label.textContent = 'SELECT POOL //';
+  container.appendChild(label);
+
+  // 创建下拉菜单容器
+  const dropdown = document.createElement('div');
+  dropdown.className = 'pool-dropdown-wrapper';
+
+  const pools = Object.keys(dataMap);
+  currentPool = pools[0];
+
+  // 显示当前选中的池子
+  const display = document.createElement('div');
+  display.className = 'pool-display';
+  display.textContent = currentPool;
+  display.addEventListener('click', () => {
+    menu.classList.toggle('show');
+  });
+  dropdown.appendChild(display);
+
+  // 下拉菜单列表
+  const menu = document.createElement('div');
+  menu.className = 'pool-menu';
+
+  pools.forEach((poolName) => {
+    const item = document.createElement('div');
+    item.className = 'pool-menu-item';
+    item.textContent = poolName;
+    if (poolName === currentPool) {
+      item.classList.add('active');
+    }
+    item.addEventListener('click', () => {
+      // 更新显示
+      display.textContent = poolName;
       currentPool = poolName;
-      document.querySelectorAll(".pool-btn").forEach(b => b.classList.remove("active"));
-      button.classList.add("active");
+      // 更新菜单项状态
+      document.querySelectorAll('.pool-menu-item').forEach(i => {
+        i.classList.remove('active');
+      });
+      item.classList.add('active');
+      // 关闭菜单
+      menu.classList.remove('show');
+      // 更新显示
       updateDisplay(dataMap, currentPool);
     });
-    fragment.appendChild(button);
+    menu.appendChild(item);
   });
-  poolSelector.appendChild(fragment);
+
+  // 根据层级组合菜单
+  dropdown.appendChild(menu);
+  container.appendChild(dropdown);
+  poolSelectorWrapper.appendChild(container);
+
+  // 点击外部关闭菜单
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) {
+      menu.classList.remove('show');
+    }
+  });
 }
 
 function clearDisplay() {
@@ -924,8 +982,30 @@ function createRareCharsCard(dataMap, poolName) {
   const chipTextColor = "var(--ef-chip-text)";
   const chipBgColor = "var(--ef-chip-bg)";
   const labelText = (currentType === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
-  const styleStr = `display: inline-block; border: 1px solid ${chipBorderColor}; color: ${chipTextColor}; background: ${chipBgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
+
+  // 获取当前卡池的UP角色
+  const upCharName = globalPoolConfig && globalPoolConfig[poolName] ? globalPoolConfig[poolName] : null;
+
   const chipsHtml = recentSixStars.map(item => {
+    // 判断是否是UP角色
+    const isUpChar = upCharName && item.name === upCharName;
+
+    // 根据是否是UP角色设置不同的颜色
+    let borderColor, textColor, bgColor;
+    if (isUpChar) {
+      // UP角色使用原有颜色
+      borderColor = chipBorderColor;
+      textColor = chipTextColor;
+      bgColor = chipBgColor;
+    } else {
+      // 非UP角色使用灰色调
+      borderColor = "#666666";
+      textColor = "#888888";
+      bgColor = "#66666619";
+    }
+
+    const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor}; 
+    background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
     return `<span style="${styleStr}">${item.name} [${item.pityText}]</span>`;
   }).join("");
 

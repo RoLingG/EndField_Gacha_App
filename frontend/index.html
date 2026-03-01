@@ -136,7 +136,7 @@
 
     <!-- 卡池选择器 -->
     <div class="pool-selector-wrapper" id="poolSelectorWrapper" style="display:none;">
-        <div class="pool-selector" id="poolSelector"></div>
+        <!-- 动态生成的按钮组将替换这里 -->
     </div>
 
     <!-- 数据概览条 -->
@@ -389,16 +389,140 @@
     .type-btn.active { border-color: var(--ef-yellow); color: var(--ef-yellow); background: rgba(255, 250, 0, 0.05); box-shadow: 0 0 10px rgba(255, 250, 0, 0.1); }
     .type-btn.active::before { background: var(--ef-yellow); }
 
-    /* 卡池选择器 */
-    .pool-selector-wrapper { width: 90%; margin-bottom: 20px; opacity: 0; }
-    .pool-selector { display: flex; width: 100%; border: 1px solid var(--ef-grey); background: rgba(255,255,255,0.02); }
-    .pool-btn { flex: 1; position: relative; background: transparent; border: none; border-right: 1px solid var(--ef-grey); color: #888; padding: 14px 0; font-family: 'Consolas', sans-serif; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pool-btn:last-child { border-right: none; }
-    .pool-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
-    .pool-btn.active { background: var(--ef-yellow); color: var(--ef-black); border-right-color: var(--ef-yellow); z-index: 1; box-shadow: 0 0 15px rgba(255, 250, 0, 0.2); }
+    /* 卡池选择器容器 */
+    .pool-selector-wrapper {
+        width: 90%;
+        margin-bottom: 20px;
+        opacity: 0;
+        position: relative;
+        z-index: 10;
+    }
+
+    .pool-select-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        position: relative;
+        z-index: 10;
+    }
+
+    .pool-select-label {
+        font-weight: bold;
+    }
+
+    /* 卡池下拉菜单 */
+    .pool-dropdown-wrapper {
+        position: relative;
+        width: 100%;
+        z-index: 10;
+    }
+
+    .pool-display {
+        width: 100%;
+        padding: 12px 16px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--ef-grey);
+        color: #888;
+        font-family: 'Consolas', sans-serif;
+        font-size: 14px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        outline: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-sizing: border-box;
+        user-select: none;
+        position: relative;
+        z-index: 11;
+    }
+    .pool-display::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 4px; height: 100%;
+        background: var(--ef-grey);
+        transition: 0.3s;
+    }
+    .pool-display::after {
+        content: '▼';
+        font-size: 10px;
+        color: #888;
+        transition: transform 0.3s ease;
+        margin-left: 10px;
+    }
+    .pool-display:hover {
+        background: rgba(255,255,255,0.05);
+        color: #fff;
+    }
+    .pool-display:hover::before {
+        background: var(--ef-yellow);
+    }
+    .pool-display:hover::after {
+        color: var(--ef-yellow);
+    }
+
+    .pool-menu {
+        position: absolute;
+        top: calc(100% + 0px);
+        left: 0;
+        width: 100%;
+        background: var(--ef-black);
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        z-index: 20;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+        backdrop-filter: blur(2px);
+    }
+    .pool-menu.show {
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .pool-menu-item {
+        padding: 12px 13px;
+        font-family: 'Consolas', sans-serif;
+        font-size: 13px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-bottom: 1px solid #222;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background: var(--ef-black);
+        border-left: 5px solid var(--ef-grey);;
+    }
+    .pool-menu-item:last-child {
+        border-bottom: none;
+    }
+    .pool-menu-item:hover {
+        background: rgba(255, 250, 0, 0.05);
+        color: #fff;
+        border-left: 5px solid var(--ef-yellow);
+        padding-left: 13px;
+    }
+    .pool-menu-item.active {
+        background: rgba(255, 250, 0, 0.08);
+        color: var(--ef-yellow);
+        border-left: 5px solid var(--ef-yellow);
+        padding-left: 13px;
+    }
 
     /* 信息卡片 */
-    .info-strip { width: 90%; display: flex; gap: 20px; margin-bottom: 20px; opacity: 0; }
+    .info-strip {
+        width: 90%;
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        opacity: 0;
+        position: relative;
+        z-index: 5;
+    }
     .info-card {
         flex: 1;
         background: rgba(255,255,255,0.03);
@@ -511,10 +635,6 @@
     .theme-day .type-btn { color: #666; border-color: #cfcfc7; }
     .theme-day .type-btn:hover { color: #1f1f1f; background: #f0efe8; }
     .theme-day .type-btn.active { color: #1f1f1f; background: #efe6b5; border-color: #d9b500; box-shadow: none; }
-    .theme-day .pool-selector { border-color: #cfcfc7; background: #f9f9f5; }
-    .theme-day .pool-btn { color: #666; border-right-color: #cfcfc7; }
-    .theme-day .pool-btn:hover { background: #f0efe8; color: #1f1f1f; }
-    .theme-day .pool-btn.active { background: #efe6b5; color: #1f1f1f; }
 
     .theme-day .info-card { background: #f9f9f5; border-color: #cfcfc7; }
     .theme-day .info-label { color: #666; }
@@ -537,4 +657,15 @@
     .theme-day ::-webkit-scrollbar-track { background: #f6f6f2; }
     .theme-day ::-webkit-scrollbar-thumb { background: #cfcfc7; }
     .theme-day ::-webkit-scrollbar-thumb:hover { background: #d9b500; }
+
+    .theme-day .pool-display {background: #f9f9f5;border-color: #cfcfc7;color: #666;}
+    .theme-day .pool-display:hover {background: #f0efe8;color: #1f1f1f;}
+    .theme-day .pool-display::after {color: #666;}
+    .theme-day .pool-display:hover::after {color: #d9b500;}
+    .theme-day .pool-menu {background: #f6f6f2;border-color: #cfcfc7;}
+    .theme-day .pool-menu-item {color: #666;border-bottom-color: #e2e2da;background: #f6f6f2;}
+    .theme-day .pool-menu-item:hover {background: #efe6b5;color: #1f1f1f;border-left-color: #d9b500;}
+    .theme-day .pool-menu::-webkit-scrollbar-track {background: #e2e2da;}
+    .theme-day .pool-menu::-webkit-scrollbar-thumb {background: #cfcfc7;}
+    .theme-day .pool-menu::-webkit-scrollbar-thumb:hover {background: #d9b500;}
 </style>
