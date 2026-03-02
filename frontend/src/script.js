@@ -198,8 +198,11 @@ async function doTokenSync(player) {
 // 全局数据存储
 let globalCharData = null;
 let globalWeaponData = null;
-let currentType = 'char'; // 'char' | 'weapon'
+let currentType = 'char'; // 'char' | 'weapon' | 'all'
+let lastDataType = 'char';  // 保存上次选择的数据类型（char 或 weapon），用于汇总模式
 let currentPool = null;
+let currentAllPoolsData = null;  // 存储合并后的汇总数据
+let isAllPoolsMode = false;  // 标识是否在汇总模式
 let gachaChartInstance = null; // 图表实例复用
 
 // 更新卡池配置（可选功能，可以在设置中调用）
@@ -435,6 +438,7 @@ window.handleImportTemp = async function() {
       if(btnChar) btnChar.classList.toggle('active', res.type === 'char');
       if(btnWeapon) btnWeapon.classList.toggle('active', res.type === 'weapon');
       renderByType(res.type);
+      updateAllBtnText();
       startExitAnimation();
       currentServerType = "imported_temp";
       currentUid = "temp_file";
@@ -491,6 +495,7 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
   loadingText.textContent = 'DATA STREAM RECEIVED';
   // 初始化显示 (默认显示角色)
   renderByType('char');
+  updateAllBtnText();
   // 执行入场动画
   startExitAnimation();
 }
@@ -500,15 +505,46 @@ window.switchType = function(type) {
   if(currentType === type) return;
   currentType = type;
   currentHistoryPage = 1
+  // 如果不是汇总模式，保存当前的数据类型
+  if (type !== 'all') {
+    lastDataType = type;
+  }
+  // 更新汇总卡池标签
+  updateAllBtnText()
   // UI 按钮状态
   document.getElementById('btnTypeChar').classList.toggle('active', type === 'char');
   document.getElementById('btnTypeWeapon').classList.toggle('active', type === 'weapon');
+  document.getElementById('btnTypeAll').classList.toggle('active', type === 'all');
+  // 隐藏/显示卡池选择器
+  const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
+  if (type === 'all') {
+    isAllPoolsMode = true;
+    if (poolSelectorWrapper) poolSelectorWrapper.style.display = 'none';
+  } else {
+    isAllPoolsMode = false;
+    if (poolSelectorWrapper) poolSelectorWrapper.style.display = 'block';
+  }
   // 重新渲染
   renderByType(type);
 }
 
 function renderByType(type) {
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
+
+  // 汇总模式处理
+  if (type === 'all') {
+    const dataMap = (lastDataType === 'char') ? globalCharData : globalWeaponData;
+    if (!dataMap || Object.keys(dataMap).length === 0) {
+      if (poolSelectorWrapper) poolSelectorWrapper.style.display = 'none';
+      clearDisplay();
+      return;
+    }
+    // 合并所有卡池数据
+    currentAllPoolsData = mergeAllPoolsData(dataMap);
+    // 使用汇总专用的显示函数
+    displayAllPoolsSummary(currentAllPoolsData);
+    return;
+  }
 
   // 确定当前使用的数据源
   const dataMap = (type === 'char') ? globalCharData : globalWeaponData;
@@ -587,8 +623,12 @@ function applyTheme(theme) {
     gachaChartInstance = null;
   }
 
-  if (currentPool) {
-    const dataMap = (currentType === 'char') ? globalCharData : globalWeaponData;
+  if (isAllPoolsMode && currentAllPoolsData) {
+    // 汇总模式：重新绘制汇总图表
+    createAllPoolsChart(currentAllPoolsData);
+  } else if (currentPool) {
+    // 单卡池模式：重新绘制单卡池图表
+    const dataMap = (lastDataType === 'char') ? globalCharData : globalWeaponData;
     if (dataMap && dataMap[currentPool]) {
       createChart(dataMap, currentPool);
     }
@@ -827,7 +867,7 @@ function createSummaryStrip(dataMap, poolName) {
         
         <div class="info-card">
             <div class="info-label">${centerLabel}</div>
-            <div class="info-value" style="color:${centerColor}">
+            <div class="info-value">
                 ${centerValueHtml}
             </div>
             <div class="info-sub">${rightCornerSub}</div>
@@ -896,7 +936,11 @@ function renderHistoryPage() {
 
 window.changePage = function(delta) {
   currentHistoryPage += delta;
-  renderHistoryPage();
+  if (isAllPoolsMode) {
+    renderAllPoolsHistoryPage();
+  } else {
+    renderHistoryPage();
+  }
 }
 
 function createChart(dataMap, poolName) {
@@ -993,17 +1037,18 @@ function createRareCharsCard(dataMap, poolName) {
 
     // 根据是否是UP角色设置不同的颜色
     let borderColor, textColor, bgColor, hasGlowEffect = false;
-    if (isUpChar && isNewChar) {
-      // UP + New：使用荧光渐变效果
-      borderColor = chipBorderColor;
-      textColor = chipTextColor;
-      bgColor = chipBgColor;
-      hasGlowEffect = true;
-    } else if (isUpChar) {
-      // UP角色使用原有颜色
-      borderColor = chipBorderColor;
-      textColor = chipTextColor;
-      bgColor = chipBgColor;
+    if (isUpChar) {
+      if (isNewChar) {
+        borderColor = chipBorderColor;
+        textColor = chipTextColor;
+        bgColor = chipBgColor;
+        hasGlowEffect = true;
+      } else {
+        // UP角色使用原有颜色
+        borderColor = chipBorderColor;
+        textColor = chipTextColor;
+        bgColor = chipBgColor;
+      }
     } else if (isNewChar) {
       borderColor = "#e8a035";
       textColor = "#e8a035";
@@ -1042,6 +1087,262 @@ function createRareCharsCard(dataMap, poolName) {
             </div>
         </div>
     `;
+}
+
+// 更新汇总卡池标签
+function updateAllBtnText() {
+  const btn = document.getElementById('btnTypeAll');
+  if (!btn) return;
+  // 你想显示的提示文字
+  const hint = (lastDataType === 'char') ? "CHAR" : "WEAPON"; // 默认 CHAR
+  btn.textContent = `[ ALL POOLS / 汇总分析 (${hint}) ]`;
+}
+
+// TODO: 根据卡池时间顺序进行排序，现在因为 map 的原因导致输出的卡池顺序会乱序
+// 合并所有卡池的数据
+function mergeAllPoolsData(dataMap) {
+  const merged = [];
+  for (const poolName in dataMap) {
+    const poolItems = dataMap[poolName];
+    poolItems.forEach(item => {
+      merged.push({
+        ...item,
+        originalPoolName: poolName  // 保留原始卡池名
+      });
+    });
+  }
+  // 按时间倒序排列（最新的在前）
+  return merged.reverse();
+}
+
+// 汇总模式的主显示函数
+function displayAllPoolsSummary(allItems) {
+  createAllPoolsChart(allItems);
+  createAllPoolsRareCharsCard(allItems);
+  createAllPoolsSummaryStrip(allItems);
+  createAllPoolsHistoryTable(allItems);
+}
+
+// 汇总模式的图表
+function createAllPoolsChart(items) {
+  const rarityCounts = { 4: 0, 5: 0, 6: 0 };
+  items.forEach(item => {
+    if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
+  });
+
+  if (gachaChartInstance) {
+    gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
+    gachaChartInstance.update();
+    return;
+  }
+
+  const chartContainer = document.getElementById("chartContainer");
+  chartContainer.innerHTML = '';
+  const corner = document.createElement("div");
+  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
+  chartContainer.appendChild(corner);
+
+  const ctx = document.createElement("canvas");
+  ctx.style.maxWidth = "280px";
+  ctx.style.maxHeight = "280px";
+  chartContainer.appendChild(ctx);
+
+  gachaChartInstance = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["4★", "5★", "6★"],
+      datasets: [{
+        data: [rarityCounts[4], rarityCounts[5], rarityCounts[6]],
+        backgroundColor: ["#9c27b0", "#ffca28", "#ff5722"],
+        borderColor: Chart.defaults.borderColor,
+        borderWidth: 2,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '60%',
+      animation: { duration: 800, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
+        title: { display: false }
+      }
+    }
+  });
+}
+
+function createAllPoolsSummaryStrip(items) {
+  const total = items.length;
+  const sixStarCount = items.filter(i => i.rarity === 6).length;
+  const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
+  const typeLabel = (currentType === 'char') ? "CHARACTERS" : "WEAPONS";
+
+  document.getElementById('summaryStrip').innerHTML = `
+    <div class="info-card">
+      <div class="info-label">TOTAL DRAWS // 总抽取数</div>
+      <div class="info-value">${total}</div>
+      <div class="info-sub">ALL POOLS COMBINED</div>
+    </div>
+    
+    <div class="info-card">
+      <div class="info-label">6★ COUNT // 六星出货数</div>
+      <div class="info-value">${sixStarCount}</div>
+      <div class="info-sub">TOTAL 6★ OBTAINED</div>
+    </div>
+    
+    <div class="info-card">
+      <div class="info-label">6★ RATIO // 出货率</div>
+      <div class="info-value">${rate}%</div>
+      <div class="info-sub">${sixStarCount} ${typeLabel}</div>
+    </div>
+  `;
+}
+
+function createAllPoolsRareCharsCard(items) {
+  const sixStarDetails = [];
+  let currentPityCounter = 0;
+
+  items.forEach(item => {
+    const isFree = item.isFree === true;
+
+    if (item.rarity === 6) {
+      const isNewRecord = item.isNew;
+      if (isFree) {
+        sixStarDetails.push({
+          name: getItemName(item),
+          poolName: item.poolName,
+          isNew: isNewRecord,
+          pityText: "FREE"
+        });
+      } else {
+        currentPityCounter++;
+        sixStarDetails.push({
+          name: getItemName(item),
+          poolName: item.poolName,
+          isNew: isNewRecord,
+          pityText: currentPityCounter
+        });
+        currentPityCounter = 0;
+      }
+    } else {
+      if (!isFree) currentPityCounter++;
+    }
+  });
+
+  const container = document.getElementById("rareCharsContainer");
+  container.style.padding = "24px";
+  const accentColor = "var(--ef-accent)";
+  const textStrong = "var(--ef-text-strong)";
+  const textMuted = "var(--ef-text-muted)";
+  const emptyColor = "var(--ef-empty)";
+  const chipBorderColor = "var(--ef-chip-border)";
+  const chipTextColor = "var(--ef-chip-text)";
+  const chipBgColor = "var(--ef-chip-bg)";
+  const labelText = (currentType === 'char') ? "ALL 6★ CHARACTERS" : "ALL 6★ WEAPONS";
+
+  const chipsHtml = sixStarDetails.map(item => {
+    const isNewChar = item.isNew;
+    // 根据原始卡池名获取UP角色
+    const upCharName = globalPoolConfig && globalPoolConfig[item.poolName] ? globalPoolConfig[item.poolName] : null;
+    // 判断是否是UP角色
+    const isUpChar = upCharName && item.name === upCharName;
+
+    let borderColor, textColor, bgColor, hasGlowEffect = false;
+    if (isUpChar) {
+      if (isNewChar) {
+        borderColor = chipBorderColor;
+        textColor = chipTextColor;
+        bgColor = chipBgColor;
+        hasGlowEffect = true;
+      } else {
+        // UP角色使用原有颜色
+        borderColor = chipBorderColor;
+        textColor = chipTextColor;
+        bgColor = chipBgColor;
+      }
+    } else if (isNewChar) {
+      borderColor = "#e8a035";
+      textColor = "#e8a035";
+      bgColor = "rgba(255, 235, 59, 0.15)";
+    } else {
+      // 非UP角色使用灰色调
+      borderColor = "#666666";
+      textColor = "#888888";
+      bgColor = "#66666619";
+    }
+
+    const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
+    background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
+    const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
+    return `<span ${glowClass} style="${styleStr}">${item.name} - ${item.poolName} [${item.pityText}]</span>`;
+  }).join("");
+
+  const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
+
+  container.innerHTML = `
+    <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
+    <div style="margin-left: 8px;">
+      <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">ALL POOLS ANALYSIS</div>
+      <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">GLOBAL SUMMARY</div>
+      
+      <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
+        <div style="font-size:16px; font-weight: bold; color:${textStrong};">TOTAL 6★ RECORDS:</div>
+        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${sixStarDetails.length}</div>
+      </div>
+      
+      <div>
+        <div style="font-size:10px; color:${textMuted}; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
+        <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
+          ${sixStarDetails.length > 0 ? chipsHtml : emptyHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function createAllPoolsHistoryTable(items) {
+  currentHistoryPage = 1;
+  currentHistoryData = items.slice();
+  renderAllPoolsHistoryPage();
+}
+
+function renderAllPoolsHistoryPage() {
+  const tbody = document.getElementById('historyTableBody');
+  tbody.innerHTML = '';
+  const totalItems = currentHistoryData.length;
+  const totalPages = Math.ceil(totalItems / historyPageSize) || 1;
+
+  if (currentHistoryPage < 1) currentHistoryPage = 1;
+  if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
+
+  const startIndex = (currentHistoryPage - 1) * historyPageSize;
+  const endIndex = Math.min(startIndex + historyPageSize, totalItems);
+  const pageItems = currentHistoryData.slice(startIndex, endIndex);
+
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#444;">NO DATA AVAILABLE</td></tr>`;
+  } else {
+    pageItems.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      const displayNum = totalItems - (startIndex + index);
+      const name = getItemName(item);
+      const isFree = item.isFree ? "YES" : "NO";
+
+      tr.innerHTML = `
+        <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
+        <td class="rarity-${item.rarity}">${name}</td>
+        <td>${"★".repeat(item.rarity)}</td>
+        <td style="color:#444; font-size:10px;">[ ${item.poolName} ]</td>
+        <td style="color:#444; font-size:10px;">${isFree}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('pageIndicator').textContent = `PAGE ${currentHistoryPage} / ${totalPages}`;
+  document.getElementById('prevPageBtn').disabled = (currentHistoryPage === 1);
+  document.getElementById('nextPageBtn').disabled = (currentHistoryPage === totalPages || totalPages === 0);
 }
 
 function startExitAnimation() {
