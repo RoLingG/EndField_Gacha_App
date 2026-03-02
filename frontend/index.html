@@ -196,7 +196,6 @@
         --ef-grey: #444444;
     }
 
-    /* 新增动画定义 */
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -215,6 +214,21 @@
     @keyframes stripe-move {
         0% { background-position: 0 0; }
         100% { background-position: 40px 0; }
+    }
+
+    @keyframes glowCycle {
+        0%, 100% {
+            box-shadow: 0 0 3px rgba(255, 87, 34, 0.6),
+            0 0 5px rgba(255, 235, 59, 0.3);
+        }
+        50% {
+            box-shadow: 0 0 3px rgba(255, 235, 59, 0.6),
+            0 0 8px rgba(255, 87, 34, 0.8);
+        }
+    }
+
+    .glow-up-new {
+        animation: glowCycle 3s ease-in-out infinite;
     }
 
     /* 基础重置与全局布局 */
@@ -624,6 +638,7 @@
     .theme-day .loading-grid-bg { background-image: linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px); }
     .theme-day .loading-text { color: #8a7400; text-shadow: none; }
     .theme-day .loading-subtext { color: #777; }
+    .theme-day .scan-line {background: linear-gradient(to bottom, transparent 40%, rgba(255, 221, 0, 0.2) 50%, transparent 60%); background-size: 100% 200%; animation: scan 2s linear infinite;}
     .theme-day .tech-progress-track { background: #e6e6e0; border-color: #cfcfc7; }
     .theme-day .tech-progress-bar { background-image: linear-gradient(45deg, var(--ef-yellow) 25%, #b89900 25%, #b89900 50%, var(--ef-yellow) 50%, var(--ef-yellow) 75%, #b89900 75%, #b89900 100%); box-shadow: 0 0 10px rgba(217, 181, 0, 0.3); }
     .theme-day .tech-stat-row { color: #777; }

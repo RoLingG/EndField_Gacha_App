@@ -283,7 +283,6 @@ window. analyze = async function () {
 
   try {
     const tokens = await LoadGachaTokens();
-    console.log("Tokens Found:", tokens);
     const hasOfficial = tokens.Official && tokens.Official.length > 0;
     const hasBilibili = tokens.Bilibili && tokens.Bilibili.length > 0;
 
@@ -725,7 +724,6 @@ async function loadPoolConfig() {
       config.pools.forEach(pool => {
         globalPoolConfig[pool.poolName] = pool.up6Name;
       });
-      console.log("Pool config loaded:", globalPoolConfig);
     }
   } catch (err) {
     console.warn("Failed to load pool config, using fallback:", err);
@@ -956,12 +954,14 @@ function createRareCharsCard(dataMap, poolName) {
       if (isFree) {
         sixStarDetails.push({
           name: getItemName(item),
+          isNew: item.isNew,
           pityText: "FREE"
         });
       } else {
         currentPityCounter++;
         sixStarDetails.push({
           name: getItemName(item),
+          isNew: item.isNew,
           pityText: currentPityCounter
         });
         currentPityCounter = 0;
@@ -989,14 +989,25 @@ function createRareCharsCard(dataMap, poolName) {
   const chipsHtml = recentSixStars.map(item => {
     // 判断是否是UP角色
     const isUpChar = upCharName && item.name === upCharName;
+    const isNewChar = item.isNew
 
     // 根据是否是UP角色设置不同的颜色
-    let borderColor, textColor, bgColor;
-    if (isUpChar) {
+    let borderColor, textColor, bgColor, hasGlowEffect = false;
+    if (isUpChar && isNewChar) {
+      // UP + New：使用荧光渐变效果
+      borderColor = chipBorderColor;
+      textColor = chipTextColor;
+      bgColor = chipBgColor;
+      hasGlowEffect = true;
+    } else if (isUpChar) {
       // UP角色使用原有颜色
       borderColor = chipBorderColor;
       textColor = chipTextColor;
       bgColor = chipBgColor;
+    } else if (isNewChar) {
+      borderColor = "#e8a035";
+      textColor = "#e8a035";
+      bgColor = "rgba(255, 235, 59, 0.15)";
     } else {
       // 非UP角色使用灰色调
       borderColor = "#666666";
@@ -1004,9 +1015,10 @@ function createRareCharsCard(dataMap, poolName) {
       bgColor = "#66666619";
     }
 
-    const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor}; 
+    const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
     background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
-    return `<span style="${styleStr}">${item.name} [${item.pityText}]</span>`;
+    const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
+    return `<span ${glowClass} style="${styleStr}">${item.name} [${item.pityText}]</span>`;
   }).join("");
 
   const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
