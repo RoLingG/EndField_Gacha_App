@@ -672,8 +672,15 @@ function createPoolButtons(dataMap) {
   const dropdown = document.createElement('div');
   dropdown.className = 'pool-dropdown-wrapper';
 
-  const pools = Object.keys(dataMap);
-  currentPool = pools[0];
+  // 按 globalPoolOrder 顺序过滤 dataMap 中存在的卡池
+  const pools = globalPoolOrder.filter(poolName => poolName in dataMap);
+  // 处理配置中不存在的卡池（以防万一）
+  Object.keys(dataMap).forEach(poolName => {
+    if (!pools.includes(poolName)) {
+      pools.push(poolName);
+    }
+  });
+  currentPool = pools[pools.length - 1];
 
   // 显示当前选中的池子
   const display = document.createElement('div');
@@ -688,7 +695,7 @@ function createPoolButtons(dataMap) {
   const menu = document.createElement('div');
   menu.className = 'pool-menu';
 
-  pools.forEach((poolName) => {
+  pools.reverse().forEach((poolName) => {
     const item = document.createElement('div');
     item.className = 'pool-menu-item';
     item.textContent = poolName;
@@ -753,6 +760,8 @@ function getItemName(item) {
 
 // 全局卡池配置缓存
 let globalPoolConfig = null;
+// 全局卡池顺序列表（用于排序）
+let globalPoolOrder = [];
 
 // 加载卡池配置
 async function loadPoolConfig() {
@@ -761,8 +770,10 @@ async function loadPoolConfig() {
     const config = await GetPoolConfig();
     if (config && config.pools && config.pools.length > 0) {
       globalPoolConfig = {};
+      globalPoolOrder = [];
       config.pools.forEach(pool => {
         globalPoolConfig[pool.poolName] = pool.up6Name;
+        globalPoolOrder.push(pool.poolName);
       });
     }
   } catch (err) {
@@ -773,6 +784,7 @@ async function loadPoolConfig() {
       "轻飘飘的信使": "洁尔佩塔",
       "热烈色彩": "伊冯",
     };
+    globalPoolOrder = ["熔火灼痕", "轻飘飘的信使", "热烈色彩"];
   }
   return globalPoolConfig;
 }
@@ -931,7 +943,9 @@ function renderHistoryPage() {
   }
   document.getElementById('pageIndicator').textContent = `PAGE ${currentHistoryPage} / ${totalPages}`;
   document.getElementById('prevPageBtn').disabled = (currentHistoryPage === 1);
-  document.getElementById('nextPageBtn').disabled = (currentHistoryPage === totalPages || totalPages === 0);
+  document.getElementById('nextPageBtn').disabled = (`currentHistoryPage` === totalPages || totalPages === 0);
+  // 初始化页码编辑功能
+  initPageIndicatorEditing(totalPages, false);
 }
 
 window.changePage = function(delta) {
@@ -941,6 +955,138 @@ window.changePage = function(delta) {
   } else {
     renderHistoryPage();
   }
+}
+
+// 初始化页码编辑功能（双击可编辑）
+function initPageIndicatorEditing(totalPages, isAllPoolsMode) {
+  const pageIndicator = document.getElementById('pageIndicator');
+  if (!pageIndicator) return;
+
+  // 移除之前的事件监听（防止重复绑定）
+  const newPageIndicator = pageIndicator.cloneNode(true);
+  pageIndicator.parentNode.replaceChild(newPageIndicator, pageIndicator);
+
+  const updatedPageIndicator = document.getElementById('pageIndicator');
+  updatedPageIndicator.addEventListener('dblclick', () => {
+    handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode);
+  });
+}
+
+// 处理页码双击事件
+function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
+  const pageIndicator = document.getElementById('pageIndicator');
+  const originalText = pageIndicator.textContent;
+
+  // 创建输入框
+  const inputWrapper = document.createElement('div');
+  inputWrapper.style.cssText = 'display: inline-flex; align-items: center; gap: 8px;';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.inputMode = 'numeric';
+  input.value = currentHistoryPage;
+  input.style.cssText = `
+    width: 50px;
+    padding: 6px 8px;
+    font-size: 14px;
+    font-family: 'Consolas', monospace;
+    border: 1px solid var(--ef-grey);
+    background: rgba(0,0,0,0.3);
+    color: var(--ef-yellow);
+    box-sizing: border-box;
+    outline: none;
+    transition: 0.3s;
+    text-align: center;
+  `;
+
+  // 焦点时的样式
+  input.addEventListener('focus', () => {
+    input.style.borderColor = 'var(--ef-yellow)';
+    input.style.boxShadow = '0 0 10px rgba(255, 250, 0, 0.1)';
+  });
+
+  input.addEventListener('blur', () => {
+    input.style.borderColor = 'var(--ef-grey)';
+    input.style.boxShadow = 'none';
+  });
+
+  const totalLabel = document.createElement('span');
+  totalLabel.textContent = `/ ${totalPages}`;
+  totalLabel.style.cssText = 'color: #666; font-size: 12px;';
+
+  inputWrapper.appendChild(input);
+  inputWrapper.appendChild(totalLabel);
+
+  // 替换页码显示为输入框
+  pageIndicator.innerHTML = '';
+  pageIndicator.appendChild(inputWrapper);
+  input.focus();
+  input.select();
+
+  // 仅允许输入数字
+  input.addEventListener('keydown', (e) => {
+    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/[^0-9]/g, '');
+  });
+
+  // 确认跳页
+  const confirmJump = () => {
+    const newPage = parseInt(input.value, 10);
+
+    // 验证页码
+    if (isNaN(newPage) || newPage < 1 || newPage > totalPages) {
+      mdui.snackbar({
+        message: `Invalid page number. Please enter a number between 1 and ${totalPages}`,
+        position: 'top'
+      });
+      // 恢复原始显示
+      pageIndicator.textContent = originalText;
+      return;
+    }
+
+    // 跳页
+    if (newPage !== currentHistoryPage) {
+      currentHistoryPage = newPage;
+      if (isAllPoolsMode) {
+        renderAllPoolsHistoryPage();
+      } else {
+        renderHistoryPage();
+      }
+    } else {
+      // 恢复原始显示
+      pageIndicator.textContent = originalText;
+    }
+  };
+
+  // 回车确认
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmJump();
+    }
+  });
+
+  // ESC 取消
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      pageIndicator.textContent = originalText;
+    }
+  });
+
+  // 失焦时确认
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (document.getElementById('pageIndicator').contains(input)) {
+        confirmJump();
+      }
+    }, 100);
+  });
 }
 
 function createChart(dataMap, poolName) {
@@ -1098,19 +1244,36 @@ function updateAllBtnText() {
   btn.textContent = `[ ALL POOLS / 汇总分析 (${hint}) ]`;
 }
 
-// TODO: 根据卡池时间顺序进行排序，现在因为 map 的原因导致输出的卡池顺序会乱序
-// 合并所有卡池的数据
+// 合并所有卡池的数据并按卡池配置顺序排序
 function mergeAllPoolsData(dataMap) {
   const merged = [];
-  for (const poolName in dataMap) {
-    const poolItems = dataMap[poolName];
-    poolItems.forEach(item => {
-      merged.push({
-        ...item,
-        originalPoolName: poolName  // 保留原始卡池名
+
+  // 按顺序遍历卡池，确保输出顺序一致
+  for (const poolName of globalPoolOrder) {
+    if (dataMap[poolName]) {
+      const poolItems = dataMap[poolName];
+      poolItems.forEach(item => {
+        merged.push({
+          ...item,
+          originalPoolName: poolName  // 保留原始卡池名
+        });
       });
-    });
+    }
   }
+
+  // 处理配置中不存在的卡池
+  for (const poolName in dataMap) {
+    if (!globalPoolOrder.includes(poolName)) {
+      const poolItems = dataMap[poolName];
+      poolItems.forEach(item => {
+        merged.push({
+          ...item,
+          originalPoolName: poolName
+        });
+      });
+    }
+  }
+
   // 按时间倒序排列（最新的在前）
   return merged.reverse();
 }
@@ -1176,7 +1339,7 @@ function createAllPoolsSummaryStrip(items) {
   const total = items.length;
   const sixStarCount = items.filter(i => i.rarity === 6).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
-  const typeLabel = (currentType === 'char') ? "CHARACTERS" : "WEAPONS";
+  const typeLabel = (lastDataType === 'char') ? "CHARACTERS" : "WEAPONS";
 
   document.getElementById('summaryStrip').innerHTML = `
     <div class="info-card">
@@ -1284,7 +1447,7 @@ function createAllPoolsRareCharsCard(items) {
     <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
     <div style="margin-left: 8px;">
       <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">ALL POOLS ANALYSIS</div>
-      <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">GLOBAL SUMMARY</div>
+      <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">历史汇总</div>
       
       <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
         <div style="font-size:16px; font-weight: bold; color:${textStrong};">TOTAL 6★ RECORDS:</div>
@@ -1343,6 +1506,8 @@ function renderAllPoolsHistoryPage() {
   document.getElementById('pageIndicator').textContent = `PAGE ${currentHistoryPage} / ${totalPages}`;
   document.getElementById('prevPageBtn').disabled = (currentHistoryPage === 1);
   document.getElementById('nextPageBtn').disabled = (currentHistoryPage === totalPages || totalPages === 0);
+  // 初始化页码编辑功能
+  initPageIndicatorEditing(totalPages, true);
 }
 
 function startExitAnimation() {
@@ -1406,7 +1571,7 @@ function startExitAnimation() {
 }
 
 window.resetToAnalyze = function() {
-  // UI 界面复位 (从 APP 界面切回 登录界面)
+  // UI 界面复位，从 APP 界面切回登录界面
   const loadingOverlay = document.getElementById("loadingOverlay");
   loadingOverlay.style.display = "none";
   loadingOverlay.style.transform = "";
