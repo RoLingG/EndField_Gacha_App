@@ -19,6 +19,46 @@ import {
   GetPoolConfig,
 } from "../wailsjs/go/main/App";
 
+// mdui Snackbar封装
+function showAppSnackbar({
+                           message = "",
+                           type = "info",
+                           actionText = "",
+                           onAction = null,
+                           autoCloseDelay = 3200,
+                           closeable = false,
+                         } = {}) {
+  const snackbar = document.createElement("mdui-snackbar");
+  snackbar.className = `app-snackbar app-snackbar--${type}`;
+  snackbar.textContent = message;
+  snackbar.autoCloseDelay = autoCloseDelay;
+  snackbar.closeable = closeable;
+  if (actionText) {
+    const actionBtn = document.createElement("mdui-button");
+    actionBtn.slot = "action";
+    actionBtn.variant = "text";
+    actionBtn.textContent = actionText;
+    actionBtn.addEventListener("click", () => {
+      try {
+        onAction?.();
+      } finally {
+        snackbar.open = false;
+      }
+    });
+    snackbar.appendChild(actionBtn);
+  }
+  document.body.appendChild(snackbar);
+  snackbar.open = true;
+  const cleanup = () => {
+    if (snackbar.parentNode) snackbar.remove();
+  };
+  snackbar.addEventListener("closed", cleanup, { once: true });
+  snackbar.addEventListener("close", () => {
+    setTimeout(cleanup, 300);
+  }, { once: true });
+  return snackbar;
+}
+
 // chart.js全局配置
 Chart.defaults.color = '#ffffff';
 Chart.defaults.borderColor = '#333333';
@@ -51,29 +91,29 @@ let currentServerType = "";
 window.handleExport = async function() {
   // 防止用户还没加载数据就点击导出
   if (!currentServerType) {
-    mdui.snackbar({
+    showAppSnackbar({
       message: "请先加载数据 (Please Initialize Data First)",
-      position: 'top'
+      type: "warning"
     });
     return;
   }
   try {
     const result = await ExportData(currentUid, currentServerType);
     if (result === "success") {
-      mdui.snackbar({
-        message: `[SUCCESS] 导出成功 / Export Completed`,
-        position: 'top',
-        textColor: '#fffa00'
+      showAppSnackbar({
+        message: "[SUCCESS] 导出成功 / Export Completed",
+        type: "success"
       });
     } else if (result === "cancelled") {
       console.log("User cancelled export");
     }
   } catch (err) {
     console.error(err);
-    mdui.alert({
-      headline: 'EXPORT ERROR',
-      description: "导出失败: " + err,
-      confirmText: 'OK'
+    showAppSnackbar({
+      message: "导出失败: " + err,
+      type: "error",
+      autoCloseDelay: 4500,
+      closeable: true
     });
   }
 }
@@ -145,6 +185,12 @@ window.handleToken = async function() {
     document.getElementById("playerSelectArea").style.display = "block";
   } catch (err) {
     console.error(err);
+    showAppSnackbar({
+      message: "处理 Token 失败: " + err,
+      type: "error",
+      autoCloseDelay: 4500,
+      closeable: true
+    });
     document.getElementById("analyzeError").textContent = "LOGIN ERR: " + err;
     resetToAnalyze();
     input.disabled = false;
@@ -211,16 +257,17 @@ window.updatePoolConfig = async function() {
     let msg = await UpdatePoolConfig();
     globalPoolConfig = null; // 清除缓存
     await loadPoolConfig(); // 重新加载
-    mdui.snackbar({
+    showAppSnackbar({
       message: msg,
-      position: 'top',
-      textColor: '#fffa00'
+      type: "success"
     });
   } catch (err) {
     console.error("Failed to update pool config:", err);
-    mdui.snackbar({
+    showAppSnackbar({
       message: "更新失败 / Update failed: " + err,
-      position: 'top'
+      type: "error",
+      autoCloseDelay: 4500,
+      closeable: true
     });
   }
 }
@@ -258,12 +305,12 @@ window.onSelectServer = async function(serverName) {
   try {
     // 根据标志位决定调用哪个模式
     if (window.isOfflineSelection) {
-      // 离线模式: true
-      await initApp(true, serverName);
+      throw new Error("离线模式缺少 UID，请从本地存档列表中选择具体记录");
     } else {
       // 在线模式: false
       await initApp(false, serverName);
     }
+    currentServerType = serverName;
   } catch (err) {
     console.error(err);
     resetToAnalyze();
@@ -271,12 +318,11 @@ window.onSelectServer = async function(serverName) {
   } finally {
     // 重置标志位
     window.isOfflineSelection = false;
-    currentServerType = serverName;
   }
 }
 
 // 在线分析逻辑处理
-window. analyze = async function () {
+window.analyze = async function () {
   const btn = document.getElementById("analyzeBtn");
   const originalText = btn.textContent;
 
@@ -315,6 +361,7 @@ window. analyze = async function () {
 
     showLoadingState("SYSTEM SYNCHRONIZING...", `TARGET CONFIRMED: ${targetServer.toUpperCase()}`);
     await initApp(false, targetServer, "");
+    currentServerType = targetServer;
 
   } catch (err) {
     console.error(err);
@@ -366,6 +413,7 @@ window.loadLocal = async function () {
     document.getElementById("analyzeError").textContent = "ERR: " + err;
   }
 }
+
 // 渲染本地存档列表
 function renderLocalArchiveList(archives) {
   const container = document.getElementById("playerListContainer");
@@ -446,9 +494,11 @@ window.handleImportTemp = async function() {
   } catch (err) {
     console.error(err);
     if (err && !err.toString().includes("cancelled")) {
-      mdui.snackbar({
+      showAppSnackbar({
         message: "Import Failed: " + err,
-        position: 'top'
+        type: "error",
+        autoCloseDelay: 4500,
+        closeable: true
       });
     }
     resetToAnalyze();
@@ -456,7 +506,12 @@ window.handleImportTemp = async function() {
 }
 
 async function initApp(isOfflineMode, serverName = "official", uid = "") {
-  currentUid = uid;
+  if (isOfflineMode) {
+    currentUid = uid;
+  } else {
+    currentUid = "";
+  }
+
   const loadingText = document.querySelector('.loading-text');
 
   let charDataGrouped, weaponDataGrouped;
@@ -469,14 +524,52 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
   } else {
     // 在线模式：先获取数据
     loadingText.textContent = 'FETCHING DATA ...';
-    const charList = await GetCharacterData(serverName);
-    charDataGrouped = groupDataByPool(charList);
+    let charRes = null;
+    let weaponRes = null;
+    let charList = [];
     let weaponList = [];
+    let charFetchError = null;
+    let weaponFetchError = null;
     try {
-      weaponList = await GetWeaponData(serverName);
+      charRes  = await GetCharacterData(serverName);
+      charList = charRes?.list || [];
     } catch (e) {
+      charFetchError = e;
+      console.warn("Character data fetch failed:", e);
+    }
+    try {
+      weaponRes = await GetWeaponData(serverName);
+      weaponList = weaponRes?.list || [];
+    } catch (e) {
+      weaponFetchError = e;
       console.warn("Weapon data fetch failed:", e);
     }
+    if (charFetchError && weaponFetchError) {
+      showAppSnackbar({
+        message: `角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}`,
+        type: "error",
+        autoCloseDelay: 5200,
+        closeable: true
+      });
+      throw new Error(`角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}`);
+    }
+    currentUid = charRes?.uid || weaponRes?.uid || "";
+    if (charFetchError || weaponFetchError) {
+      const warningMessages = [];
+      if (charFetchError) {
+        warningMessages.push("角色池数据加载失败，已降级为空数据");
+      }
+      if (weaponFetchError) {
+        warningMessages.push("武器池数据加载失败，已降级为空数据");
+      }
+      showAppSnackbar({
+        message: warningMessages.join(" / "),
+        type: "warning",
+        autoCloseDelay: 4200,
+        closeable: true
+      });
+    }
+    charDataGrouped = groupDataByPool(charList);
     weaponDataGrouped = groupDataByPool(weaponList);
   }
 
@@ -528,42 +621,145 @@ window.switchType = function(type) {
   renderByType(type);
 }
 
-function renderByType(type) {
-  const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
+function updateSummaryStripVisibility(visible) {
+  const summaryStrip = document.getElementById('summaryStrip');
+  if (!summaryStrip) return;
+  summaryStrip.style.display = visible ? 'flex' : 'none';
+}
 
+// 统一渲染历史记录空状态
+function renderEmptyHistoryTable(message, colspan = 5) {
+  const historyTableBody = document.getElementById('historyTableBody');
+  if (!historyTableBody) return;
+
+  historyTableBody.innerHTML = `
+    <tr>
+      <td colspan="${colspan}" style="text-align:center; color:#666; padding:32px 0; font-weight:bold; font-size:16px;">
+        ${message}
+      </td>
+    </tr>
+  `;
+}
+
+// 新增：统一更新历史记录分页区域 UI
+function updateHistoryPaginationUI(currentPage, totalPages) {
+  const pageInfo = document.getElementById('pageIndicator');
+  const prevBtn = document.getElementById('prevPageBtn');
+  const nextBtn = document.getElementById('nextPageBtn');
+
+  if (pageInfo) pageInfo.textContent = `PAGE ${currentPage} / ${totalPages}`;
+  if (prevBtn) prevBtn.disabled = (currentPage <= 1);
+  if (nextBtn) nextBtn.disabled = (currentPage >= totalPages || totalPages === 0);
+}
+
+// 统一渲染无数据主界面
+function renderNoDataState({
+                             poolMessage = '// NO DATA RECORDS FOUND',
+                             chartMessage = '// NO CHART DATA',
+                             detailTitle = '// NO DETAIL DATA',
+                             detailDesc = '当前所选类型暂无可展示记录。<br>Please switch pool/type or load another archive.',
+                             historyMessage = '// NO HISTORY RECORDS',
+                             detailLabel = 'TARGET POOL UNAVAILABLE',
+                             historyColspan = 4,
+                             hidePoolSelector = false
+                           } = {}) {
+  // 清空旧显示内容和旧图表实例
+  clearDisplay();
+  // 重置状态，避免残留旧池子/汇总数据
+  currentPool = null;
+  currentAllPoolsData = null;
+  const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
+  if (poolSelectorWrapper) {
+    if (hidePoolSelector) {
+      poolSelectorWrapper.style.display = 'none';
+    } else {
+      poolSelectorWrapper.style.display = 'block';
+      poolSelectorWrapper.innerHTML = `
+        <div style="color:#666; padding:10px; font-weight: bold; font-size: 18px;">
+          ${poolMessage}
+        </div>
+      `;
+    }
+  }
+  // 无数据时隐藏概览条
+  updateSummaryStripVisibility(false);
+  const chartContainer = document.getElementById('chartContainer');
+  const rareCharsContainer = document.getElementById('rareCharsContainer');
+  if (chartContainer) {
+    chartContainer.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#666; font-size:20px; font-weight:bold;">
+        ${chartMessage}
+      </div>
+    `;
+  }
+  if (rareCharsContainer) {
+    rareCharsContainer.innerHTML = `
+      <div style="padding:40px 32px; color:#666;">
+        <div style="font-size:12px; letter-spacing:2px; margin-bottom:16px;">${detailLabel}</div>
+        <div style="font-size:28px; font-weight:bold; margin-bottom:16px;">${detailTitle}</div>
+        <div style="font-size:14px; line-height:1.8;">
+          ${detailDesc}
+        </div>
+      </div>
+    `;
+  }
+  renderEmptyHistoryTable(historyMessage, historyColspan);
+  updateHistoryPaginationUI(0, 0);
+}
+
+function renderByType(type) {
   // 汇总模式处理
   if (type === 'all') {
     const dataMap = (lastDataType === 'char') ? globalCharData : globalWeaponData;
     if (!dataMap || Object.keys(dataMap).length === 0) {
-      if (poolSelectorWrapper) poolSelectorWrapper.style.display = 'none';
-      clearDisplay();
+      renderNoDataState({
+        chartMessage: '// NO ALL-POOLS CHART DATA',
+        detailTitle: '// NO SUMMARY DATA',
+        detailDesc: '当前汇总模式下暂无可展示记录。<br>Please switch type or load another archive.',
+        historyMessage: '// NO ALL-POOLS HISTORY',
+        detailLabel: 'ALL POOLS ANALYSIS',
+        historyColspan: 5,
+        hidePoolSelector: true
+      });
       return;
     }
     // 合并所有卡池数据
     currentAllPoolsData = mergeAllPoolsData(dataMap);
+    // 如果合并后依然为空，也按汇总无数据处理
+    if (!currentAllPoolsData || currentAllPoolsData.length === 0) {
+      renderNoDataState({
+        chartMessage: '// NO ALL-POOLS CHART DATA',
+        detailTitle: '// NO SUMMARY DATA',
+        detailDesc: '当前汇总模式下暂无可展示记录。<br>Please switch type or load another archive.',
+        historyMessage: '// NO ALL-POOLS HISTORY',
+        historyColspan: 5,
+        hidePoolSelector: true
+      });
+      return;
+    }
+    // 汇总模式有数据时恢复概览条
+    updateSummaryStripVisibility(true);
     // 使用汇总专用的显示函数
     displayAllPoolsSummary(currentAllPoolsData);
     return;
   }
-
   // 确定当前使用的数据源
   const dataMap = (type === 'char') ? globalCharData : globalWeaponData;
-
   // 如果没有数据
   if(!dataMap || Object.keys(dataMap).length === 0) {
-    if (poolSelectorWrapper) {
-      poolSelectorWrapper.innerHTML = '<div style="color:#666; padding:10px;">// NO DATA RECORDS FOUND</div>';
-    }
-    const pageInfo = document.getElementById('pageIndicator');
-    const prevBtn = document.getElementById('prevPageBtn');
-    const nextBtn = document.getElementById('nextPageBtn');
-    if(pageInfo) pageInfo.textContent = "PAGE 0 / 0";
-    if(prevBtn) prevBtn.disabled = true;
-    if(nextBtn) nextBtn.disabled = true;
-    clearDisplay();
+    renderNoDataState({
+      poolMessage: '// NO DATA RECORDS FOUND',
+      chartMessage: '// NO CHART DATA',
+      detailTitle: '// NO DETAIL DATA',
+      detailDesc: '当前所选类型暂无可展示记录。<br>Please switch pool/type or load another archive.',
+      historyMessage: '// NO HISTORY RECORDS',
+      historyColspan: 5,
+      hidePoolSelector: false
+    });
     return;
   }
-
+  // 如果有数据则恢复显示选择器
+  updateSummaryStripVisibility(true);
   // 重置当前选中的池子为第一个
   currentPool = Object.keys(dataMap)[0];
   // 创建池子按钮
@@ -624,13 +820,13 @@ function applyTheme(theme) {
   }
 
   if (isAllPoolsMode && currentAllPoolsData) {
-    // 汇总模式：重新绘制汇总图表
-    createAllPoolsChart(currentAllPoolsData);
+    // 汇总卡池模式
+    updateOrCreateChart(currentAllPoolsData);
   } else if (currentPool) {
-    // 单卡池模式：重新绘制单卡池图表
+    // 单类型卡池模式
     const dataMap = (lastDataType === 'char') ? globalCharData : globalWeaponData;
     if (dataMap && dataMap[currentPool]) {
-      createChart(dataMap, currentPool);
+      updateOrCreateChart(dataMap[currentPool])
     }
   }
 }
@@ -745,10 +941,9 @@ function clearDisplay() {
 
 function updateDisplay(dataMap, poolName) {
   if (!poolName || !dataMap || !dataMap[poolName]) return;
-
   // 渲染各个模块
-  createChart(dataMap, poolName);
-  createRareCharsCard(dataMap, poolName);
+  updateOrCreateChart(dataMap[poolName])
+  createRareRecordCard(dataMap, poolName);
   createSummaryStrip(dataMap, poolName);
   createHistoryTable(dataMap, poolName);
 }
@@ -899,6 +1094,50 @@ const historyPageSize = 10;
 let currentHistoryData = [];
 let currentPoolNameForPagination = "";
 
+// 统一渲染卡池历史记录分页
+function renderPagedHistoryTable({
+                                   items,
+                                   isAllPoolsMode,
+                                   getPoolLabel = () => 'UNKNOWN',
+                                   emptyMessage = 'NO DATA AVAILABLE',
+                                   emptyColspan = 5
+                                 }) {
+  const tbody = document.getElementById('historyTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const totalItems = items.length;
+  const totalPages = Math.ceil(totalItems / historyPageSize) || 1;
+  if (currentHistoryPage < 1) currentHistoryPage = 1;
+  if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
+  const startIndex = (currentHistoryPage - 1) * historyPageSize;
+  const endIndex = Math.min(startIndex + historyPageSize, totalItems);
+  const pageItems = items.slice(startIndex, endIndex);
+  if (pageItems.length === 0) {
+    renderEmptyHistoryTable(emptyMessage, emptyColspan);
+  } else {
+    pageItems.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      const displayNum = totalItems - (startIndex + index);
+      const name = getItemName(item);
+      const isFree = item.isFree ? "YES" : "NO";
+      const poolLabel = getPoolLabel(item);
+      tr.innerHTML = `
+        <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
+        <td class="rarity-${item.rarity}">${name}</td>
+        <td>${"★".repeat(item.rarity)}</td>
+        <td style="color:#444; font-size:10px;">[ ${poolLabel} ]</td>
+        <td style="color:#444; font-size:10px;">${isFree}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  // 更新分页
+  updateHistoryPaginationUI(currentHistoryPage, totalPages);
+  // 初始化页码编辑功能
+  initPageIndicatorEditing(totalPages, isAllPoolsMode);
+}
+
+
 function createHistoryTable(dataMap, poolName) {
   if (currentPoolNameForPagination !== poolName) {
     currentHistoryPage = 1;
@@ -910,42 +1149,13 @@ function createHistoryTable(dataMap, poolName) {
 }
 
 function renderHistoryPage() {
-  const tbody = document.getElementById('historyTableBody');
-  tbody.innerHTML = '';
-  const totalItems = currentHistoryData.length;
-  const totalPages = Math.ceil(totalItems / historyPageSize) || 1;
-
-  if (currentHistoryPage < 1) currentHistoryPage = 1;
-  if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
-
-  const startIndex = (currentHistoryPage - 1) * historyPageSize;
-  const endIndex = Math.min(startIndex + historyPageSize, totalItems);
-  const pageItems = currentHistoryData.slice(startIndex, endIndex);
-
-  if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#444;">NO DATA AVAILABLE</td></tr>`;
-  } else {
-    pageItems.forEach((item, index) => {
-      const tr = document.createElement('tr');
-      const displayNum = totalItems - (startIndex + index);
-      const name = getItemName(item);
-      const isFree = item.isFree ? "YES" : "NO";
-
-      tr.innerHTML = `
-                <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
-                <td class="rarity-${item.rarity}">${name}</td>
-                <td>${"★".repeat(item.rarity)}</td>
-                <td style="color:#444; font-size:10px;">[ ${currentPoolNameForPagination} ]</td>
-                <td style="color:#444; font-size:10px;">${isFree}</td>
-            `;
-      tbody.appendChild(tr);
-    });
-  }
-  document.getElementById('pageIndicator').textContent = `PAGE ${currentHistoryPage} / ${totalPages}`;
-  document.getElementById('prevPageBtn').disabled = (currentHistoryPage === 1);
-  document.getElementById('nextPageBtn').disabled = (`currentHistoryPage` === totalPages || totalPages === 0);
-  // 初始化页码编辑功能
-  initPageIndicatorEditing(totalPages, false);
+  renderPagedHistoryTable({
+    items: currentHistoryData,
+    isAllPoolsMode: false,
+    getPoolLabel: () => currentPoolNameForPagination,
+    emptyMessage: 'NO DATA AVAILABLE',
+    emptyColspan: 5
+  });
 }
 
 window.changePage = function(delta) {
@@ -1040,9 +1250,9 @@ function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
 
     // 验证页码
     if (isNaN(newPage) || newPage < 1 || newPage > totalPages) {
-      mdui.snackbar({
+      showAppSnackbar({
         message: `Invalid page number. Please enter a number between 1 and ${totalPages}`,
-        position: 'top'
+        type: "warning"
       });
       // 恢复原始显示
       pageIndicator.textContent = originalText;
@@ -1089,50 +1299,39 @@ function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
   });
 }
 
-function createChart(dataMap, poolName) {
-  const items = dataMap[poolName];
-  const rarityCounts = {4: 0, 5: 0, 6: 0 };
-  items.forEach(item => {
-    if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
-  });
-  if (gachaChartInstance) {
-    gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
-    gachaChartInstance.update();
-    return;
-  }
-  const chartContainer = document.getElementById("chartContainer");
-  chartContainer.innerHTML = '';
-  const corner = document.createElement("div");
-  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
-  chartContainer.appendChild(corner);
-
-  const ctx = document.createElement("canvas");
-  ctx.style.maxWidth = "280px"; ctx.style.maxHeight = "280px";
-  chartContainer.appendChild(ctx);
-  gachaChartInstance = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: ["4★", "5★", "6★"],
-      datasets: [{
-        data: [rarityCounts[4], rarityCounts[5], rarityCounts[6]],
-        backgroundColor: ["#9c27b0", "#ffca28", "#ff5722"],
-        borderColor: Chart.defaults.borderColor,
-        borderWidth: 2,
-        hoverOffset: 8
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '60%',
-      animation: { duration: 800, easing: 'easeOutQuart' },
-      plugins: {
-        legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
-        title: { display: false }
-      }
+function renderRareItemChip({
+                              label,
+                              isUpItem,
+                              isNewItem,
+                              chipBorderColor,
+                              chipTextColor,
+                              chipBgColor
+                            }) {
+  let borderColor, textColor, bgColor;
+  let hasGlowEffect = false;
+  if (isUpItem) {
+    borderColor = chipBorderColor;
+    textColor = chipTextColor;
+    bgColor = chipBgColor;
+    if (isNewItem) {
+      hasGlowEffect = true;
     }
-  });
+  } else if (isNewItem) {
+    borderColor = "#e8a035";
+    textColor = "#e8a035";
+    bgColor = "rgba(255, 235, 59, 0.15)";
+  } else {
+    borderColor = "#666666";
+    textColor = "#888888";
+    bgColor = "#66666619";
+  }
+  const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
+  background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
+  const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
+  return `<span ${glowClass} style="${styleStr}">${label}</span>`;
 }
 
-function createRareCharsCard(dataMap, poolName) {
+function createRareRecordCard(dataMap, poolName) {
   const items = dataMap[poolName] || [];
   const chronological = items.slice().reverse();
   const sixStarDetails = [];
@@ -1175,45 +1374,21 @@ function createRareCharsCard(dataMap, poolName) {
 
   // 获取当前卡池的UP角色
   const upCharName = globalPoolConfig && globalPoolConfig[poolName] ? globalPoolConfig[poolName] : null;
-
   const chipsHtml = recentSixStars.map(item => {
-    // 判断是否是UP角色
-    const isUpChar = upCharName && item.name === upCharName;
-    const isNewChar = item.isNew
-
-    // 根据是否是UP角色设置不同的颜色
-    let borderColor, textColor, bgColor, hasGlowEffect = false;
-    if (isUpChar) {
-      if (isNewChar) {
-        borderColor = chipBorderColor;
-        textColor = chipTextColor;
-        bgColor = chipBgColor;
-        hasGlowEffect = true;
-      } else {
-        // UP角色使用原有颜色
-        borderColor = chipBorderColor;
-        textColor = chipTextColor;
-        bgColor = chipBgColor;
-      }
-    } else if (isNewChar) {
-      borderColor = "#e8a035";
-      textColor = "#e8a035";
-      bgColor = "rgba(255, 235, 59, 0.15)";
-    } else {
-      // 非UP角色使用灰色调
-      borderColor = "#666666";
-      textColor = "#888888";
-      bgColor = "#66666619";
-    }
-
-    const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
-    background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
-    const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
-    return `<span ${glowClass} style="${styleStr}">${item.name} [${item.pityText}]</span>`;
+    // 判断是否是UP角色/武器(还没做好)
+    const isUpItem = upCharName && item.name === upCharName;
+    const isNewItem = item.isNew
+    // 根据是否是UP角色/武器设置不同的颜色
+    return renderRareItemChip({
+      label: `${item.name} [${item.pityText}]`,
+      isUpItem,
+      isNewItem,
+      chipBorderColor,
+      chipTextColor,
+      chipBgColor
+    });
   }).join("");
-
   const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
-
   container.innerHTML = `
         <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
         <div style="margin-left: 8px;">
@@ -1247,7 +1422,6 @@ function updateAllBtnText() {
 // 合并所有卡池的数据并按卡池配置顺序排序
 function mergeAllPoolsData(dataMap) {
   const merged = [];
-
   // 按顺序遍历卡池，确保输出顺序一致
   for (const poolName of globalPoolOrder) {
     if (dataMap[poolName]) {
@@ -1260,7 +1434,6 @@ function mergeAllPoolsData(dataMap) {
       });
     }
   }
-
   // 处理配置中不存在的卡池
   for (const poolName in dataMap) {
     if (!globalPoolOrder.includes(poolName)) {
@@ -1273,66 +1446,16 @@ function mergeAllPoolsData(dataMap) {
       });
     }
   }
-
   // 按时间倒序排列（最新的在前）
   return merged.reverse();
 }
 
 // 汇总模式的主显示函数
 function displayAllPoolsSummary(allItems) {
-  createAllPoolsChart(allItems);
-  createAllPoolsRareCharsCard(allItems);
+  updateOrCreateChart(allItems);
+  createAllPoolsRareRecordsCard(allItems);
   createAllPoolsSummaryStrip(allItems);
   createAllPoolsHistoryTable(allItems);
-}
-
-// 汇总模式的图表
-function createAllPoolsChart(items) {
-  const rarityCounts = { 4: 0, 5: 0, 6: 0 };
-  items.forEach(item => {
-    if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
-  });
-
-  if (gachaChartInstance) {
-    gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
-    gachaChartInstance.update();
-    return;
-  }
-
-  const chartContainer = document.getElementById("chartContainer");
-  chartContainer.innerHTML = '';
-  const corner = document.createElement("div");
-  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
-  chartContainer.appendChild(corner);
-
-  const ctx = document.createElement("canvas");
-  ctx.style.maxWidth = "280px";
-  ctx.style.maxHeight = "280px";
-  chartContainer.appendChild(ctx);
-
-  gachaChartInstance = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: ["4★", "5★", "6★"],
-      datasets: [{
-        data: [rarityCounts[4], rarityCounts[5], rarityCounts[6]],
-        backgroundColor: ["#9c27b0", "#ffca28", "#ff5722"],
-        borderColor: Chart.defaults.borderColor,
-        borderWidth: 2,
-        hoverOffset: 8
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '60%',
-      animation: { duration: 800, easing: 'easeOutQuart' },
-      plugins: {
-        legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
-        title: { display: false }
-      }
-    }
-  });
 }
 
 function createAllPoolsSummaryStrip(items) {
@@ -1362,7 +1485,7 @@ function createAllPoolsSummaryStrip(items) {
   `;
 }
 
-function createAllPoolsRareCharsCard(items) {
+function createAllPoolsRareRecordsCard(items) {
   const sixStarDetails = [];
   let currentPityCounter = 0;
 
@@ -1405,40 +1528,19 @@ function createAllPoolsRareCharsCard(items) {
   const labelText = (currentType === 'char') ? "ALL 6★ CHARACTERS" : "ALL 6★ WEAPONS";
 
   const chipsHtml = sixStarDetails.map(item => {
-    const isNewChar = item.isNew;
+    const isNewItem = item.isNew;
     // 根据原始卡池名获取UP角色
     const upCharName = globalPoolConfig && globalPoolConfig[item.poolName] ? globalPoolConfig[item.poolName] : null;
-    // 判断是否是UP角色
-    const isUpChar = upCharName && item.name === upCharName;
-
-    let borderColor, textColor, bgColor, hasGlowEffect = false;
-    if (isUpChar) {
-      if (isNewChar) {
-        borderColor = chipBorderColor;
-        textColor = chipTextColor;
-        bgColor = chipBgColor;
-        hasGlowEffect = true;
-      } else {
-        // UP角色使用原有颜色
-        borderColor = chipBorderColor;
-        textColor = chipTextColor;
-        bgColor = chipBgColor;
-      }
-    } else if (isNewChar) {
-      borderColor = "#e8a035";
-      textColor = "#e8a035";
-      bgColor = "rgba(255, 235, 59, 0.15)";
-    } else {
-      // 非UP角色使用灰色调
-      borderColor = "#666666";
-      textColor = "#888888";
-      bgColor = "#66666619";
-    }
-
-    const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
-    background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
-    const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
-    return `<span ${glowClass} style="${styleStr}">${item.name} - ${item.poolName} [${item.pityText}]</span>`;
+    // 判断是否是UP角色/武器(没做完)
+    const isUpItem = upCharName && item.name === upCharName;
+    return renderRareItemChip({
+      label: `${item.name} - ${item.poolName} [${item.pityText}]`,
+      isUpItem,
+      isNewItem,
+      chipBorderColor,
+      chipTextColor,
+      chipBgColor
+    });
   }).join("");
 
   const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
@@ -1471,43 +1573,56 @@ function createAllPoolsHistoryTable(items) {
 }
 
 function renderAllPoolsHistoryPage() {
-  const tbody = document.getElementById('historyTableBody');
-  tbody.innerHTML = '';
-  const totalItems = currentHistoryData.length;
-  const totalPages = Math.ceil(totalItems / historyPageSize) || 1;
+  renderPagedHistoryTable({
+    items: currentHistoryData,
+    isAllPoolsMode: true,
+    getPoolLabel: (item) => item.poolName,
+    emptyMessage: 'NO DATA AVAILABLE',
+    emptyColspan: 5
+  });
+}
 
-  if (currentHistoryPage < 1) currentHistoryPage = 1;
-  if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
-
-  const startIndex = (currentHistoryPage - 1) * historyPageSize;
-  const endIndex = Math.min(startIndex + historyPageSize, totalItems);
-  const pageItems = currentHistoryData.slice(startIndex, endIndex);
-
-  if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#444;">NO DATA AVAILABLE</td></tr>`;
-  } else {
-    pageItems.forEach((item, index) => {
-      const tr = document.createElement('tr');
-      const displayNum = totalItems - (startIndex + index);
-      const name = getItemName(item);
-      const isFree = item.isFree ? "YES" : "NO";
-
-      tr.innerHTML = `
-        <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
-        <td class="rarity-${item.rarity}">${name}</td>
-        <td>${"★".repeat(item.rarity)}</td>
-        <td style="color:#444; font-size:10px;">[ ${item.poolName} ]</td>
-        <td style="color:#444; font-size:10px;">${isFree}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+function updateOrCreateChart(items) {
+  const rarityCounts = {4: 0, 5: 0, 6: 0 };
+  items.forEach(item => {
+    if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
+  });
+  if (gachaChartInstance) {
+    gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
+    gachaChartInstance.update();
+    return;
   }
+  const chartContainer = document.getElementById("chartContainer");
+  chartContainer.innerHTML = '';
+  const corner = document.createElement("div");
+  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
+  chartContainer.appendChild(corner);
 
-  document.getElementById('pageIndicator').textContent = `PAGE ${currentHistoryPage} / ${totalPages}`;
-  document.getElementById('prevPageBtn').disabled = (currentHistoryPage === 1);
-  document.getElementById('nextPageBtn').disabled = (currentHistoryPage === totalPages || totalPages === 0);
-  // 初始化页码编辑功能
-  initPageIndicatorEditing(totalPages, true);
+  const ctx = document.createElement("canvas");
+  ctx.style.maxWidth = "280px";
+  ctx.style.maxHeight = "280px";
+  chartContainer.appendChild(ctx);
+  gachaChartInstance = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["4★", "5★", "6★"],
+      datasets: [{
+        data: [rarityCounts[4], rarityCounts[5], rarityCounts[6]],
+        backgroundColor: ["#9c27b0", "#ffca28", "#ff5722"],
+        borderColor: Chart.defaults.borderColor,
+        borderWidth: 2,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      animation: { duration: 800, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
+        title: { display: false }
+      }
+    }
+  });
 }
 
 function startExitAnimation() {
@@ -1556,14 +1671,24 @@ function startExitAnimation() {
         ];
         elements.forEach((el) => {
           if(el) {
-            if(el.id === 'summaryStrip' || el.id === 'dashboardPanel' || el.id === 'typeSwitcher') el.style.display = 'flex';
-            else el.style.display = 'block';
-            el.style.opacity = "0"; el.style.transform = "translateY(20px)";
+            if (el.id === 'typeSwitcher' || el.id === 'dashboardPanel') {
+              el.style.display = 'flex';
+            } else if (el.id === 'summaryStrip') {
+              if (el.style.display !== 'none') {
+                el.style.display = 'flex';
+              }
+            } else {
+              el.style.display = 'block';
+            }
           }
         });
         // 依次执行入场动画
         elements.forEach((el, index) => {
-          if(el) { setTimeout(() => { el.style.transition = "all 0.5s ease-out"; el.style.opacity = "1"; el.style.transform = "translateY(0)"; }, index * 100); }
+          if(el) { setTimeout(() => {
+            el.style.transition = "all 0.5s ease-out";
+            el.style.opacity = "1";
+            el.style.transform = "translateY(0)";
+            }, index * 100); }
         });
       }, 500);
     }, 400);
@@ -1571,6 +1696,17 @@ function startExitAnimation() {
 }
 
 window.resetToAnalyze = function() {
+  // 重置全局数据
+  cachedHgToken = ""
+  currentUid = ""
+  currentServerType = ""
+  globalCharData = null
+  globalWeaponData = null
+  currentType = 'char'
+  lastDataType = 'char'
+  currentPool = null
+  currentAllPoolsData = null
+  isAllPoolsMode = false
   // UI 界面复位，从 APP 界面切回登录界面
   const loadingOverlay = document.getElementById("loadingOverlay");
   loadingOverlay.style.display = "none";

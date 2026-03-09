@@ -4,13 +4,13 @@ import (
 	"Go_Arknights_Gacha_App/internal/logger"
 	"bytes"
 	_ "embed"
-	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 //go:embed login_helper.exe
@@ -47,20 +47,30 @@ func OpenLoginWindow() (string, error) {
 	cmd := exec.Command(helperPath)
 	applyNoWindowAttr(cmd)
 
-	var out bytes.Buffer
-	cmd.Stdout = &out
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 
 	logger.Log.Info("Starting helper process...")
 
 	if err := cmd.Run(); err != nil {
-		logger.Log.Error(fmt.Sprintf("Login helper exited with error (check output): %v", err))
+		stderrText := strings.TrimSpace(stderr.String())
+		if stderrText != "" {
+			logger.Log.Error("Login helper exited with error", zap.Error(err), zap.String("stderr", stderrText))
+			return "", fmt.Errorf("登录组件执行失败: %v: %s", err, stderrText)
+		}
+		logger.Log.Error("Login helper exited with error", zap.Error(err))
+		return "", fmt.Errorf("登录组件执行失败: %v", err)
 	}
 
-	rawOutput := out.String()
-
-	token := strings.TrimSpace(rawOutput)
+	token := strings.TrimSpace(stdout.String())
 	if token == "" {
-		return "", errors.New("未检测到 Token (窗口被关闭或未完成登录)")
+		stderrText := strings.TrimSpace(stderr.String())
+		if stderrText != "" {
+			return "", fmt.Errorf("未获取到 Token，登录组件输出错误信息: %s", stderrText)
+		}
+		return "", fmt.Errorf("未检测到 Token（窗口被关闭、未完成登录或登录组件未输出有效结果）")
 	}
 
 	logger.Log.Info("Successfully captured token.")

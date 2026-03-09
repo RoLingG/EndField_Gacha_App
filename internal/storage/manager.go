@@ -5,12 +5,13 @@ import (
 	"Go_Arknights_Gacha_App/internal/model"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 const DataDirectoryName = "userdata"
@@ -45,21 +46,15 @@ func cleanTempFiles(dir string) {
 	}
 }
 
-// GetProfileDir 获取 UID 或 Local 文件夹
+// GetProfileDir 获取 UID 对应的存档目录
 func GetProfileDir(uid string) (string, error) {
 	baseDir, err := GetStorageDir()
 	if err != nil {
 		return "", err
 	}
 	if uid == "" {
-		localDir := filepath.Join(baseDir, "local")
-		if _, err := os.Stat(localDir); os.IsNotExist(err) {
-			if err := os.Mkdir(localDir, 0755); err != nil {
-				return "", err
-			}
-		}
-		cleanTempFiles(localDir)
-		return localDir, nil
+		logger.Log.Error("UID is empty, cannot get profile directory")
+		return "", fmt.Errorf("UID 不能为空")
 	}
 	entries, err := os.ReadDir(baseDir)
 	if err != nil {

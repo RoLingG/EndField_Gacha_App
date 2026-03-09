@@ -7,11 +7,11 @@ export function CheckLocalFiles():Promise<Array<model.LocalArchive>>;
 
 export function ExportData(arg1:string,arg2:string):Promise<string>;
 
-export function GetCharacterData(arg1:string):Promise<Array<model.EndFieldCharInfo>>;
+export function GetCharacterData(arg1:string):Promise<main.FetchDataResponse_Go_Arknights_Gacha_App_internal_model_EndFieldCharInfo_>;
 
 export function GetPoolConfig():Promise<model.PoolConfigList>;
 
-export function GetWeaponData(arg1:string):Promise<Array<model.EndFieldWeaponInfo>>;
+export function GetWeaponData(arg1:string):Promise<main.FetchDataResponse_Go_Arknights_Gacha_App_internal_model_EndFieldWeaponInfo_>;
 
 export function ImportTemporaryJson():Promise<main.ImportResponse>;
 

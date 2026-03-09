@@ -11,15 +11,16 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/energye/systray"
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
-	"go.uber.org/zap"
 	"net/url"
 	"os"
 	"os/exec"
 	runtimeOs "runtime"
 	"strings"
 	"time"
+
+	"github.com/energye/systray"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"go.uber.org/zap"
 )
 
 // App struct
@@ -91,26 +92,21 @@ func (a *App) OpenDataFolder() {
 // ExportData 导出数据为 Excel
 func (a *App) ExportData(uid string, serverType string) (string, error) {
 	logger.Log.Info("Frontend requested: ExportData", zap.String("uid", uid), zap.String("server", serverType))
-
+	if uid == "" {
+		return "", fmt.Errorf("UID 不能为空")
+	}
 	charList, err := storage.ReadData[model.EndFieldCharInfo](uid, serverType, model.PoolTypeChar)
 	if err != nil {
 		charList = []model.EndFieldCharInfo{}
 	}
-
 	weaponList, err := storage.ReadData[model.EndFieldWeaponInfo](uid, serverType, model.PoolTypeWeapon)
 	if err != nil {
 		weaponList = []model.EndFieldWeaponInfo{}
 	}
-
 	if len(charList) == 0 && len(weaponList) == 0 {
 		return "", fmt.Errorf("当前没有任何数据可导出")
 	}
-
-	defaultName := fmt.Sprintf("endfield_data_%s.xlsx", serverType)
-	if uid != "" {
-		defaultName = fmt.Sprintf("endfield_data_%s_%s.xlsx", uid, serverType)
-	}
-
+	defaultName := fmt.Sprintf("endfield_data_%s_%s.xlsx", uid, serverType)
 	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
 		Title:           "导出抽卡记录",
 		DefaultFilename: defaultName,
@@ -118,7 +114,6 @@ func (a *App) ExportData(uid string, serverType string) (string, error) {
 			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
 		},
 	})
-
 	if err != nil {
 		logger.Log.Error("Failed to open save dialog", zap.Error(err))
 		return "", err
@@ -126,7 +121,6 @@ func (a *App) ExportData(uid string, serverType string) (string, error) {
 	if savePath == "" {
 		return "cancelled", nil
 	}
-
 	if err := export.SaveToExcel(savePath, charList, weaponList); err != nil {
 		logger.Log.Error("Export failed", zap.Error(err))
 		return "", fmt.Errorf("导出文件失败: %v", err)
@@ -177,7 +171,6 @@ func (a *App) internalFetchAndSave(token, serverID, lang string, uid string, ser
 	if _, err := storage.MergeAndSaveData(charData, uid, serverType, model.PoolTypeChar); err != nil {
 		logger.Log.Warn("Character save warning", zap.Error(err))
 	}
-
 	weaponData, err := api.FetchWeaponDataAll(token, serverID, lang)
 	if err != nil {
 		return "", fmt.Errorf("武器记录抓取失败: %v", err)
@@ -185,7 +178,6 @@ func (a *App) internalFetchAndSave(token, serverID, lang string, uid string, ser
 	if _, err := storage.MergeAndSaveData(weaponData, uid, serverType, model.PoolTypeWeapon); err != nil {
 		logger.Log.Warn("Weapon save warning", zap.Error(err))
 	}
-
 	return "success", nil
 }
 
@@ -214,76 +206,93 @@ func (a *App) LoadGachaTokens() (model.ServerTokens, error) {
 
 // ================= Fetch Data (Log Mode) =================
 
+// GetCharacterData 获取并保存角色数据
+func (a *App) GetCharacterData(serverType string) (FetchDataResponse[model.EndFieldCharInfo], error) {
+	return fetchData(a, FetchDataType[model.EndFieldCharInfo]{
+		ServerType: serverType,
+		LogAction:  "GetCharacterData",
+		Category:   model.PoolTypeChar,
+		FetchFunc:  api.FetchCharDataAll,
+	})
+}
+
+// GetWeaponData 获取并保存武器数据
+func (a *App) GetWeaponData(serverType string) (FetchDataResponse[model.EndFieldWeaponInfo], error) {
+	return fetchData(a, FetchDataType[model.EndFieldWeaponInfo]{
+		ServerType: serverType,
+		LogAction:  "GetWeaponData",
+		Category:   model.PoolTypeWeapon,
+		FetchFunc:  api.FetchWeaponDataAll,
+	})
+}
+
+// FetchDataType 获取数据请求体
+type FetchDataType[T model.GachaItem] struct {
+	ServerType string
+	LogAction  string
+	Category   string
+	FetchFunc  func(token, serverID, lang string) ([]T, error)
+}
+type FetchDataResponse[T model.GachaItem] struct {
+	Uid  string `json:"uid"`
+	List []T    `json:"list"`
+}
+
+// fetchData 获取数据(Char or Weapon)
+func fetchData[T model.GachaItem](a *App, req FetchDataType[T]) (FetchDataResponse[T], error) {
+	logger.Log.Info("Frontend requested: "+req.LogAction, zap.String("server", req.ServerType))
+	token, serverID, lang, err := a.prepareFetchParams(req.ServerType)
+	if err != nil {
+		return FetchDataResponse[T]{}, err
+	}
+	uid, err := api.GetUIDByU8Token(token, serverID)
+	if err != nil {
+		logger.Log.Warn("Failed to resolve UID from Token", zap.Error(err))
+		return FetchDataResponse[T]{}, err
+	}
+	newData, err := req.FetchFunc(token, serverID, lang)
+	if err != nil {
+		logger.Log.Error("Network request failed", zap.Error(err))
+		return FetchDataResponse[T]{}, fmt.Errorf("数据请求失败: %v", err)
+	}
+	mergedData, err := storage.MergeAndSaveData(newData, uid, req.ServerType, req.Category)
+	if err != nil {
+		logger.Log.Warn("Failed to save data", zap.Error(err))
+		return FetchDataResponse[T]{Uid: uid, List: newData}, nil
+	}
+	return FetchDataResponse[T]{Uid: uid, List: mergedData}, nil
+}
+
 // prepareFetchParams 统一处理从 Token 获取到解析参数的流程
 func (a *App) prepareFetchParams(serverType string) (token, serverID, lang string, err error) {
-	fullURL := a.getTokenByServerType(serverType)
+	fullURL, err := a.getTokenByServerType(serverType)
+	if err != nil {
+		return "", "", "", err
+	}
 	if fullURL == "" {
 		return "", "", "", fmt.Errorf("未找到 %s 的 Token", serverType)
 	}
-	token, serverID, lang, err = a.parseParamsFromURL(fullURL)
+	token, serverID, lang, err = parseParamsFromURL(fullURL)
 	if err != nil {
-		return "", "", "", fmt.Errorf("Token 解析失败: %v", err)
+		return "", "", "", fmt.Errorf("token 解析失败: %v", err)
 	}
 	return token, serverID, lang, nil
 }
 
-// GetCharacterData 获取并保存角色数据
-func (a *App) GetCharacterData(serverType string) ([]model.EndFieldCharInfo, error) {
-	logger.Log.Info("Frontend requested: GetCharacterData", zap.String("server", serverType))
-	// 获取 params 参数
-	token, serverID, lang, err := a.prepareFetchParams(serverType)
-	if err != nil {
-		return nil, err
+// getTokenByServerType 服务器类型辨识
+func (a *App) getTokenByServerType(serverType string) (string, error) {
+	switch serverType {
+	case model.ServerOfficial:
+		return a.cachedTokens.Official, nil
+	case model.ServerBilibili:
+		return a.cachedTokens.Bilibili, nil
+	default:
+		return "", fmt.Errorf("无效的服务器类型: %s", serverType)
 	}
-	uid, err := api.GetUIDByU8Token(token, serverID)
-	if err != nil {
-		logger.Log.Warn("Failed to resolve UID from Token, using fallback", zap.Error(err))
-		uid = ""
-		return nil, err
-	}
-	// 联网请求
-	newData, err := api.FetchCharDataAll(token, serverID, lang)
-	if err != nil {
-		logger.Log.Error("Network request failed", zap.Error(err))
-		return nil, fmt.Errorf("数据请求失败: %v", err)
-	}
-	mergedData, err := storage.MergeAndSaveData(newData, uid, serverType, model.PoolTypeChar)
-	if err != nil {
-		logger.Log.Warn("Failed to save data", zap.Error(err))
-		return newData, nil
-	}
-	return mergedData, nil
-}
-
-// GetWeaponData 获取并保存武器数据
-func (a *App) GetWeaponData(serverType string) ([]model.EndFieldWeaponInfo, error) {
-	logger.Log.Info("Frontend requested: GetWeaponData", zap.String("server", serverType))
-	// 获取 params 参数
-	token, serverID, lang, err := a.prepareFetchParams(serverType)
-	if err != nil {
-		return nil, err
-	}
-	uid, err := api.GetUIDByU8Token(token, serverID)
-	if err != nil {
-		logger.Log.Warn("Failed to resolve UID from Token, using fallback", zap.Error(err))
-		uid = ""
-		return nil, err
-	}
-	newData, err := api.FetchWeaponDataAll(token, serverID, lang)
-	if err != nil {
-		logger.Log.Error("Network request failed", zap.Error(err))
-		return nil, fmt.Errorf("数据请求失败: %v", err)
-	}
-	mergedData, err := storage.MergeAndSaveData(newData, uid, serverType, model.PoolTypeWeapon)
-	if err != nil {
-		logger.Log.Warn("Failed to save data", zap.Error(err))
-		return newData, nil
-	}
-	return mergedData, nil
 }
 
 // parseParamsFromURL 辅助解析
-func (a *App) parseParamsFromURL(rawURL string) (token, serverID, lang string, err error) {
+func parseParamsFromURL(rawURL string) (token, serverID, lang string, err error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return "", "", "", fmt.Errorf("URL 解析失败")
@@ -307,13 +316,6 @@ func (a *App) parseParamsFromURL(rawURL string) (token, serverID, lang string, e
 	return token, serverID, lang, nil
 }
 
-func (a *App) getTokenByServerType(serverType string) string {
-	if serverType == "bilibili" {
-		return a.cachedTokens.Bilibili
-	}
-	return a.cachedTokens.Official
-}
-
 // ================= Offline / Local Data =================
 
 type LocalDataResponse struct {
@@ -332,29 +334,59 @@ func (a *App) CheckLocalFiles() ([]model.LocalArchive, error) {
 	return archives, nil
 }
 
-// LoadLocalGachaHistory 读取本地历史
+// LoadLocalGachaHistory 读取本地历史数据
 func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataResponse, error) {
-	logger.Log.Info("Frontend requested: LoadLocalGachaHistory", zap.String("server", serverType))
-
-	charList, _ := storage.ReadData[model.EndFieldCharInfo](uid, serverType, model.PoolTypeChar)
-	weaponList, _ := storage.ReadData[model.EndFieldWeaponInfo](uid, serverType, model.PoolTypeWeapon)
-
+	logger.Log.Info("Frontend requested: LoadLocalGachaHistory",
+		zap.String("uid", uid),
+		zap.String("server", serverType),
+	)
+	if uid == "" {
+		return LocalDataResponse{}, fmt.Errorf("读取本地历史数据失败：uid 不能为空")
+	}
+	charList, err := storage.ReadData[model.EndFieldCharInfo](uid, serverType, model.PoolTypeChar)
+	if err != nil {
+		logger.Log.Warn("Failed to read local char history, fallback to empty data",
+			zap.String("uid", uid),
+			zap.String("server", serverType),
+			zap.Error(err),
+		)
+		charList = []model.EndFieldCharInfo{}
+	}
+	weaponList, err := storage.ReadData[model.EndFieldWeaponInfo](uid, serverType, model.PoolTypeWeapon)
+	if err != nil {
+		logger.Log.Warn("Failed to read local weapon history, fallback to empty data",
+			zap.String("uid", uid),
+			zap.String("server", serverType),
+			zap.Error(err),
+		)
+		weaponList = []model.EndFieldWeaponInfo{}
+	}
 	charJson := "{}"
 	if len(charList) > 0 {
 		grouped := groupByCharPoolName(charList)
 		if b, err := json.MarshalIndent(grouped, "", "  "); err == nil {
 			charJson = string(b)
+		} else {
+			logger.Log.Warn("Failed to marshal local char history, fallback to empty json",
+				zap.String("uid", uid),
+				zap.String("server", serverType),
+				zap.Error(err),
+			)
 		}
 	}
-
 	weaponJson := "{}"
 	if len(weaponList) > 0 {
 		grouped := groupByWeaponPoolName(weaponList)
 		if b, err := json.MarshalIndent(grouped, "", "  "); err == nil {
 			weaponJson = string(b)
+		} else {
+			logger.Log.Warn("Failed to marshal local weapon history, fallback to empty json",
+				zap.String("uid", uid),
+				zap.String("server", serverType),
+				zap.Error(err),
+			)
 		}
 	}
-
 	return LocalDataResponse{
 		CharJson:   charJson,
 		WeaponJson: weaponJson,

@@ -8,11 +8,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -64,8 +65,7 @@ func FetchCharDataAll(token, serverID, lang string) ([]model.EndFieldCharInfo, e
 	if token == "" {
 		return nil, fmt.Errorf("token invalid")
 	}
-	// 初始化会话上下文
-	sess := &gachaSession{Token: token, ServerID: serverID, Lang: lang}
+	session := &gachaSession{Token: token, ServerID: serverID, Lang: lang}
 	poolTypes := []string{
 		"E_CharacterGachaPoolType_Special",
 		"E_CharacterGachaPoolType_Standard",
@@ -78,8 +78,7 @@ func FetchCharDataAll(token, serverID, lang string) ([]model.EndFieldCharInfo, e
 	results := make(chan result, len(poolTypes))
 	for _, pt := range poolTypes {
 		go func(poolType string) {
-			// 参数简化：直接传递 session 和 poolType
-			data, err := fetchCharDataFromPool(sess, poolType)
+			data, err := fetchCharDataFromPool(session, poolType)
 			results <- result{data: data, err: err}
 		}(pt)
 	}
@@ -158,13 +157,14 @@ func FetchWeaponDataAll(token, serverID, lang string) ([]model.EndFieldWeaponInf
 		return nil, fmt.Errorf("token 为空")
 	}
 	sess := &gachaSession{Token: token, ServerID: serverID, Lang: lang}
-	// 1. 获取账号参与过的武器卡池列表
+	// 获取账号参与过的武器卡池列表
 	pools, err := fetchWeaponPoolList(sess)
 	if err != nil {
 		return nil, fmt.Errorf("获取武器卡池列表失败: %v", err)
 	}
 	var allData []model.EndFieldWeaponInfo
-	// 2. 遍历每个卡池获取详情
+	successCount := 0
+	// 遍历每个卡池获取详情
 	for _, pool := range pools {
 		poolData, err := fetchWeaponDataByPool(sess, pool.PoolID)
 		if err != nil {
@@ -173,10 +173,11 @@ func FetchWeaponDataAll(token, serverID, lang string) ([]model.EndFieldWeaponInf
 				zap.Error(err))
 			continue
 		}
+		successCount++
 		allData = append(allData, poolData...)
 	}
-	if len(allData) == 0 {
-		return nil, fmt.Errorf("未获取到任何武器数据")
+	if len(pools) > 0 && successCount == 0 {
+		return nil, fmt.Errorf("未获取到任何武器池详情数据")
 	}
 	return allData, nil
 }
@@ -250,7 +251,10 @@ func GetGrantToken(shortToken string) (string, error) {
 		Token:   shortToken,
 		Type:    1,
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("序列化请求失败(Grant): %v", err)
+	}
 	req, err := http.NewRequest("POST", "https://as.hypergryph.com/user/oauth2/v2/grant", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return "", err
@@ -262,6 +266,9 @@ func GetGrantToken(shortToken string) (string, error) {
 		return "", fmt.Errorf("网络请求失败(Grant): %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("登录授权请求失败，HTTP 状态码: %d", resp.StatusCode)
+	}
 	var result model.GrantResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("解析响应失败(Grant): %v", err)
@@ -289,6 +296,9 @@ func GetPlayerBindings(hgToken string) ([]model.PlayerBindingInfo, error) {
 		return nil, fmt.Errorf("网络请求失败(Binding): %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("获取账号角色绑定列表请求失败，HTTP 状态码: %d", resp.StatusCode)
+	}
 	var result model.BindingResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("解析响应失败(Binding): %v", err)
@@ -300,7 +310,7 @@ func GetPlayerBindings(hgToken string) ([]model.PlayerBindingInfo, error) {
 	for _, app := range result.Data.List {
 		if app.AppCode == AppCodeEndfield {
 			for _, binding := range app.BindingList {
-				nickName := "未知指挥官"
+				nickName := "未知博士"
 				level := 0
 				if len(binding.Roles) > 0 {
 					nickName = binding.Roles[0].NickName
@@ -338,7 +348,10 @@ func GetU8Token(hgToken, hgUid string) (string, error) {
 		Token: hgToken,
 		Uid:   hgUid,
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("序列化请求失败(U8Token): %v", err)
+	}
 	req, err := http.NewRequest("POST", "https://binding-api-account-prod.hypergryph.com/account/binding/v1/u8_token_by_uid", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return "", err
@@ -349,6 +362,9 @@ func GetU8Token(hgToken, hgUid string) (string, error) {
 		return "", fmt.Errorf("网络请求失败(U8Token): %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("获取用户Token请求失败，HTTP 状态码: %d", resp.StatusCode)
+	}
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -376,7 +392,10 @@ func GetUIDByU8Token(u8Token string, serverId string) (string, error) {
 		Token:  u8Token,
 		Server: sId,
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("序列化请求失败(QueryRole): %v", err)
+	}
 	req, err := http.NewRequest("POST", BaseUrlRoleQuery, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return "", err
@@ -388,6 +407,9 @@ func GetUIDByU8Token(u8Token string, serverId string) (string, error) {
 		return "", fmt.Errorf("网络请求失败(QueryRole): %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("获取角色信息请求失败，HTTP 状态码: %d", resp.StatusCode)
+	}
 	var result model.QueryRoleResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("解析响应失败(QueryRole): %v", err)
