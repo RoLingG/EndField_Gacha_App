@@ -197,41 +197,6 @@
         --ef-grey: #444444;
     }
 
-    mdui-button {
-        --mdui-color-primary: var(--ef-yellow);
-        --mdui-color-on-primary: var(--ef-black);
-    }
-
-    mdui-text-field {
-        --mdui-color-primary: var(--ef-yellow);
-        --mdui-color-on-surface-variant: #888;
-        --mdui-color-surface-container-highest: rgba(255,255,255,0.05);
-    }
-
-    mdui-dialog {
-        --mdui-color-surface: var(--ef-dark-grey);
-        --mdui-color-on-surface: var(--ef-white);
-        --mdui-color-primary: var(--ef-yellow);
-        --mdui-shape-corner-large: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    }
-
-    mdui-dialog::part(panel) {
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    mdui-dialog mdui-button {
-        font-family: 'Consolas', 'Monaco', monospace;
-        font-weight: 600;
-    }
-
-    mdui-select, mdui-menu {
-        --mdui-color-surface-container: var(--ef-dark-grey);
-        --mdui-color-on-surface: var(--ef-white);
-        --mdui-color-primary: var(--ef-yellow);
-    }
-
     .app-snackbar {
         border-radius: 12px;
         min-width: 220px;
@@ -266,23 +231,6 @@
         background: rgba(72, 32, 32, 0.94);
         color: #ffd6d6;
         border-color: rgba(255, 120, 120, 0.14);
-    }
-
-    .app-snackbar mdui-button[slot="action"] {
-        --mdui-color-primary: #7cc4ff;
-        font-weight: 600;
-    }
-
-    .app-snackbar--success mdui-button[slot="action"] {
-        --mdui-color-primary: #8df0b6;
-    }
-
-    .app-snackbar--warning mdui-button[slot="action"] {
-        --mdui-color-primary: #ffd36d;
-    }
-
-    .app-snackbar--error mdui-button[slot="action"] {
-        --mdui-color-primary: #ff9b9b;
     }
 
     @keyframes fadeIn {

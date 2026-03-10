@@ -23,8 +23,6 @@ import {
 function showAppSnackbar({
                            message = "",
                            type = "info",
-                           actionText = "",
-                           onAction = null,
                            autoCloseDelay = 3200,
                            closeable = false,
                          } = {}) {
@@ -33,20 +31,6 @@ function showAppSnackbar({
   snackbar.textContent = message;
   snackbar.autoCloseDelay = autoCloseDelay;
   snackbar.closeable = closeable;
-  if (actionText) {
-    const actionBtn = document.createElement("mdui-button");
-    actionBtn.slot = "action";
-    actionBtn.variant = "text";
-    actionBtn.textContent = actionText;
-    actionBtn.addEventListener("click", () => {
-      try {
-        onAction?.();
-      } finally {
-        snackbar.open = false;
-      }
-    });
-    snackbar.appendChild(actionBtn);
-  }
   document.body.appendChild(snackbar);
   snackbar.open = true;
   const cleanup = () => {
@@ -478,18 +462,17 @@ window.handleImportTemp = async function() {
     }
     const exportBtn = document.getElementById("btnExportExcel");
     if(exportBtn) exportBtn.style.display = "none";
-    setTimeout(() => {
+    setTimeout(async () => {
       const loadingText = document.querySelector('.loading-text');
-      if(loadingText) loadingText.textContent = 'DATA PARSED SUCCESS';
+      if (loadingText) loadingText.textContent = 'DATA PARSED SUCCESS';
+      await loadPoolConfig();
       const btnChar = document.getElementById('btnTypeChar');
       const btnWeapon = document.getElementById('btnTypeWeapon');
-      if(btnChar) btnChar.classList.toggle('active', res.type === 'char');
-      if(btnWeapon) btnWeapon.classList.toggle('active', res.type === 'weapon');
+      if (btnChar) btnChar.classList.toggle('active', res.type === 'char');
+      if (btnWeapon) btnWeapon.classList.toggle('active', res.type === 'weapon');
       renderByType(res.type);
       updateAllBtnText();
       startExitAnimation();
-      currentServerType = "imported_temp";
-      currentUid = "temp_file";
     }, 600);
   } catch (err) {
     console.error(err);
@@ -546,12 +529,13 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
     }
     if (charFetchError && weaponFetchError) {
       showAppSnackbar({
-        message: `角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}`,
+        message: `角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}。`,
         type: "error",
         autoCloseDelay: 5200,
         closeable: true
       });
-      throw new Error(`角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}`);
+      resetToAnalyze();
+      return;
     }
     currentUid = charRes?.uid || weaponRes?.uid || "";
     if (charFetchError || weaponFetchError) {
@@ -986,7 +970,7 @@ async function loadPoolConfig() {
 
 function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName] || [];
-  const poolUpCharConfig = globalPoolConfig
+  const poolUpCharConfig = globalPoolConfig || {};
   const reversed = items.slice().reverse();
 
   let currentPity = 0;
@@ -1003,7 +987,7 @@ function createSummaryStrip(dataMap, poolName) {
   let rightCornerSub = (currentType === 'char') ? "6★ GUARANTEED AT 80" : "UP 6★ GUARANTEED AT 80";
   let centerColor = "#ffffff";
   let pityCount = (currentType === 'char') ? 80 : 40;
-  const targetUpChar = poolUpCharConfig[poolName];
+  const targetUpChar = poolUpCharConfig[poolName] || null;
   if (currentType === 'char' && targetUpChar) {
     centerLabel = "POOL SPARK // 本池垫刀";
     rightCornerSub = "LIMITED SPARK COUNT";
