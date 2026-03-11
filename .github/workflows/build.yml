@@ -54,7 +54,7 @@ jobs:
         with:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
-          package: false          # 不让 action 自己 upload / release
+          package: false
           disable-release: true
           go-version: '1.22'
 
