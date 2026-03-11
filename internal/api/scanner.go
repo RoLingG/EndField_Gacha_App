@@ -5,12 +5,13 @@ import (
 	"Go_Arknights_Gacha_App/internal/model"
 	"Go_Arknights_Gacha_App/internal/storage"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 var tokenRegex = regexp.MustCompile(`https://ef-webview\.hypergryph\.com/page/gacha_(?:char|weapon)\?[^\s]+`)
@@ -25,7 +26,7 @@ func ScanLogForTokens() (model.ServerTokens, error) {
 	logPath := filepath.Join(homeDir, "AppData", "LocalLow", "Hypergryph", "Endfield", "sdklogs", "HGWebview.log")
 	contentBytes, err := os.ReadFile(logPath)
 	if err != nil {
-		logger.Log.Warn("Log file not found", zap.String("path", logPath))
+		logger.Log.Error("Log file not found", zap.String("path", logPath))
 		return result, fmt.Errorf("无法读取日志文件")
 	}
 	content := string(contentBytes)

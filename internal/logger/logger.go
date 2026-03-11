@@ -1,12 +1,13 @@
 package logger
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 	"os"
 	"path/filepath"
 	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var Log *zap.Logger
@@ -52,7 +53,7 @@ func InitLogger() {
 	core := zapcore.NewTee(fileCore, consoleCore)
 	Log = zap.New(core, zap.AddCaller())
 
-	Log.Info("Endfield Terminal System Startup", zap.String("version", "v1.4.0"))
+	Log.Info("Endfield Terminal System Startup", zap.String("version", "v1.6.2"))
 }
 
 func Sync() {

@@ -109,7 +109,7 @@ func FetchCharDataAll(token, serverID, lang string) ([]model.EndFieldCharInfo, e
 		poolIDs = append(poolIDs, id)
 	}
 	if err := storage.SaveDiscoveredPoolIDs(poolIDs); err != nil {
-		logger.Log.Warn("Failed to save discovered pool IDs", zap.Error(err))
+		logger.Log.Error("Failed to save discovered pool IDs", zap.Error(err))
 	}
 
 	return allData, nil

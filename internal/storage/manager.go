@@ -109,7 +109,7 @@ func MergeAndSaveData[T model.GachaItem](newData []T, uid, serverType, category 
 	fileContent, err := os.ReadFile(filePath)
 	if err == nil {
 		if jsonErr := json.Unmarshal(fileContent, &localData); jsonErr != nil {
-			logger.Log.Warn("Local file corrupted, overwriting", zap.String("file", filePath))
+			logger.Log.Error("Local file corrupted, overwriting", zap.String("file", filePath))
 		}
 	}
 

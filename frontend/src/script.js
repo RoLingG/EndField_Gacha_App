@@ -97,7 +97,6 @@ window.handleExport = async function() {
       message: "导出失败: " + err,
       type: "error",
       autoCloseDelay: 4500,
-      closeable: true
     });
   }
 }
@@ -173,7 +172,6 @@ window.handleToken = async function() {
       message: "处理 Token 失败: " + err,
       type: "error",
       autoCloseDelay: 4500,
-      closeable: true
     });
     document.getElementById("analyzeError").textContent = "LOGIN ERR: " + err;
     resetToAnalyze();
@@ -251,7 +249,6 @@ window.updatePoolConfig = async function() {
       message: "更新失败 / Update failed: " + err,
       type: "error",
       autoCloseDelay: 4500,
-      closeable: true
     });
   }
 }
@@ -271,14 +268,17 @@ function groupDataByPool(flatList) {
 
 function showLoadingState(mainText, subText) {
   const loadingOverlay = document.getElementById("loadingOverlay");
-  loadingOverlay.style.display = "flex";
-  loadingOverlay.style.opacity = "1";
-  loadingOverlay.style.transform = "translateY(0)";
+  // 更新文本内容
   document.querySelector('.loading-text').textContent = mainText;
   document.querySelector('.loading-subtext').textContent = subText;
+  // 隐藏分析容器
   const analyzeContainer = document.getElementById("analyzeContainer");
   analyzeContainer.style.opacity = "0";
-  setTimeout(() => analyzeContainer.style.display = "none", 500);
+  analyzeContainer.style.display = "none";
+  // 显示加载动画
+  requestAnimationFrame(() => {
+    loadingOverlay.classList.add("show");
+  });
 }
 
 // 双服选择逻辑处理
@@ -481,7 +481,6 @@ window.handleImportTemp = async function() {
         message: "Import Failed: " + err,
         type: "error",
         autoCloseDelay: 4500,
-        closeable: true
       });
     }
     resetToAnalyze();
@@ -532,7 +531,6 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
         message: `角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}。`,
         type: "error",
         autoCloseDelay: 5200,
-        closeable: true
       });
       resetToAnalyze();
       return;
@@ -550,7 +548,6 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
         message: warningMessages.join(" / "),
         type: "warning",
         autoCloseDelay: 4200,
-        closeable: true
       });
     }
     charDataGrouped = groupDataByPool(charList);
@@ -1637,7 +1634,7 @@ function startExitAnimation() {
       loadingOverlay.style.transform = "translateY(-100%)";
 
       setTimeout(() => {
-        loadingOverlay.style.display = "none";
+        loadingOverlay.classList.remove("show");
         if(loadingTrack) {
           loadingTrack.style.transition = "none";
           loadingTrack.style.transform = "scaleX(1)";
@@ -1693,7 +1690,7 @@ window.resetToAnalyze = function() {
   isAllPoolsMode = false
   // UI 界面复位，从 APP 界面切回登录界面
   const loadingOverlay = document.getElementById("loadingOverlay");
-  loadingOverlay.style.display = "none";
+  loadingOverlay.classList.remove("show");
   loadingOverlay.style.transform = "";
 
   // 隐藏APP内部的DOM

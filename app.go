@@ -247,7 +247,7 @@ func fetchData[T model.GachaItem](a *App, req FetchDataType[T]) (FetchDataRespon
 	}
 	uid, err := api.GetUIDByU8Token(token, serverID)
 	if err != nil {
-		logger.Log.Warn("Failed to resolve UID from Token", zap.Error(err))
+		logger.Log.Error("Failed to resolve UID from Token", zap.Error(err))
 		return FetchDataResponse[T]{}, err
 	}
 	newData, err := req.FetchFunc(token, serverID, lang)
@@ -257,7 +257,7 @@ func fetchData[T model.GachaItem](a *App, req FetchDataType[T]) (FetchDataRespon
 	}
 	mergedData, err := storage.MergeAndSaveData(newData, uid, req.ServerType, req.Category)
 	if err != nil {
-		logger.Log.Warn("Failed to save data", zap.Error(err))
+		logger.Log.Error("Failed to save data", zap.Error(err))
 		return FetchDataResponse[T]{Uid: uid, List: newData}, nil
 	}
 	return FetchDataResponse[T]{Uid: uid, List: mergedData}, nil
@@ -367,7 +367,7 @@ func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataRes
 		if b, err := json.MarshalIndent(grouped, "", "  "); err == nil {
 			charJson = string(b)
 		} else {
-			logger.Log.Warn("Failed to marshal local char history, fallback to empty json",
+			logger.Log.Error("Failed to marshal local char history, fallback to empty json",
 				zap.String("uid", uid),
 				zap.String("server", serverType),
 				zap.Error(err),
@@ -380,7 +380,7 @@ func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataRes
 		if b, err := json.MarshalIndent(grouped, "", "  "); err == nil {
 			weaponJson = string(b)
 		} else {
-			logger.Log.Warn("Failed to marshal local weapon history, fallback to empty json",
+			logger.Log.Error("Failed to marshal local weapon history, fallback to empty json",
 				zap.String("uid", uid),
 				zap.String("server", serverType),
 				zap.Error(err),
@@ -398,7 +398,7 @@ func (a *App) OpenOfficialLoginWindow() (LoginResponse, error) {
 	logger.Log.Info("Frontend requested: OpenOfficialLoginWindow")
 	token, err := auth.OpenLoginWindow()
 	if err != nil {
-		logger.Log.Warn("Login window closed or failed", zap.Error(err))
+		logger.Log.Error("Login window closed or failed", zap.Error(err))
 		return LoginResponse{}, err
 	}
 	logger.Log.Info("Token retrieved successfully", zap.String("token_part", token[:10]+"..."))
