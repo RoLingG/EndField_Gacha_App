@@ -27,7 +27,9 @@
 
 ### 📊 核心数据分析 (Core Analytics)
 
-<div align="center" style="background-color: #ffebee; color: #c62828; padding: 12px; border-left: 4px solid #c62828; border-radius: 4px;"> ⚠️ 目前官方已优化了 HGWebview.log 相关日志显示规范，导致 [ MODE A ] 在线同步 方式无法使用。</div>
+> [!CAUTION]
+>
+> ⚠️ 目前官方已优化了 **HGWebview.log** 相关日志显示规范，导致 **[ MODE A ] 在线同步** 方式无法使用。
 
 - **多模式启动**:
   - **[ MODE A ] 在线同步**: 自动解析 `HGWebview.log` 获取最新数据并去重合并。
