@@ -36,9 +36,11 @@
         <div style="text-align:center;margin-bottom:24px; position: relative;">
             <img src="./src/assets/images/logo.jpg" class="analyze-logo" />
         </div>
-        <div class="analyze-title">TERMINAL ACCESS<br><span style="font-size: 14px; color: #fff; opacity: 0.7;">终末地寻访记录</span></div>
+        <div class="analyze-title">TERMINAL ACCESS<br>
+            <span class="analyze-sub-title">终末地寻访记录</span>
+        </div>
         <div id="analyzeDescription">
-            <div class="analyze-desc">> ONLINE INITIALIZE 请求鹰角官方接口获取数据<br>> LOCAL INITIALIZE 读取本地 JSON 文件获取数据<br>> 获取官方数据一次之后就会在APP同目录下生成数据文件夹<br>> 每次 ONLINE INITIALIZE 都会同步一次官方的数据</div>
+            <div class="analyze-desc">> WEB TOKEN SYNC 请求鹰角官方接口获取数据<br>> LOCAL INITIALIZE 读取本地 JSON 文件获取数据<br>> 第一次获取官方数据会在APP同级目录下生成数据文件夹<br>> 每次从官方接口获取数据都会查重增量同步合并到本地</div>
         </div>
 
         <div class="analyze-divider"></div>
@@ -47,7 +49,7 @@
             <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
                 > LOGIN PROTOCOL // 推荐方式<br>
             </div>
-            <button id="btnLoginWindow" class="ef-btn ef-btn-outline" onclick="handleOfficialLoginWindow()" style="margin-bottom: 20px; border: 1px solid var(--ef-yellow);">
+            <button id="btnLoginWindow" class="ef-btn ef-btn-outline" onclick="handleOfficialLoginWindow()" style="border: 1px solid var(--ef-yellow);">
                 CONNECT (OFFICIAL)
             </button>
 
@@ -78,12 +80,11 @@
             <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
         </div>
 
-        <div id="logModeTips">
+        <div id="logModeTips" style="display:none;">
             <div class="analyze-desc">> 请确定系统用户路径下终末地的 HGWebview.log 访问权限<br>> 点击按钮开始解析 HGWebview.log 日志文件并初始化记录</div>
             <div class="analyze-important-desc">> 注意: 需要玩家看过游戏内卡池抽卡记录才会产生相关日志</div>
         </div>
-
-        <div class="analyze-divider" style="margin: 10px 0; opacity: 0.5;"></div>
+        <div class="analyze-divider" style="display: none"></div>
 
         <!-- 服务器选择区域 (默认隐藏) -->
         <div id="serverSelectArea" style="display:none; animation: fadeIn 0.5s;">
@@ -98,12 +99,11 @@
 
         <!-- 按钮组 -->
         <div id="defaultBtnGroup">
-            <button id="analyzeBtn" class="ef-btn" onclick="analyze()">ONLINE INITIALIZE</button>
+            <button id="webTokenBtn" class="ef-btn" onclick="showTokenInputUI()" style="margin-top: 10px;">WEB TOKEN SYNC</button>
             <button id="localBtn" class="ef-btn ef-btn-outline" onclick="loadLocal()" style="margin-top: 10px;">LOCAL INITIALIZE</button>
-            <button id="webTokenBtn" class="ef-btn ef-btn-outline" onclick="showTokenInputUI()" style="margin-top: 10px;">WEB TOKEN SYNC</button>
             <button id="importBtn" class="ef-btn ef-btn-outline" onclick="handleImportTemp()" style="margin-top: 10px; border-style: dashed;">IMPORT TEMP JSON</button>
+            <button id="analyzeBtn" class="ef-btn ef-btn-outline ef-btn-glitch" disabled style="margin-top: 10px" data-text="ONLINE INITIALIZE">ONLINE INITIALIZE</button>
         </div>
-
         <div id="analyzeError"></div>
     </div>
 </div>
@@ -239,8 +239,8 @@
     }
 
     @keyframes scan {
-        0% { background-position: 0% 0%; }
-        100% { background-position: 0% 200%; }
+        0% { background-position: 0 0; }
+        100% { background-position: 0 200%; }
     }
 
     @keyframes rotate {
@@ -347,19 +347,65 @@
     .corner-bottom-right { position: absolute; bottom: -1px; right: -1px; width: 20px; height: 20px; border-bottom: 2px solid var(--ef-yellow); border-right: 2px solid var(--ef-yellow); }
     .analyze-logo { width: 80px; height: 80px; border: 2px solid var(--ef-white); }
     .analyze-title { text-align: center; color: var(--ef-yellow); font-size: 20px; font-weight: bold; letter-spacing: 2px; margin-bottom: 30px; font-family: 'Arial Black', sans-serif; }
+    .analyze-sub-title { font-size: 14px; color: #fff; opacity: 0.7; }
     .analyze-desc { color: #888; font-size: 12px; padding-left: 10px; border-left: 2px solid var(--ef-grey); line-height: 1.6; }
     .analyze-divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, #333, transparent); margin: 15px 0; }
     .analyze-important-desc { color: var(--ef-yellow); font-size: 12px; padding-left: 10px; border-left: 2px solid var(--ef-grey); line-height: 1.6; }
-    #analyzeError { color: #ff3333; min-height: 20px; margin-top: 15px; margin-bottom: 12px; font-size: 12px; text-align: center; width: 100%; font-weight: bold; letter-spacing: 1px; }
+    #analyzeError { color: #ff3333; min-height: 20px; margin-top: 15px; margin-bottom: 12px; font-size: 12px; text-align: center; width: 100%; font-weight: bold; letter-spacing: 1px; word-break: break-all; }
 
     /* 按钮与输入框 */
-    #defaultBtnGroup { margin-top: 20px; }
     .ef-btn { width: 100%; height: 48px; background: var(--ef-yellow); color: var(--ef-black); border: none; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; letter-spacing: 1px; }
     .ef-btn:hover { background: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.3); }
     .ef-btn-outline { background: transparent; border: 1px solid var(--ef-yellow); color: var(--ef-yellow); font-size: 14px; }
     .ef-btn-outline:hover { background: rgba(255, 250, 0, 0.1); box-shadow: 0 0 10px rgba(255, 250, 0, 0.2); color: #fff; }
     .ef-input { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--ef-grey); color: var(--ef-yellow); padding: 12px; font-family: 'Consolas', monospace; font-size: 14px; box-sizing: border-box; outline: none; transition: 0.3s; }
     .ef-input:focus { border-color: var(--ef-yellow); box-shadow: 0 0 10px rgba(255, 250, 0, 0.1); }
+    .ef-btn-glitch {
+        position: relative;
+        overflow: hidden;
+        cursor: not-allowed !important;
+        pointer-events: none;
+        color: transparent !important;
+        border-color: rgba(255, 250, 0, 0.4) !important;
+    }
+    .ef-btn-glitch::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+            -45deg,
+            var(--ef-yellow) 0px 9.5px,
+            var(--ef-black) 10px 19.5px,
+            var(--ef-yellow) 20px
+        );
+        opacity: 0.35;
+    }
+    .ef-btn-glitch::after {
+        content: attr(data-text);
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+        color: var(--ef-yellow);
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .theme-day .ef-btn-glitch {
+        border-color: rgba(217, 181, 0, 0.4) !important;
+    }
+
+    .theme-day .ef-btn-glitch::before {
+        opacity: 0.25;
+    }
+
+    .theme-day .ef-btn-glitch::after {
+        color: var(--ef-yellow);
+        opacity: 0.5;
+    }
 
     /* 玩家卡片 */
     .player-card { background: rgba(255,255,255,0.03); border: 1px solid var(--ef-grey); padding: 10px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
@@ -624,9 +670,6 @@
     .ef-table td { padding: 8px 10px; border-bottom: 1px solid #222; color: #ccc; }
     .ef-table tr:last-child td { border-bottom: none; }
     .ef-table tr:hover { background: rgba(255, 250, 0, 0.05); }
-    .rarity-6 { color: #ff5722 !important; font-weight: bold; text-shadow: 0 0 5px rgba(255,87,34,0.3); }
-    .rarity-5 { color: #ffca28 !important; }
-    .rarity-4 { color: #9c27b0 !important; }
 
     /* 分页 */
     .pagination-controls { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-top: 1px solid var(--ef-grey); background: rgba(0, 0, 0, 0.5); font-family: 'Consolas', monospace; font-size: 12px; }
@@ -654,36 +697,6 @@
         --ef-grey: #cfcfc7;
     }
 
-    .theme-day mdui-button {
-        --mdui-color-primary: var(--ef-yellow);
-        --mdui-color-on-primary: var(--ef-white);
-    }
-
-    .theme-day mdui-text-field {
-        --mdui-color-primary: var(--ef-yellow);
-        --mdui-color-on-surface-variant: #666;
-        --mdui-color-surface-container-highest: #ffffff;
-    }
-
-    .theme-day mdui-dialog {
-        --mdui-color-surface: var(--ef-dark-grey);
-        --mdui-color-on-surface: var(--ef-white);
-        --mdui-color-primary: var(--ef-yellow);
-        border: 1px solid rgba(0, 0, 0, 0.15);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    }
-
-    .theme-day mdui-dialog::part(panel) {
-        border: 1px solid rgba(0, 0, 0, 0.15);
-    }
-
-    .theme-day mdui-select, .theme-day mdui-menu {
-        --mdui-color-surface-container: var(--ef-dark-grey);
-        --mdui-color-on-surface: var(--ef-white);
-        --mdui-color-primary: var(--ef-yellow);
-    }
-
-    /* === 白天模式 Snackbar 样式 === */
     .theme-day .app-snackbar {
         border: 1px solid rgba(0, 0, 0, 0.08);
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
@@ -723,6 +736,7 @@
 
     .theme-day #analyzeContainer { background: #f6f6f2; }
     .theme-day .analyze-card { background: #f9f9f5; border: 1px solid #cfcfc7; box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+    .theme-day .analyze-sub-title { color: #666666; }
     .theme-day .analyze-desc { color: #666; border-left-color: #cfcfc7; }
     .theme-day .analyze-important-desc { border-left-color: #cfcfc7; }
     .theme-day .analyze-divider { background: linear-gradient(90deg, transparent, #cfcfc7, transparent); }
@@ -733,6 +747,9 @@
     .theme-day .ef-btn-outline { color: #6b5a00; border-color: #d9b500; }
     .theme-day .ef-btn-outline:hover { background: #fff8f0; color: #e65100; border-color: #ff9800; }
     .theme-day .ef-btn:hover { background: #ff9800; color: #fff; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3); }
+    .theme-day .ef-btn-glitch {border-color: rgba(217, 181, 0, 0.4) !important;}
+    .theme-day .ef-btn-glitch::before {opacity: 0.25;}
+    .theme-day .ef-btn-glitch::after {color: #6b5a00;opacity: 0.5;}
 
     .theme-day .player-card { background: #fdfdfb; border-color: #cfcfc7; }
     .theme-day .p-uid { color: #1f1f1f; }

@@ -106,7 +106,7 @@ let cachedHgToken = ""; // 暂存前端用户发送的短 Token
 window.showTokenInputUI = function() {
   document.getElementById("defaultBtnGroup").style.display = "none";
   document.getElementById("analyzeDescription").style.display = "none";
-  document.getElementById("logModeTips").style.display = "none";
+  // document.getElementById("logModeTips").style.display = "none";
   document.getElementById("tokenInputArea").style.display = "block";
   document.getElementById("webTokenInput").focus();
   document.getElementById("analyzeError").textContent = "";
@@ -384,7 +384,7 @@ window.loadLocal = async function () {
     // 有多个存档，或者一个存档有双服数据 -> 显示选择界面
     renderLocalArchiveList(archives);
     document.getElementById("defaultBtnGroup").style.display = "none";
-    document.getElementById("logModeTips").style.display = "none";
+    // document.getElementById("logModeTips").style.display = "none";
     document.getElementById("playerSelectArea").style.display = "block";
     const desc = document.querySelector("#playerSelectArea .analyze-important-desc");
     if(desc) desc.innerHTML = "> LOCAL ARCHIVES FOUND // 发现本地存档<br>> SELECT DATA SOURCE // 请选择要加载的记录";
@@ -406,7 +406,6 @@ function renderLocalArchiveList(archives) {
     arc.servers.forEach(server => {
       const div = document.createElement("div");
       div.className = "player-card";
-      // 格式化时间戳，去掉多余的字符看起来更整洁
       let displayTime = arc.timestamp;
       if (displayTime.length > 10) displayTime = displayTime.replace("_", " ");
       div.innerHTML = `
@@ -1717,8 +1716,8 @@ window.resetToAnalyze = function() {
   // 恢复显示日志模式的提示
   const adTips = document.getElementById("analyzeDescription")
   if(adTips) adTips.style.display = "block";
-  const logTips = document.getElementById("logModeTips");
-  if(logTips) logTips.style.display = "block";
+  // const logTips = document.getElementById("logModeTips");
+  // if(logTips) logTips.style.display = "block";
 
   // 复位输入框
   const input = document.getElementById("webTokenInput");
