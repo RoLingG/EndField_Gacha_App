@@ -6,6 +6,7 @@ import (
 	"Go_Arknights_Gacha_App/internal/retry"
 	"Go_Arknights_Gacha_App/internal/storage"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,12 +35,12 @@ type gachaSession struct {
 }
 
 // get 发起 GET 请求，自动处理 Referer 和通用参数
-func (s *gachaSession) get(targetURL string, queryParams url.Values, refererPage string) ([]byte, error) {
+func (s *gachaSession) get(ctx context.Context, targetURL string, queryParams url.Values, refererPage string) ([]byte, error) {
 	reqUrl := targetURL
 	if len(queryParams) > 0 {
 		reqUrl = targetURL + "?" + queryParams.Encode()
 	}
-	req, err := http.NewRequest("GET", reqUrl, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqUrl, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -61,10 +62,12 @@ func (s *gachaSession) get(targetURL string, queryParams url.Values, refererPage
 }
 
 // FetchCharDataAll 获取所有角色池数据
-func FetchCharDataAll(token, serverID, lang string) ([]model.EndFieldCharInfo, error) {
+func FetchCharDataAll(ctx context.Context, token, serverID, lang string) ([]model.EndFieldCharInfo, error) {
 	if token == "" {
 		return nil, fmt.Errorf("token invalid")
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	session := &gachaSession{Token: token, ServerID: serverID, Lang: lang}
 	poolTypes := []string{
 		"E_CharacterGachaPoolType_Special",
@@ -78,20 +81,28 @@ func FetchCharDataAll(token, serverID, lang string) ([]model.EndFieldCharInfo, e
 	results := make(chan result, len(poolTypes))
 	for _, pt := range poolTypes {
 		go func(poolType string) {
-			data, err := fetchCharDataFromPool(session, poolType)
-			results <- result{data: data, err: err}
+			data, err := fetchCharDataFromPool(ctx, session, poolType)
+			select {
+			case results <- result{data: data, err: err}:
+			case <-ctx.Done():
+				return
+			}
 		}(pt)
 	}
 	var allData []model.EndFieldCharInfo
 	successCount := 0
 	for i := 0; i < len(poolTypes); i++ {
-		res := <-results
-		if res.err != nil {
-			logger.Log.Warn("Failed to fetch pool", zap.Error(res.err))
-			continue
+		select {
+		case res := <-results:
+			if res.err != nil {
+				logger.Log.Warn("Failed to fetch pool", zap.Error(res.err))
+				continue
+			}
+			allData = append(allData, res.data...)
+			successCount++
+		case <-ctx.Done():
+			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
 		}
-		allData = append(allData, res.data...)
-		successCount++
 	}
 	if successCount == 0 {
 		return nil, fmt.Errorf("未获取到任何角色数据")
@@ -115,12 +126,18 @@ func FetchCharDataAll(token, serverID, lang string) ([]model.EndFieldCharInfo, e
 	return allData, nil
 }
 
-func fetchCharDataFromPool(sess *gachaSession, poolType string) ([]model.EndFieldCharInfo, error) {
+func fetchCharDataFromPool(ctx context.Context, sess *gachaSession, poolType string) ([]model.EndFieldCharInfo, error) {
 	var list []model.EndFieldCharInfo
 	seqID := ""
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
+		default:
+		}
+
 		var apiResp model.EndFieldGachaResponse
-		err := retry.Do(func() error {
+		err := retry.DoWithContext(ctx, func() error {
 			params := url.Values{}
 			params.Set("lang", sess.Lang)
 			params.Set("token", sess.Token)
@@ -129,13 +146,14 @@ func fetchCharDataFromPool(sess *gachaSession, poolType string) ([]model.EndFiel
 			if seqID != "" {
 				params.Set("seq_id", seqID)
 			}
-			// 调用封装后的 get 方法
-			body, err := sess.get(BaseUrlChar, params, "gacha_char")
+			// 修改：传递 ctx
+			body, err := sess.get(ctx, BaseUrlChar, params, "gacha_char")
 			if err != nil {
 				return err
 			}
 			return json.Unmarshal(body, &apiResp)
 		}, retry.DefaultConfig)
+
 		if err != nil {
 			return nil, fmt.Errorf("获取数据失败: %v", err)
 		}
@@ -152,13 +170,13 @@ func fetchCharDataFromPool(sess *gachaSession, poolType string) ([]model.EndFiel
 }
 
 // FetchWeaponDataAll 获取所有武器数据
-func FetchWeaponDataAll(token, serverID, lang string) ([]model.EndFieldWeaponInfo, error) {
+func FetchWeaponDataAll(ctx context.Context, token, serverID, lang string) ([]model.EndFieldWeaponInfo, error) {
 	if token == "" {
 		return nil, fmt.Errorf("token 为空")
 	}
 	sess := &gachaSession{Token: token, ServerID: serverID, Lang: lang}
 	// 获取账号参与过的武器卡池列表
-	pools, err := fetchWeaponPoolList(sess)
+	pools, err := fetchWeaponPoolList(ctx, sess)
 	if err != nil {
 		return nil, fmt.Errorf("获取武器卡池列表失败: %v", err)
 	}
@@ -166,7 +184,13 @@ func FetchWeaponDataAll(token, serverID, lang string) ([]model.EndFieldWeaponInf
 	successCount := 0
 	// 遍历每个卡池获取详情
 	for _, pool := range pools {
-		poolData, err := fetchWeaponDataByPool(sess, pool.PoolID)
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
+		default:
+		}
+
+		poolData, err := fetchWeaponDataByPool(ctx, sess, pool.PoolID)
 		if err != nil {
 			logger.Log.Warn("Failed to fetch specific weapon pool",
 				zap.String("pool_name", pool.PoolName),
@@ -183,16 +207,16 @@ func FetchWeaponDataAll(token, serverID, lang string) ([]model.EndFieldWeaponInf
 }
 
 // fetchWeaponPoolList 获取卡池列表
-func fetchWeaponPoolList(sess *gachaSession) ([]model.EndFieldWeaponPool, error) {
+func fetchWeaponPoolList(ctx context.Context, sess *gachaSession) ([]model.EndFieldWeaponPool, error) {
 	var poolResp model.EndFieldWeaponPoolResponse
 
-	err := retry.Do(func() error {
+	err := retry.DoWithContext(ctx, func() error {
 		params := url.Values{}
 		params.Set("lang", sess.Lang)
 		params.Set("token", sess.Token)
 		params.Set("server_id", sess.ServerID)
 
-		body, err := sess.get(BaseUrlWeaponPool, params, "gacha_weapon")
+		body, err := sess.get(ctx, BaseUrlWeaponPool, params, "gacha_weapon")
 		if err != nil {
 			return err
 		}
@@ -208,12 +232,18 @@ func fetchWeaponPoolList(sess *gachaSession) ([]model.EndFieldWeaponPool, error)
 }
 
 // fetchWeaponDataByPool 获取特定卡池的抽卡记录
-func fetchWeaponDataByPool(sess *gachaSession, poolID string) ([]model.EndFieldWeaponInfo, error) {
+func fetchWeaponDataByPool(ctx context.Context, sess *gachaSession, poolID string) ([]model.EndFieldWeaponInfo, error) {
 	var list []model.EndFieldWeaponInfo
 	seqID := ""
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
+		default:
+		}
+
 		var apiResp model.EndFieldWeaponResponse
-		err := retry.Do(func() error {
+		err := retry.DoWithContext(ctx, func() error {
 			params := url.Values{}
 			params.Set("lang", sess.Lang)
 			params.Set("token", sess.Token)
@@ -223,7 +253,7 @@ func fetchWeaponDataByPool(sess *gachaSession, poolID string) ([]model.EndFieldW
 				params.Set("seq_id", seqID)
 			}
 
-			body, err := sess.get(BaseUrlWeapon, params, "gacha_weapon")
+			body, err := sess.get(ctx, BaseUrlWeapon, params, "gacha_weapon")
 			if err != nil {
 				return err
 			}

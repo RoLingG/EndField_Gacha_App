@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	runtimeOs "runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/energye/systray"
@@ -27,6 +28,8 @@ import (
 type App struct {
 	ctx          context.Context
 	cachedTokens model.ServerTokens
+	cancelFunc   context.CancelFunc
+	mu           sync.Mutex
 }
 
 // NewApp creates a new App application struct
@@ -37,6 +40,35 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.appSystray()
+}
+
+func (a *App) startCancellableOperation() context.Context {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.cancelFunc != nil {
+		a.cancelFunc()
+	}
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.cancelFunc = cancel
+	return ctx
+}
+
+func (a *App) CancelCurrentOperation() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.cancelFunc != nil {
+		logger.Log.Info("User requested to cancel current operation")
+		a.cancelFunc()
+		a.cancelFunc = nil
+	}
+}
+
+func (a *App) clearCancelFunc() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.cancelFunc = nil
 }
 
 // ================= Window Controls =================
@@ -164,20 +196,26 @@ func (a *App) SyncDataByChoice(hgToken string, uid string, serverType string) (s
 
 // internalFetchAndSave 内部同步逻辑
 func (a *App) internalFetchAndSave(token, serverID, lang string, uid string, serverType string) (string, error) {
-	charData, err := api.FetchCharDataAll(token, serverID, lang)
+	ctx := a.startCancellableOperation()
+	defer a.clearCancelFunc()
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", "正在抓取角色数据...")
+	charData, err := api.FetchCharDataAll(ctx, token, serverID, lang)
 	if err != nil {
 		return "", fmt.Errorf("角色记录抓取失败: %v", err)
 	}
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", fmt.Sprintf("已获取 %d 条角色记录，正在保存...", len(charData)))
 	if _, err := storage.MergeAndSaveData(charData, uid, serverType, model.PoolTypeChar); err != nil {
 		logger.Log.Warn("Character save warning", zap.Error(err))
 	}
-	weaponData, err := api.FetchWeaponDataAll(token, serverID, lang)
+	weaponData, err := api.FetchWeaponDataAll(ctx, token, serverID, lang)
 	if err != nil {
 		return "", fmt.Errorf("武器记录抓取失败: %v", err)
 	}
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", fmt.Sprintf("已获取 %d 条武器记录，正在保存...", len(weaponData)))
 	if _, err := storage.MergeAndSaveData(weaponData, uid, serverType, model.PoolTypeWeapon); err != nil {
 		logger.Log.Warn("Weapon save warning", zap.Error(err))
 	}
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", "数据同步完成！")
 	return "success", nil
 }
 
@@ -231,7 +269,7 @@ type FetchDataType[T model.GachaItem] struct {
 	ServerType string
 	LogAction  string
 	Category   string
-	FetchFunc  func(token, serverID, lang string) ([]T, error)
+	FetchFunc  func(ctx context.Context, token, serverID, lang string) ([]T, error)
 }
 type FetchDataResponse[T model.GachaItem] struct {
 	Uid  string `json:"uid"`
@@ -241,25 +279,36 @@ type FetchDataResponse[T model.GachaItem] struct {
 // fetchData 获取数据(Char or Weapon)
 func fetchData[T model.GachaItem](a *App, req FetchDataType[T]) (FetchDataResponse[T], error) {
 	logger.Log.Info("Frontend requested: "+req.LogAction, zap.String("server", req.ServerType))
+	ctx := a.startCancellableOperation()
+	defer a.clearCancelFunc()
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", "正在解析 Token...")
 	token, serverID, lang, err := a.prepareFetchParams(req.ServerType)
 	if err != nil {
 		return FetchDataResponse[T]{}, err
 	}
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", "正在获取 UID...")
 	uid, err := api.GetUIDByU8Token(token, serverID)
 	if err != nil {
 		logger.Log.Error("Failed to resolve UID from Token", zap.Error(err))
 		return FetchDataResponse[T]{}, err
 	}
-	newData, err := req.FetchFunc(token, serverID, lang)
+	dataType := "角色"
+	if req.Category == model.PoolTypeWeapon {
+		dataType = "武器"
+	}
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", fmt.Sprintf("正在抓取%s数据...", dataType))
+	newData, err := req.FetchFunc(ctx, token, serverID, lang)
 	if err != nil {
 		logger.Log.Error("Network request failed", zap.Error(err))
 		return FetchDataResponse[T]{}, fmt.Errorf("数据请求失败: %v", err)
 	}
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", fmt.Sprintf("已获取 %d 条记录，正在保存...", len(newData)))
 	mergedData, err := storage.MergeAndSaveData(newData, uid, req.ServerType, req.Category)
 	if err != nil {
 		logger.Log.Error("Failed to save data", zap.Error(err))
 		return FetchDataResponse[T]{Uid: uid, List: newData}, nil
 	}
+	wailsRuntime.EventsEmit(a.ctx, "fetch-progress", fmt.Sprintf("%s数据同步完成！", dataType))
 	return FetchDataResponse[T]{Uid: uid, List: mergedData}, nil
 }
 

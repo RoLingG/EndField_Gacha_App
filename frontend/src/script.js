@@ -1,4 +1,3 @@
-// script.js
 import {
   LoadGachaTokens,
   CheckLocalFiles,
@@ -17,6 +16,7 @@ import {
   SyncDataByChoice,
   UpdatePoolConfig,
   GetPoolConfig,
+  CancelCurrentOperation,
 } from "../wailsjs/go/main/App";
 
 // mdui Snackbar封装
@@ -62,21 +62,97 @@ window.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('analyzeContainer');
     if (container) container.classList.add('show');
   }, 100);
+  window.runtime.EventsOff('fetch-progress');
+  window.runtime.EventsOn('fetch-progress', (message) => {
+    const subtextElement = document.querySelector('.loading-subtext');
+    if (subtextElement) {
+      subtextElement.textContent = message;
+    }
+  });
 });
 
 // 默认是在线模式
 window.isOfflineSelection = false;
 // 窗口顶部栏双按钮逻辑处理
 window.handleOpenFolder = async () => await OpenDataFolder();
-window.handleReload = async () => await ReloadFrontend();
+window.handleReload = async () => {
+  if (window.runtime && window.runtime.EventsOff) {
+    window.runtime.EventsOff('fetch-progress');
+  }
+  document.querySelectorAll('mdui-dialog').forEach(dialog => {
+    dialog.open = false;
+    dialog.remove();
+  });
+  if (window.Chart && window.Chart.instances) {
+    Object.values(window.Chart.instances).forEach(chart => {
+      if (chart && chart.destroy) {
+        chart.destroy();
+      }
+    });
+  }
+  window.isFetching = false;
+  await ReloadFrontend();
+};
 
 let currentUid = "";
 let currentServerType = "";
+window.isFetching = false
+
+window.handleCancelFetch = async function() {
+  if (!window.isFetching) return;
+
+  // 创建自定义样式的 MDUI 对话框
+  const dialog = document.createElement('mdui-dialog');
+  dialog.headline = '// CONFIRM CANCELLATION';
+  dialog.description = '> 确定要取消当前操作吗？已抓取的数据将会丢失。';
+  dialog.innerHTML = `
+    <mdui-button slot="action" variant="text" class="dialog-cancel-btn">
+      [ CANCEL / 取消 ]
+    </mdui-button>
+    <mdui-button slot="action" variant="tonal" class="dialog-confirm-btn">
+      [ CONFIRM / 确定 ]
+    </mdui-button>
+  `;
+  document.body.appendChild(dialog);
+  dialog.open = true;
+  // 取消按钮
+  dialog.querySelector('.dialog-cancel-btn').onclick = () => {
+    dialog.open = false;
+  };
+  // 确定按钮
+  dialog.querySelector('.dialog-confirm-btn').onclick = async () => {
+    dialog.open = false;
+    try {
+      await CancelCurrentOperation();
+      showAppSnackbar({
+        message: "[CANCELLED] 操作已取消 / Operation Canceled",
+        type: "warning"
+      });
+    } catch (err) {
+      console.error(err);
+      showAppSnackbar({
+        message: "[ERROR] 操作取消失败: " + err,
+        type: "error",
+        autoCloseDelay: 4500,
+      });
+    }
+    const btnCancelFetch = document.getElementById("btnCancelFetch");
+    if (btnCancelFetch) {
+      btnCancelFetch.style.display = "none";
+    }
+    window.isFetching = false;
+  };
+  // 对话框关闭时清理
+  dialog.addEventListener('closed', () => {
+    setTimeout(() => dialog.remove(), 300);
+  });
+};
+
 window.handleExport = async function() {
   // 防止用户还没加载数据就点击导出
   if (!currentServerType) {
     showAppSnackbar({
-      message: "请先加载数据 (Please Initialize Data First)",
+      message: "[WARNING] 请先加载数据 (Please Initialize Data First)",
       type: "warning"
     });
     return;
@@ -94,7 +170,7 @@ window.handleExport = async function() {
   } catch (err) {
     console.error(err);
     showAppSnackbar({
-      message: "导出失败: " + err,
+      message: "[ERROR] 导出失败: " + err,
       type: "error",
       autoCloseDelay: 4500,
     });
@@ -169,7 +245,7 @@ window.handleToken = async function() {
   } catch (err) {
     console.error(err);
     showAppSnackbar({
-      message: "处理 Token 失败: " + err,
+      message: "[ERROR] 处理 Token 失败: " + err,
       type: "error",
       autoCloseDelay: 4500,
     });
@@ -209,6 +285,9 @@ async function doTokenSync(player) {
   const serverName = player.serverType;
   currentServerType = serverName; // 更新全局变量，方便导出功能使用
   showLoadingState("SYSTEM SYNCHRONIZING...", `UID: ${player.uid} // ${serverName.toUpperCase()}`);
+  window.isFetching = true;
+  const btnCancelFetch = document.getElementById("btnCancelFetch");
+  if (btnCancelFetch) btnCancelFetch.style.display = "inline-block";
   try {
     const res = await SyncDataByChoice(cachedHgToken, player.uid, serverName);
     if (res === "success") {
@@ -217,6 +296,8 @@ async function doTokenSync(player) {
       }, 1000);
     }
   } catch (err) {
+    window.isFetching = false;
+    if (btnCancelFetch) btnCancelFetch.style.display = "none";
     console.error(err);
     document.getElementById("analyzeError").textContent = "SYNC ERR: " + err;
     resetToAnalyze();
@@ -240,13 +321,13 @@ window.updatePoolConfig = async function() {
     globalPoolConfig = null; // 清除缓存
     await loadPoolConfig(); // 重新加载
     showAppSnackbar({
-      message: msg,
+      message: "[SUCCESS] " + msg,
       type: "success"
     });
   } catch (err) {
     console.error("Failed to update pool config:", err);
     showAppSnackbar({
-      message: "更新失败 / Update failed: " + err,
+      message: "[ERROR] 更新失败 / Update failed: " + err,
       type: "error",
       autoCloseDelay: 4500,
     });
@@ -477,7 +558,7 @@ window.handleImportTemp = async function() {
     console.error(err);
     if (err && !err.toString().includes("cancelled")) {
       showAppSnackbar({
-        message: "Import Failed: " + err,
+        message: "[ERROR] Import Failed: " + err,
         type: "error",
         autoCloseDelay: 4500,
       });
@@ -505,6 +586,11 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
   } else {
     // 在线模式：先获取数据
     loadingText.textContent = 'FETCHING DATA ...';
+    // 显示取消按钮
+    window.isFetching = true;
+    const btnCancelFetch = document.getElementById("btnCancelFetch");
+    if (btnCancelFetch) btnCancelFetch.style.display = "inline-block";
+
     let charRes = null;
     let weaponRes = null;
     let charList = [];
@@ -525,9 +611,13 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
       weaponFetchError = e;
       console.warn("Weapon data fetch failed:", e);
     }
+
+    window.isFetching = false;
+    if (btnCancelFetch) btnCancelFetch.style.display = "none";
+
     if (charFetchError && weaponFetchError) {
       showAppSnackbar({
-        message: `角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}。`,
+        message: `[ERROR] 角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}。`,
         type: "error",
         autoCloseDelay: 5200,
       });
@@ -544,7 +634,7 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
         warningMessages.push("武器池数据加载失败，已降级为空数据");
       }
       showAppSnackbar({
-        message: warningMessages.join(" / "),
+        message: "[WARNING] " + warningMessages.join(" / "),
         type: "warning",
         autoCloseDelay: 4200,
       });
@@ -1231,7 +1321,7 @@ function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
     // 验证页码
     if (isNaN(newPage) || newPage < 1 || newPage > totalPages) {
       showAppSnackbar({
-        message: `Invalid page number. Please enter a number between 1 and ${totalPages}`,
+        message: `[WARNING] Invalid page number. Please enter a number between 1 and ${totalPages}`,
         type: "warning"
       });
       // 恢复原始显示

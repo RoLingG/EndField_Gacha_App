@@ -5,9 +5,10 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <link rel="icon" type="image/x-icon" href="./src/assets/favicon.ico">
     <title>明日方舟终末地寻访记录</title>
-    <link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css">
-    <script src="https://unpkg.com/mdui@2/mdui.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preload" href="https://unpkg.com/mdui@2/mdui.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css"></noscript>
+    <script defer src="https://unpkg.com/mdui@2/mdui.global.js" onerror="console.warn('MDUI 加载失败，部分功能可能受影响')"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js" onerror="console.warn('Chart.js 加载失败，图表功能不可用')"></script>
 </head>
 <body class="theme-endfield">
 
@@ -20,6 +21,7 @@
     <span class="fake-menu-item" onclick="handleReload()">[ SYSTEM_RELOAD ]</span>
     <span class="fake-menu-item" onclick="handleOpenFolder()">[ DATA_FOLDER ]</span>
     <span class="fake-menu-item" id="btnExportExcel" onclick="handleExport()">[ EXPORT_EXCEL ]</span>
+    <span class="fake-menu-item" id="btnCancelFetch" onclick="handleCancelFetch()" style="display:none;">[ CANCEL_FETCH ]</span>
     <span class="fake-menu-item theme-toggle" id="themeToggle">[ MODE: NIGHT ]</span>
     <div class="window-controls">
         <button class="win-btn" id="minBtn">_</button>
@@ -114,7 +116,10 @@
         <div class="logo-wrapper">
             <div class="logo-ring"></div><div class="logo-brackets"></div><div class="loading-logo"></div><div class="scan-line"></div>
         </div>
-        <div class="text-wrapper"><div class="loading-text">SYSTEM SYNCHRONIZING...</div><div class="loading-subtext">ACCESSING HG_WEBVIEW_LOG // SECURE</div></div>
+        <div class="text-wrapper">
+            <div class="loading-text">SYSTEM SYNCHRONIZING...</div>
+            <div class="loading-subtext">ACCESSING HG_WEBVIEW_LOG // SECURE</div>
+        </div>
         <div class="tech-progress-track"><div class="tech-progress-bar"></div></div>
         <div class="tech-stat-row">
             <span>MEM: <span class="ls-val-primary">ALLOCATING</span></span>
@@ -195,6 +200,85 @@
         --ef-dark-grey: #222;
         --ef-white: #ffffff;
         --ef-grey: #444444;
+    }
+
+    mdui-dialog {
+        --mdui-color-surface: var(--ef-dark-grey);
+        --mdui-color-on-surface: #ffffff;
+        --mdui-color-on-surface-variant: #aaaaaa;
+        --mdui-color-primary: var(--ef-yellow);
+        --mdui-color-on-primary: var(--ef-black);
+    }
+
+    mdui-dialog::part(panel) {
+        background: var(--ef-dark-grey);
+        border: 1px solid var(--ef-grey);
+        border-radius: 0;
+        box-shadow: 0 0 20px rgba(255, 250, 0, 0.1);
+    }
+
+    mdui-dialog::part(headline) {
+        color: var(--ef-yellow);
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--ef-grey);
+        padding-bottom: 12px;
+        font-size: 14px;
+    }
+
+    mdui-dialog::part(description) {
+        color: #777777;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 13px;
+        line-height: 1.8;
+        white-space: pre-line;
+    }
+
+    /* 对话框按钮样式 */
+    mdui-dialog mdui-button {
+        font-family: 'Consolas', 'Monaco', monospace;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 12px;
+        border-radius: 0;
+        transition: all 0.2s;
+    }
+
+    /* 取消按钮 */
+    mdui-dialog mdui-button[variant="text"] {
+        --mdui-comp-button-text-label-text-color: #888888;
+        border: 1px solid transparent;
+    }
+
+    mdui-dialog mdui-button[variant="text"]:hover {
+        --mdui-comp-button-text-label-text-color: #cccccc;
+        border: 1px solid #444444;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* 确定按钮 */
+    mdui-dialog mdui-button[variant="tonal"] {
+        --mdui-comp-button-tonal-container-color: rgba(255, 250, 0, 0.1);
+        --mdui-comp-button-tonal-label-text-color: var(--ef-yellow);
+        border: 1px solid var(--ef-yellow);
+        background: var(--ef-dark-grey);
+        color: var(--ef-white);
+    }
+
+    mdui-dialog mdui-button[variant="tonal"]:hover {
+        --mdui-comp-button-tonal-container-color: rgba(255, 250, 0, 0.2);
+        --mdui-comp-button-tonal-label-text-color: var(--ef-black);
+        background: var(--ef-yellow);
+        box-shadow: 0 0 15px rgba(255, 250, 0, 0.4);
+        text-shadow: none;
+        color: var(--ef-black);
+    }
+
+    /* 按钮点击效果 */
+    mdui-dialog mdui-button:active {
+        transform: scale(0.98);
     }
 
     .app-snackbar {
@@ -424,7 +508,7 @@
         width: 100%;
         height: 100%;
         background-color: var(--ef-black);
-        z-index: 9999;
+        z-index: 99;
         display: flex;
         flex-direction: column;
         justify-content: center;

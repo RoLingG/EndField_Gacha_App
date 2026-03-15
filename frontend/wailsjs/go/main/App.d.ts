@@ -3,6 +3,8 @@
 import {model} from '../models';
 import {main} from '../models';
 
+export function CancelCurrentOperation():Promise<void>;
+
 export function CheckLocalFiles():Promise<Array<model.LocalArchive>>;
 
 export function ExportData(arg1:string,arg2:string):Promise<string>;

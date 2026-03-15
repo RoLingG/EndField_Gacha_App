@@ -39,7 +39,15 @@
       "up6CharId": "chr_0017_yvonne",
       "gachaType": "char",
       "lastUpdate": "2026-02-24 18:33:59"
+    },
+    {
+      "poolName": "河流的女儿",
+      "poolType": "special",
+      "up6Name": "汤汤",
+      "up6CharId": "chr_0027_tangtang",
+      "gachaType": "char",
+      "lastUpdate": "2026-03-13 13:17:02"
     }
   ],
-  "lastUpdate": "2026-03-03 15:13:16"
+  "lastUpdate": "2026-03-15 20:57:05"
 }

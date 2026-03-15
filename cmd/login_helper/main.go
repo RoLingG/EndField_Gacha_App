@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/webview/webview_go"
 	"runtime"
+
+	"github.com/webview/webview_go"
 )
 
 func main() {
