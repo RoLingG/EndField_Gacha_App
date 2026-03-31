@@ -29,16 +29,14 @@ func InitLogger() {
 	}
 
 	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.Format("2006-01-02 15:04:05"))
-	}
+	encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.DateTime)
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	// 文件输出核心
 	fileCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderConfig),
 		zapcore.AddSync(rotator),
-		zapcore.DebugLevel,
+		zapcore.InfoLevel,
 	)
 
 	// 控制台输出核心 (带颜色)
@@ -47,13 +45,13 @@ func InitLogger() {
 	consoleCore := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(consoleConfig),
 		zapcore.AddSync(os.Stdout),
-		zapcore.DebugLevel,
+		zapcore.InfoLevel,
 	)
 
 	core := zapcore.NewTee(fileCore, consoleCore)
 	Log = zap.New(core, zap.AddCaller())
 
-	Log.Info("Endfield Terminal System Startup", zap.String("version", "v1.6.2"))
+	Log.Info("Endfield Terminal System Startup", zap.String("version", "v1.6.3"))
 }
 
 func Sync() {

@@ -5,9 +5,11 @@ import (
 	"Go_Arknights_Gacha_App/internal/model"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
+	"time"
+
+	"go.uber.org/zap"
 )
 
 const poolConfigFileName = "pool_config.json"
@@ -55,6 +57,9 @@ func SaveDiscoveredPoolIDs(poolIDs []string) error {
 			existingSet[id] = true
 			addedCount++
 		}
+	}
+	if existing.LastUpdate != "" {
+		existing.LastUpdate = time.Now().Format(time.DateTime)
 	}
 
 	if addedCount == 0 {
@@ -130,7 +135,7 @@ func SavePoolConfig(configList model.PoolConfigList) (string, error) {
 			addedCount++
 		}
 	}
-	
+
 	msg := fmt.Sprintf("卡池配置已更新 %d 项卡池数据 / Pool config updated", addedCount)
 	if addedCount == 0 {
 		msg = fmt.Sprintf("卡池配置无变动 / Pool config unchanged")
