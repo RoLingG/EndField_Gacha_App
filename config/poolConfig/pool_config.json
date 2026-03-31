@@ -47,7 +47,15 @@
       "up6CharId": "chr_0027_tangtang",
       "gachaType": "char",
       "lastUpdate": "2026-03-13 13:17:02"
+    },
+    {
+      "poolName": "狼珀",
+      "poolType": "special",
+      "up6Name": "洛茜",
+      "up6CharId": "chr_0028_wulfa",
+      "gachaType": "char",
+      "lastUpdate": "2026-03-31 13:12:42"
     }
   ],
-  "lastUpdate": "2026-03-15 20:57:05"
+  "lastUpdate": "2026-03-31 13:12:42"
 }
