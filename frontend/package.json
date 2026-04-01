@@ -14,7 +14,7 @@
     "vite": "^4.5.0"
   },
   "overrides": {
-    "rollup": ">=2.80.0"
+    "rollup": "^3.29.4"
   },
   "dependencies": {
     "@wailsio/runtime": "^3.0.0-alpha.72"

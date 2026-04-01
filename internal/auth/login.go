@@ -13,9 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:embed login_helper.exe
-var loginHelperBinary []byte
-
 // OpenLoginWindow 释放并启动子进程进行登录，并获取 Token
 func OpenLoginWindow() (string, error) {
 	logger.Log.Info("Prepare to launch embedded login helper process...")
@@ -25,7 +22,7 @@ func OpenLoginWindow() (string, error) {
 		return "", err
 	}
 	baseDir := filepath.Dir(exePath)
-	helperPath := filepath.Join(baseDir, "login_helper.exe")
+	helperPath := filepath.Join(baseDir, helperName)
 
 	logger.Log.Info(fmt.Sprintf("Target helper path: %s", helperPath))
 
