@@ -61,10 +61,13 @@
             <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
                 > MANUAL OVERRIDE // 手动粘贴 Token
             </div>
-            <input type="text" id="webTokenInput" class="ef-input" placeholder="PASTE TOKEN HERE //" />
-            <button id="btnManualConnect" class="ef-btn ef-btn-outline" onclick="handleToken()" style="margin-top: 10px;">
-                CONNECT (LOCAL)
-            </button>
+            <form onsubmit="event.preventDefault(); handleToken();" style="margin: 0; padding: 0;">
+                <input type="text" id="webTokenInput" name="endfield_hg_token" autocomplete="on" class="ef-input" placeholder="PASTE TOKEN HERE //" />
+
+                <button type="submit" id="btnManualConnect" class="ef-btn ef-btn-outline" style="margin-top: 10px;">
+                    CONNECT (LOCAL)
+                </button>
+            </form>
 
             <div class="analyze-divider"></div>
 
@@ -284,7 +287,7 @@
     .app-snackbar {
         border-radius: 12px;
         min-width: 220px;
-        max-width: 360px;
+        max-width: 460px;
         max-height: 80px;
         border: 1px solid rgba(255, 255, 255, 0.08);
         backdrop-filter: blur(14px);
@@ -492,7 +495,7 @@
     }
 
     /* 玩家卡片 */
-    .player-card { background: rgba(255,255,255,0.03); border: 1px solid var(--ef-grey); padding: 10px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+    .player-card { background: rgba(255,255,255,0.03); border: 1px solid var(--ef-grey); padding: 10px; margin-right: 5px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
     .player-card:hover { border-color: var(--ef-yellow); background: rgba(255, 250, 0, 0.05); }
     .player-info { display: flex; flex-direction: column; }
     .p-name { font-weight: bold; color: #fff; font-size: 14px; }

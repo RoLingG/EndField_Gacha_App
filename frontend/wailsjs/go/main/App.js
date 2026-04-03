@@ -10,6 +10,10 @@ export function CheckLocalFiles() {
   return window['go']['main']['App']['CheckLocalFiles']();
 }
 
+export function DeleteLocalGachaHistory(arg1) {
+  return window['go']['main']['App']['DeleteLocalGachaHistory'](arg1);
+}
+
 export function ExportData(arg1, arg2) {
   return window['go']['main']['App']['ExportData'](arg1, arg2);
 }

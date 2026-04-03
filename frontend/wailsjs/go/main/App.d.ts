@@ -7,6 +7,8 @@ export function CancelCurrentOperation():Promise<void>;
 
 export function CheckLocalFiles():Promise<Array<model.LocalArchive>>;
 
+export function DeleteLocalGachaHistory(arg1:string):Promise<void>;
+
 export function ExportData(arg1:string,arg2:string):Promise<string>;
 
 export function GetCharacterData(arg1:string):Promise<main.FetchDataResponse_Go_Arknights_Gacha_App_internal_model_EndFieldCharInfo_>;

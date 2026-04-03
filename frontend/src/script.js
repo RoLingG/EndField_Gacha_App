@@ -12,11 +12,12 @@ import {
   WindowToggleMaxSize,
   OpenDataFolder,
   LoadLocalGachaHistory,
+  DeleteLocalGachaHistory,
   LoginAndFetchPlayers,
   SyncDataByChoice,
   UpdatePoolConfig,
   GetPoolConfig,
-  CancelCurrentOperation,
+  CancelCurrentOperation
 } from "../wailsjs/go/main/App";
 
 // mdui Snackbar封装
@@ -489,18 +490,76 @@ function renderLocalArchiveList(archives) {
       div.className = "player-card";
       let displayTime = arc.timestamp;
       if (displayTime.length > 10) displayTime = displayTime.replace("_", " ");
+
       div.innerHTML = `
             <div class="player-info">
                 <span class="p-name">UID: ${arc.uid}</span>
                 <span class="p-uid" style="color:#888;">DATE: ${displayTime}</span>
             </div>
-            <div class="p-tag" style="border-color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}; color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}">
-                ${server.toUpperCase()}
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="p-tag" style="border-color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}; color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}">
+                    ${server.toUpperCase()}
+                </div>
+                <div class="del-archive-btn" style="cursor: pointer; color: #888;" title="DELETE ARCHIVE / 删除该记录">×</div>
             </div>
         `;
+
+      // 点击卡片本体加载数据
       div.onclick = () => {
-        doLocalLoad(arc.uid, server);
+        doLocalLoad(arc.uid, server).then(r => {});
       };
+
+      // 删除按钮点击逻辑
+      const deleteBtn = div.querySelector('.del-archive-btn');
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation(); // 阻止冒泡，避免触发加载数据的 onclick
+
+        const dialog = document.createElement('mdui-dialog');
+        dialog.headline = '// CONFIRM DELETION';
+        dialog.description = `> 确定要删除该本地记录吗？\n> 目标: UID ${arc.uid} (${displayTime})\n> 注意: 这将彻底删除该时间点的数据文件夹，操作无法撤销。`;
+        dialog.innerHTML = `
+          <mdui-button slot="action" variant="text" class="dialog-cancel-btn">
+            [ CANCEL / 取消 ]
+          </mdui-button>
+          <mdui-button slot="action" variant="tonal" class="dialog-confirm-btn" style="--mdui-comp-button-tonal-container-color: rgba(255, 82, 82, 0.1); --mdui-comp-button-tonal-label-text-color: #ff5252;">
+            [ DELETE / 确认删除 ]
+          </mdui-button>
+        `;
+        document.body.appendChild(dialog);
+        dialog.open = true;
+
+        dialog.querySelector('.dialog-cancel-btn').onclick = () => {
+          dialog.open = false;
+        };
+
+        dialog.querySelector('.dialog-confirm-btn').onclick = async () => {
+          dialog.open = false;
+          try {
+            const folderName = `${arc.uid}_${arc.timestamp}`;
+            await DeleteLocalGachaHistory(folderName);
+
+            showAppSnackbar({
+              message: "[SUCCESS] 存档已删除 / Archive Deleted",
+              type: "success"
+            });
+
+            // 删除成功后，重新扫描并渲染列表
+            await loadLocal();
+          } catch (err) {
+            console.error(err);
+            showAppSnackbar({
+              message: "[ERROR] 删除失败: " + err,
+              type: "error",
+              autoCloseDelay: 4500,
+            });
+          }
+        };
+
+        dialog.addEventListener('closed', () => {
+          setTimeout(() => dialog.remove(), 300);
+        });
+      };
+
       container.appendChild(div);
     });
   });

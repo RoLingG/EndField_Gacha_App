@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	runtimeOs "runtime"
 	"strings"
 	"sync"
@@ -440,6 +441,21 @@ func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataRes
 		CharJson:   charJson,
 		WeaponJson: weaponJson,
 	}, nil
+}
+
+func (a *App) DeleteLocalGachaHistory(folderName string) error {
+	baseDir, err := storage.GetStorageDir()
+	if err != nil {
+		logger.Log.Error("Failed to get data directory", zap.Error(err))
+		return fmt.Errorf("获取数据目录失败: %v", err)
+	}
+	targetDir := filepath.Join(baseDir, folderName)
+	// 安全校验，防止越权删除（如传入 "../../windows"）
+	if filepath.Base(targetDir) != folderName {
+		return fmt.Errorf("非法目录路径: %v", err)
+	}
+	// 删除目标文件夹及其内部所有文件
+	return os.RemoveAll(targetDir)
 }
 
 // OpenOfficialLoginWindow 用户输入自主登录官网获取 Token
