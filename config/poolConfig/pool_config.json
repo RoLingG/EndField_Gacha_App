@@ -54,8 +54,16 @@
       "up6Name": "洛茜",
       "up6CharId": "chr_0028_wulfa",
       "gachaType": "char",
-      "lastUpdate": "2026-03-31 13:12:42"
+      "lastUpdate": "2026-04-02 23:55:02"
+    },
+    {
+      "poolName": "春雷动，万物生",
+      "poolType": "special",
+      "up6Name": "庄方宜",
+      "up6CharId": "chr_0030_zhuangfy",
+      "gachaType": "char",
+      "lastUpdate": "2026-04-29 23:00:14"
     }
   ],
-  "lastUpdate": "2026-03-31 13:12:42"
+  "lastUpdate": "2026-04-29 23:00:14"
 }
