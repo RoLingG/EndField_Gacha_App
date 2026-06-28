@@ -134,7 +134,19 @@
 
 <!-- === 主内容区域 === -->
 <div class="main-content-wrapper">
-    <h1 class="main-title">寻访数据概览 <span style="font-size:14px;color:#666"> // STATISTICS</span></h1>
+    <h1 class="main-title">
+        <span>寻访数据概览 <span style="font-size:14px;color:#666"> // STATISTICS</span></span>
+        <span class="title-currency-info" id="currencyInfo" style="display:none;">
+            <span id="charCurrency" style="display:none;">
+                <span class="currency-item">嵌晶玉 <span class="currency-val" id="jadeValue">0</span></span>
+                <span class="currency-divider">//</span>
+                <span class="currency-item">衍质原石 <span class="currency-val" id="stoneValue">0</span></span>
+            </span>
+            <span id="weaponCurrency" style="display:none;">
+                <span class="currency-item">武器配额 <span class="currency-val" id="weaponQuotaValue">0</span></span>
+            </span>
+        </span>
+    </h1>
 
     <!-- 类型切换 Tab -->
     <div class="type-switcher" id="typeSwitcher" style="display:none;">
@@ -558,7 +570,41 @@
     .ls-val-muted { color: #666; transition: color 0.3s; }
 
     /* 主界面元素 */
-    .main-title { margin: 30px 0 20px 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; border-left: 5px solid var(--ef-yellow); padding-left: 15px; width: 90%; text-align: left; opacity: 0; }
+    .main-title {
+        margin: 30px 0 20px 0;
+        border-left: 5px solid var(--ef-yellow);
+        padding-left: 15px;
+        width: 90%;
+        font-size: 24px;
+        text-transform: uppercase;
+        text-align: left;
+        letter-spacing: 2px;
+        opacity: 0;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .title-currency-info {
+        margin-right: 10px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        font-size: 14px;
+        letter-spacing: 1px;
+        white-space: nowrap;
+    }
+    .currency-item {
+        color: #888;
+    }
+    .currency-val {
+        color: var(--ef-yellow);
+        font-weight: bold;
+    }
+    .currency-divider {
+        color: #444;
+    }
 
     .type-switcher { width: 90%; display: flex; gap: 10px; margin-bottom: 20px; opacity: 0; }
     .type-btn {
@@ -856,6 +902,9 @@
     .theme-day .ls-val-muted { color: #777; }
 
     .theme-day .main-title { color: #1f1f1f; }
+    .theme-day .currency-item { color: #666; }
+    .theme-day .currency-val { color: var(--ef-yellow); }
+    .theme-day .currency-divider { color: #aaa; }
     .theme-day .type-btn { color: #666; border-color: #cfcfc7; }
     .theme-day .type-btn:hover { color: #1f1f1f; background: #f0efe8; }
     .theme-day .type-btn.active { color: #1f1f1f; background: #efe6b5; border-color: #d9b500; box-shadow: none; }

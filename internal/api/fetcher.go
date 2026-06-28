@@ -146,7 +146,6 @@ func fetchCharDataFromPool(ctx context.Context, sess *gachaSession, poolType str
 			if seqID != "" {
 				params.Set("seq_id", seqID)
 			}
-			// 修改：传递 ctx
 			body, err := sess.get(ctx, BaseUrlChar, params, "gacha_char")
 			if err != nil {
 				return err

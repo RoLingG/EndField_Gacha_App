@@ -770,7 +770,7 @@ function renderEmptyHistoryTable(message, colspan = 5) {
   `;
 }
 
-// 新增：统一更新历史记录分页区域 UI
+// 统一更新历史记录分页区域 UI
 function updateHistoryPaginationUI(currentPage, totalPages) {
   const pageInfo = document.getElementById('pageIndicator');
   const prevBtn = document.getElementById('prevPageBtn');
@@ -1066,6 +1066,13 @@ function clearDisplay() {
   document.getElementById("rareCharsContainer").innerHTML = "";
   document.getElementById("summaryStrip").innerHTML = "";
   document.getElementById("historyTableBody").innerHTML = "";
+  // 清除嵌晶玉/衍质原石转换显示
+  const currencyInfo = document.getElementById('currencyInfo');
+  if (currencyInfo) {
+    currencyInfo.style.display = 'none';
+    document.getElementById('jadeValue').textContent = '0';
+    document.getElementById('stoneValue').textContent = '0';
+  }
 }
 
 function updateDisplay(dataMap, poolName) {
@@ -1189,6 +1196,7 @@ function createSummaryStrip(dataMap, poolName) {
   }
 
   const total = items.length;
+  const notFreeTotal = items.filter(item => !item.isFree).length;
   const sixStarCount = items.filter(i => i.rarity === 6).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
   const typeLabel = (currentType === 'char') ? "CHARACTERS" : "WEAPONS";
@@ -1215,6 +1223,26 @@ function createSummaryStrip(dataMap, poolName) {
             <div class="info-sub">${sixStarCount} ${typeLabel}</div>
         </div>
     `;
+  const currencyInfo = document.getElementById('currencyInfo');
+  const charCurrency = document.getElementById('charCurrency');
+  const weaponCurrency = document.getElementById('weaponCurrency');
+  if (currencyInfo) {
+    currencyInfo.style.display = 'flex';
+    if (currentType === 'char') {
+      charCurrency.style.display = 'inline';
+      weaponCurrency.style.display = 'none';
+      const jadeVal = notFreeTotal * 500;
+      const stoneVal = Math.floor(jadeVal / 75);
+      document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
+      document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
+    } else {
+      charCurrency.style.display = 'none';
+      weaponCurrency.style.display = 'inline';
+      const tenPulls = Math.floor(notFreeTotal / 10);
+      const weaponQuota = tenPulls * 1980;
+      document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
+    }
+  }
 }
 
 // 分页逻辑
@@ -1589,6 +1617,7 @@ function displayAllPoolsSummary(allItems) {
 
 function createAllPoolsSummaryStrip(items) {
   const total = items.length;
+  const notFreeTotal = items.filter(item => !item.isFree).length;
   const sixStarCount = items.filter(i => i.rarity === 6).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
   const typeLabel = (lastDataType === 'char') ? "CHARACTERS" : "WEAPONS";
@@ -1612,6 +1641,26 @@ function createAllPoolsSummaryStrip(items) {
       <div class="info-sub">${sixStarCount} ${typeLabel}</div>
     </div>
   `;
+  const currencyInfo = document.getElementById('currencyInfo');
+  const charCurrency = document.getElementById('charCurrency');
+  const weaponCurrency = document.getElementById('weaponCurrency');
+  if (currencyInfo) {
+    currencyInfo.style.display = 'flex';
+    if (lastDataType === 'char') {
+      charCurrency.style.display = 'inline';
+      weaponCurrency.style.display = 'none';
+      const jadeVal = notFreeTotal * 500;
+      const stoneVal = Math.floor(jadeVal / 75);
+      document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
+      document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
+    } else {
+      charCurrency.style.display = 'none';
+      weaponCurrency.style.display = 'inline';
+      const tenPulls = Math.floor(notFreeTotal / 10);
+      const weaponQuota = tenPulls * 1980;
+      document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
+    }
+  }
 }
 
 function createAllPoolsRareRecordsCard(items) {
@@ -1799,17 +1848,12 @@ function startExitAnimation() {
           document.getElementById("historySection")
         ];
         elements.forEach((el) => {
-          if(el) {
-            if (el.id === 'typeSwitcher' || el.id === 'dashboardPanel') {
-              el.style.display = 'flex';
-            } else if (el.id === 'summaryStrip') {
-              if (el.style.display !== 'none') {
-                el.style.display = 'flex';
-              }
-            } else {
-              el.style.display = 'block';
-            }
-          }
+          if (!el) return;
+          const needFlex = el.id === 'typeSwitcher' ||
+              el.id === 'dashboardPanel' ||
+              (el.id === 'summaryStrip' && el.style.display !== 'none') ||
+              el.classList.contains('main-title');
+          el.style.display = needFlex ? 'flex' : 'block';
         });
         // 依次执行入场动画
         elements.forEach((el, index) => {
