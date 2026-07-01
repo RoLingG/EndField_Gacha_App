@@ -63,7 +63,23 @@
       "up6CharId": "chr_0030_zhuangfy",
       "gachaType": "char",
       "lastUpdate": "2026-04-29 23:00:14"
+    },
+    {
+      "poolName": "拳出无悔",
+      "poolType": "special",
+      "up6Name": "弭弗",
+      "up6CharId": "chr_0031_mifu",
+      "gachaType": "char",
+      "lastUpdate": "2026-06-05 23:00:14"
+    },
+    {
+      "poolName": "逐罪者",
+      "poolType": "special",
+      "up6Name": "卡缪",
+      "up6CharId": "chr_0033_camille",
+      "gachaType": "char",
+      "lastUpdate": "2026-06-26 23:12:25"
     }
   ],
-  "lastUpdate": "2026-04-29 23:00:14"
+  "lastUpdate": "2026-06-26 23:12:25"
 }
