@@ -741,10 +741,20 @@ window.switchType = function(type) {
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
   if (type === 'all') {
     isAllPoolsMode = true;
-    if (poolSelectorWrapper) poolSelectorWrapper.style.display = 'none';
+    if (poolSelectorWrapper) {
+      poolSelectorWrapper.classList.add('pool-selector-hidden');
+      poolSelectorWrapper.style.visibility = 'hidden';
+      poolSelectorWrapper.style.height = '0';
+      poolSelectorWrapper.style.overflow = 'hidden';
+    }
   } else {
     isAllPoolsMode = false;
-    if (poolSelectorWrapper) poolSelectorWrapper.style.display = 'block';
+    if (poolSelectorWrapper) {
+      poolSelectorWrapper.classList.remove('pool-selector-hidden');
+      poolSelectorWrapper.style.visibility = 'visible';
+      poolSelectorWrapper.style.height = '';
+      poolSelectorWrapper.style.overflow = '';
+    }
   }
   // 重新渲染
   renderByType(type);
@@ -800,9 +810,15 @@ function renderNoDataState({
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
   if (poolSelectorWrapper) {
     if (hidePoolSelector) {
-      poolSelectorWrapper.style.display = 'none';
+      poolSelectorWrapper.classList.add('pool-selector-hidden');
+      poolSelectorWrapper.style.visibility = 'hidden';
+      poolSelectorWrapper.style.height = '0';
+      poolSelectorWrapper.style.overflow = 'hidden';
     } else {
-      poolSelectorWrapper.style.display = 'block';
+      poolSelectorWrapper.classList.remove('pool-selector-hidden');
+      poolSelectorWrapper.style.visibility = 'visible';
+      poolSelectorWrapper.style.height = '';
+      poolSelectorWrapper.style.overflow = '';
       poolSelectorWrapper.innerHTML = `
         <div style="color:#666; padding:10px; font-weight: bold; font-size: 18px;">
           ${poolMessage}
@@ -1075,6 +1091,52 @@ function clearDisplay() {
   }
 }
 
+function updateCurrencyDisplay(notFreeTotal, type) {
+  const currencyInfo = document.getElementById('currencyInfo');
+  const charCurrency = document.getElementById('charCurrency');
+  const weaponCurrency = document.getElementById('weaponCurrency');
+  if (!currencyInfo) return;
+
+  currencyInfo.style.display = 'flex';
+  if (type === 'char') {
+    charCurrency.style.display = 'inline';
+    weaponCurrency.style.display = 'none';
+    const jadeVal = notFreeTotal * 500;
+    const stoneVal = Math.floor(jadeVal / 75);
+    document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
+    document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
+  } else {
+    charCurrency.style.display = 'none';
+    weaponCurrency.style.display = 'inline';
+    const tenPulls = Math.floor(notFreeTotal / 10);
+    const weaponQuota = tenPulls * 1980;
+    document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
+  }
+}
+
+function calculateSixStarDetails(items, reverse = false) {
+  const list = reverse ? items.slice().reverse() : items;
+  const details = [];
+  let pityCounter = 0;
+
+  list.forEach(item => {
+    if (item.rarity === 6) {
+      const detail = {
+        name: getItemName(item),
+        isNew: item.isNew,
+        pityText: item.isFree ? "FREE" : ++pityCounter
+      };
+      if (item.poolName) detail.poolName = item.poolName;
+      details.push(detail);
+      if (!item.isFree) pityCounter = 0;
+    } else {
+      if (!item.isFree) pityCounter++;
+    }
+  });
+
+  return details;
+}
+
 function updateDisplay(dataMap, poolName) {
   if (!poolName || !dataMap || !dataMap[poolName]) return;
   // 渲染各个模块
@@ -1216,33 +1278,14 @@ function createSummaryStrip(dataMap, poolName) {
             </div>
             <div class="info-sub">${rightCornerSub}</div>
         </div>
-        
+
         <div class="info-card">
             <div class="info-label">6★ RATIO // 出货率</div>
             <div class="info-value">${rate}%</div>
             <div class="info-sub">${sixStarCount} ${typeLabel}</div>
         </div>
     `;
-  const currencyInfo = document.getElementById('currencyInfo');
-  const charCurrency = document.getElementById('charCurrency');
-  const weaponCurrency = document.getElementById('weaponCurrency');
-  if (currencyInfo) {
-    currencyInfo.style.display = 'flex';
-    if (currentType === 'char') {
-      charCurrency.style.display = 'inline';
-      weaponCurrency.style.display = 'none';
-      const jadeVal = notFreeTotal * 500;
-      const stoneVal = Math.floor(jadeVal / 75);
-      document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
-      document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
-    } else {
-      charCurrency.style.display = 'none';
-      weaponCurrency.style.display = 'inline';
-      const tenPulls = Math.floor(notFreeTotal / 10);
-      const weaponQuota = tenPulls * 1980;
-      document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
-    }
-  }
+  updateCurrencyDisplay(notFreeTotal, currentType);
 }
 
 // 分页逻辑
@@ -1490,32 +1533,7 @@ function renderRareItemChip({
 
 function createRareRecordCard(dataMap, poolName) {
   const items = dataMap[poolName] || [];
-  const chronological = items.slice().reverse();
-  const sixStarDetails = [];
-  let currentPityCounter = 0;
-  chronological.forEach(item => {
-    const isFree = item.isFree === true;
-
-    if (item.rarity === 6) {
-      if (isFree) {
-        sixStarDetails.push({
-          name: getItemName(item),
-          isNew: item.isNew,
-          pityText: "FREE"
-        });
-      } else {
-        currentPityCounter++;
-        sixStarDetails.push({
-          name: getItemName(item),
-          isNew: item.isNew,
-          pityText: currentPityCounter
-        });
-        currentPityCounter = 0;
-      }
-    } else {
-      if (!isFree) currentPityCounter++;
-    }
-  });
+  const sixStarDetails = calculateSixStarDetails(items, true);
 
   const recentSixStars = sixStarDetails.slice();
   const container = document.getElementById("rareCharsContainer");
@@ -1641,58 +1659,11 @@ function createAllPoolsSummaryStrip(items) {
       <div class="info-sub">${sixStarCount} ${typeLabel}</div>
     </div>
   `;
-  const currencyInfo = document.getElementById('currencyInfo');
-  const charCurrency = document.getElementById('charCurrency');
-  const weaponCurrency = document.getElementById('weaponCurrency');
-  if (currencyInfo) {
-    currencyInfo.style.display = 'flex';
-    if (lastDataType === 'char') {
-      charCurrency.style.display = 'inline';
-      weaponCurrency.style.display = 'none';
-      const jadeVal = notFreeTotal * 500;
-      const stoneVal = Math.floor(jadeVal / 75);
-      document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
-      document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
-    } else {
-      charCurrency.style.display = 'none';
-      weaponCurrency.style.display = 'inline';
-      const tenPulls = Math.floor(notFreeTotal / 10);
-      const weaponQuota = tenPulls * 1980;
-      document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
-    }
-  }
+  updateCurrencyDisplay(notFreeTotal, lastDataType);
 }
 
 function createAllPoolsRareRecordsCard(items) {
-  const sixStarDetails = [];
-  let currentPityCounter = 0;
-
-  items.forEach(item => {
-    const isFree = item.isFree === true;
-
-    if (item.rarity === 6) {
-      const isNewRecord = item.isNew;
-      if (isFree) {
-        sixStarDetails.push({
-          name: getItemName(item),
-          poolName: item.poolName,
-          isNew: isNewRecord,
-          pityText: "FREE"
-        });
-      } else {
-        currentPityCounter++;
-        sixStarDetails.push({
-          name: getItemName(item),
-          poolName: item.poolName,
-          isNew: isNewRecord,
-          pityText: currentPityCounter
-        });
-        currentPityCounter = 0;
-      }
-    } else {
-      if (!isFree) currentPityCounter++;
-    }
-  });
+  const sixStarDetails = calculateSixStarDetails(items);
 
   const container = document.getElementById("rareCharsContainer");
   container.style.padding = "24px";
@@ -1854,12 +1825,14 @@ function startExitAnimation() {
               (el.id === 'summaryStrip' && el.style.display !== 'none') ||
               el.classList.contains('main-title');
           el.style.display = needFlex ? 'flex' : 'block';
+          el.classList.remove('pool-selector-hidden');
         });
         // 依次执行入场动画
         elements.forEach((el, index) => {
           if(el) { setTimeout(() => {
             el.style.transition = "all 0.5s ease-out";
             el.style.opacity = "1";
+            el.style.visibility = "visible";
             el.style.transform = "translateY(0)";
             }, index * 100); }
         });
@@ -1888,7 +1861,10 @@ window.resetToAnalyze = function() {
   // 隐藏APP内部的DOM
   document.querySelector(".main-title").style.display = "none";
   document.getElementById("typeSwitcher").style.display = "none";
-  document.getElementById("poolSelectorWrapper").style.display = "none";
+  document.getElementById("poolSelectorWrapper").classList.add('pool-selector-hidden');
+  document.getElementById("poolSelectorWrapper").style.visibility = 'hidden';
+  document.getElementById("poolSelectorWrapper").style.height = '0';
+  document.getElementById("poolSelectorWrapper").style.overflow = 'hidden';
   document.getElementById("summaryStrip").style.display = "none";
   document.getElementById("dashboardPanel").style.display = "none";
   document.getElementById("historySection").style.display = "none";
