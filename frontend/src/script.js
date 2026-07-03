@@ -1114,28 +1114,69 @@ function updateCurrencyDisplay(notFreeTotal, type) {
   }
 }
 
+// function calculateSixStarDetails(items, reverse = false) {
+//   const list = reverse ? items.slice().reverse() : items;
+//   const details = [];
+//   let pityCounter = 0;
+//
+//   list.forEach(item => {
+//     if (item.rarity === 6) {
+//       const detail = {
+//         name: getItemName(item),
+//         isNew: item.isNew,
+//         pityText: item.isFree ? "FREE" : ++pityCounter
+//       };
+//       if (item.poolName) detail.poolName = item.poolName;
+//       details.push(detail);
+//       if (!item.isFree) pityCounter = 0;
+//     } else {
+//       if (!item.isFree) pityCounter++;
+//     }
+//   });
+//
+//   return details;
+// }
+
 function calculateSixStarDetails(items, reverse = false) {
   const list = reverse ? items.slice().reverse() : items;
-  const details = [];
-  let pityCounter = 0;
 
+  // 按卡池分组，每个卡池独立计算保底
+  const pools = {};
+  const poolOrder = [];
   list.forEach(item => {
-    if (item.rarity === 6) {
-      const detail = {
-        name: getItemName(item),
-        isNew: item.isNew,
-        pityText: item.isFree ? "FREE" : ++pityCounter
-      };
-      if (item.poolName) detail.poolName = item.poolName;
-      details.push(detail);
-      if (!item.isFree) pityCounter = 0;
-    } else {
-      if (!item.isFree) pityCounter++;
+    const key = item.poolName;
+    if (!pools[key]) {
+      pools[key] = [];
+      poolOrder.push(key);
     }
+    pools[key].push(item);
   });
 
-  return details;
+  // 按卡池分别统计
+  const allDetails = [];
+  for (const key of poolOrder) {
+    const details = [];
+    let pityCounter = 0;
+    pools[key].forEach(item => {
+      if (item.rarity === 6) {
+        const detail = {
+          name: getItemName(item),
+          isNew: item.isNew,
+          pityText: item.isFree ? "FREE" : ++pityCounter
+        };
+        if (item.poolName) detail.poolName = item.poolName;
+        details.push(detail);
+        if (!item.isFree) pityCounter = 0;
+      } else {
+        if (!item.isFree) pityCounter++;
+      }
+    });
+    if (reverse) details.reverse();
+    allDetails.push(...details);
+  }
+  return allDetails;
 }
+
 
 function updateDisplay(dataMap, poolName) {
   if (!poolName || !dataMap || !dataMap[poolName]) return;
@@ -1613,31 +1654,16 @@ function updateAllBtnText() {
 // 合并所有卡池的数据并按卡池配置顺序排序
 function mergeAllPoolsData(dataMap) {
   const merged = [];
-  // 按顺序遍历卡池，确保输出顺序一致
   for (const poolName of globalPoolOrder) {
     if (dataMap[poolName]) {
-      const poolItems = dataMap[poolName];
-      poolItems.forEach(item => {
-        merged.push({
-          ...item,
-          originalPoolName: poolName  // 保留原始卡池名
-        });
-      });
+      merged.push(...dataMap[poolName]);
     }
   }
-  // 处理配置中不存在的卡池
   for (const poolName in dataMap) {
     if (!globalPoolOrder.includes(poolName)) {
-      const poolItems = dataMap[poolName];
-      poolItems.forEach(item => {
-        merged.push({
-          ...item,
-          originalPoolName: poolName
-        });
-      });
+      merged.push(...dataMap[poolName]);
     }
   }
-  // 按时间倒序排列（最新的在前）
   return merged.reverse();
 }
 
