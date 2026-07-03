@@ -1531,11 +1531,18 @@ function renderRareItemChip({
   return `<span ${glowClass} style="${styleStr}">${label}</span>`;
 }
 
-function createRareRecordCard(dataMap, poolName) {
-  const items = dataMap[poolName] || [];
-  const sixStarDetails = calculateSixStarDetails(items, true);
+function renderRareRecordsCard(options) {
+  const {
+    sixStarDetails,
+    headerText,
+    titleText,
+    countLabel,
+    countValue,
+    labelText,
+    getChipLabel,
+    getUpCharName,
+  } = options;
 
-  const recentSixStars = sixStarDetails.slice();
   const container = document.getElementById("rareCharsContainer");
   container.style.padding = "24px";
   const accentColor = "var(--ef-accent)";
@@ -1545,44 +1552,53 @@ function createRareRecordCard(dataMap, poolName) {
   const chipBorderColor = "var(--ef-chip-border)";
   const chipTextColor = "var(--ef-chip-text)";
   const chipBgColor = "var(--ef-chip-bg)";
-  const labelText = (currentType === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
 
-  // 获取当前卡池的UP角色
-  const upCharName = globalPoolConfig && globalPoolConfig[poolName] ? globalPoolConfig[poolName] : null;
-  const chipsHtml = recentSixStars.map(item => {
-    // 判断是否是UP角色/武器(还没做好)
+  const chipsHtml = sixStarDetails.map(item => {
+    const upCharName = getUpCharName ? getUpCharName(item) : null;
     const isUpItem = upCharName && item.name === upCharName;
-    const isNewItem = item.isNew
-    // 根据是否是UP角色/武器设置不同的颜色
     return renderRareItemChip({
-      label: `${item.name} [${item.pityText}]`,
+      label: getChipLabel(item),
       isUpItem,
-      isNewItem,
-      chipBorderColor,
-      chipTextColor,
-      chipBgColor
+      isNewItem: item.isNew,
+      chipBorderColor, chipTextColor, chipBgColor
     });
   }).join("");
+
   const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
   container.innerHTML = `
-        <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
-        <div style="margin-left: 8px;">
-            <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">TARGET POOL IDENTIFIED</div>
-            <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${poolName}</div>
-            
-            <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
-                <div style="font-size:16px; font-weight: bold; color:${textStrong};">TOTAL RECORDS:</div>
-                <div style="font-size:16px; font-weight: bold; color:${textStrong}; font-weight:bold;">${items.length}</div>
-            </div>
-            
-            <div>
-                <div style="font-size:10px; color:${textMuted}; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
-                <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
-                    ${recentSixStars.length > 0 ? chipsHtml : emptyHtml}
-                </div>
-            </div>
+    <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
+    <div style="margin-left: 8px;">
+      <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">${headerText}</div>
+      <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${titleText}</div>
+      <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
+        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${countLabel}</div>
+        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${countValue}</div>
+      </div>
+      <div>
+        <div style="font-size:10px; color:${textMuted}; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
+        <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
+          ${sixStarDetails.length > 0 ? chipsHtml : emptyHtml}
         </div>
-    `;
+      </div>
+    </div>
+  `;
+}
+
+function createRareRecordCard(dataMap, poolName) {
+  const items = dataMap[poolName] || [];
+  const sixStarDetails = calculateSixStarDetails(items, true);
+  const labelText = (currentType === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
+
+  renderRareRecordsCard({
+    sixStarDetails,
+    headerText: "TARGET POOL IDENTIFIED",
+    titleText: poolName,
+    countLabel: "TOTAL RECORDS:",
+    countValue: items.length,
+    labelText,
+    getChipLabel: (item) => `${item.name} [${item.pityText}]`,
+    getUpCharName: () => globalPoolConfig && globalPoolConfig[poolName] ? globalPoolConfig[poolName] : null,
+  });
 }
 
 // 更新汇总卡池标签
@@ -1664,55 +1680,18 @@ function createAllPoolsSummaryStrip(items) {
 
 function createAllPoolsRareRecordsCard(items) {
   const sixStarDetails = calculateSixStarDetails(items);
-
-  const container = document.getElementById("rareCharsContainer");
-  container.style.padding = "24px";
-  const accentColor = "var(--ef-accent)";
-  const textStrong = "var(--ef-text-strong)";
-  const textMuted = "var(--ef-text-muted)";
-  const emptyColor = "var(--ef-empty)";
-  const chipBorderColor = "var(--ef-chip-border)";
-  const chipTextColor = "var(--ef-chip-text)";
-  const chipBgColor = "var(--ef-chip-bg)";
   const labelText = (currentType === 'char') ? "ALL 6★ CHARACTERS" : "ALL 6★ WEAPONS";
 
-  const chipsHtml = sixStarDetails.map(item => {
-    const isNewItem = item.isNew;
-    // 根据原始卡池名获取UP角色
-    const upCharName = globalPoolConfig && globalPoolConfig[item.poolName] ? globalPoolConfig[item.poolName] : null;
-    // 判断是否是UP角色/武器(没做完)
-    const isUpItem = upCharName && item.name === upCharName;
-    return renderRareItemChip({
-      label: `${item.name} - ${item.poolName} [${item.pityText}]`,
-      isUpItem,
-      isNewItem,
-      chipBorderColor,
-      chipTextColor,
-      chipBgColor
-    });
-  }).join("");
-
-  const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
-
-  container.innerHTML = `
-    <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
-    <div style="margin-left: 8px;">
-      <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">ALL POOLS ANALYSIS</div>
-      <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">历史汇总</div>
-      
-      <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
-        <div style="font-size:16px; font-weight: bold; color:${textStrong};">TOTAL 6★ RECORDS:</div>
-        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${sixStarDetails.length}</div>
-      </div>
-      
-      <div>
-        <div style="font-size:10px; color:${textMuted}; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
-        <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
-          ${sixStarDetails.length > 0 ? chipsHtml : emptyHtml}
-        </div>
-      </div>
-    </div>
-  `;
+  renderRareRecordsCard({
+    sixStarDetails,
+    headerText: "ALL POOLS ANALYSIS",
+    titleText: "历史汇总",
+    countLabel: "TOTAL 6★ RECORDS:",
+    countValue: sixStarDetails.length,
+    labelText,
+    getChipLabel: (item) => `${item.name} - ${item.poolName} [${item.pityText}]`,
+    getUpCharName: (item) => globalPoolConfig && globalPoolConfig[item.poolName] ? globalPoolConfig[item.poolName] : null,
+  });
 }
 
 function createAllPoolsHistoryTable(items) {
