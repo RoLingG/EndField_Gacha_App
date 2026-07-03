@@ -30,7 +30,7 @@ function showAppSnackbar({
   const snackbar = document.createElement("mdui-snackbar");
   snackbar.className = `app-snackbar app-snackbar--${type}`;
   snackbar.textContent = message;
-  snackbar.autoCloseDelay = autoCloseDelay;
+  snackbar.autoCloseDelay = SNACKBAR_AUTO_CLOSE;
   snackbar.closeable = closeable;
   document.body.appendChild(snackbar);
   snackbar.open = true;
@@ -134,14 +134,10 @@ window.handleCancelFetch = async function() {
       showAppSnackbar({
         message: "[ERROR] 操作取消失败: " + err,
         type: "error",
-        autoCloseDelay: 4500,
+        autoCloseDelay: SNACKBAR_AUTO_CLOSE,
       });
     }
-    const btnCancelFetch = document.getElementById("btnCancelFetch");
-    if (btnCancelFetch) {
-      btnCancelFetch.style.display = "none";
-    }
-    window.isFetching = false;
+    setFetchingState(false);
   };
   // 对话框关闭时清理
   dialog.addEventListener('closed', () => {
@@ -173,7 +169,7 @@ window.handleExport = async function() {
     showAppSnackbar({
       message: "[ERROR] 导出失败: " + err,
       type: "error",
-      autoCloseDelay: 4500,
+      autoCloseDelay: SNACKBAR_AUTO_CLOSE,
     });
   }
 }
@@ -183,7 +179,6 @@ let cachedHgToken = ""; // 暂存前端用户发送的短 Token
 window.showTokenInputUI = function() {
   document.getElementById("defaultBtnGroup").style.display = "none";
   document.getElementById("analyzeDescription").style.display = "none";
-  // document.getElementById("logModeTips").style.display = "none";
   document.getElementById("tokenInputArea").style.display = "block";
   document.getElementById("webTokenInput").focus();
   document.getElementById("analyzeError").textContent = "";
@@ -248,7 +243,7 @@ window.handleToken = async function() {
     showAppSnackbar({
       message: "[ERROR] 处理 Token 失败: " + err,
       type: "error",
-      autoCloseDelay: 4500,
+      autoCloseDelay: SNACKBAR_AUTO_CLOSE,
     });
     document.getElementById("analyzeError").textContent = "LOGIN ERR: " + err;
     resetToAnalyze();
@@ -286,9 +281,7 @@ async function doTokenSync(player) {
   const serverName = player.serverType;
   currentServerType = serverName; // 更新全局变量，方便导出功能使用
   showLoadingState("SYSTEM SYNCHRONIZING...", `UID: ${player.uid} // ${serverName.toUpperCase()}`);
-  window.isFetching = true;
-  const btnCancelFetch = document.getElementById("btnCancelFetch");
-  if (btnCancelFetch) btnCancelFetch.style.display = "inline-block";
+  setFetchingState(true);
   try {
     const res = await SyncDataByChoice(cachedHgToken, player.uid, serverName);
     if (res === "success") {
@@ -297,8 +290,7 @@ async function doTokenSync(player) {
       }, 1000);
     }
   } catch (err) {
-    window.isFetching = false;
-    if (btnCancelFetch) btnCancelFetch.style.display = "none";
+    setFetchingState(false);
     console.error(err);
     document.getElementById("analyzeError").textContent = "SYNC ERR: " + err;
     resetToAnalyze();
@@ -314,6 +306,19 @@ let currentPool = null;
 let currentAllPoolsData = null;  // 存储合并后的汇总数据
 let isAllPoolsMode = false;  // 标识是否在汇总模式
 let gachaChartInstance = null; // 图表实例复用
+// 需要参与入场/出场动画的 APP 主内容元素 ID
+const APP_ELEMENT_IDS = ["mainTitle", "typeSwitcher", "poolSelectorWrapper", "summaryStrip", "dashboardPanel", "historySection"];
+
+// 游戏机制常量
+const JADE_PER_PULL = 500;           // 1抽 = 500嵌晶玉
+const JADE_PER_STONE = 75;           // 1衍质原石 = 75嵌晶玉
+const WEAPON_QUOTA_PER_TEN = 1980;   // 10连武器 = 1980配额
+const SPARK_TIER1 = 120;             // 垫刀第一阶段阈值
+const SPARK_TIER2 = 240;             // 垫刀第二阶段阈值
+const PITY_BOOST_START = 65;         // 概率提升起始抽数
+
+// UI 常量
+const SNACKBAR_AUTO_CLOSE = 4500;    // snackbar 自动关闭延迟 (ms)
 
 // 更新卡池配置（可选功能，可以在设置中调用）
 window.updatePoolConfig = async function() {
@@ -330,7 +335,7 @@ window.updatePoolConfig = async function() {
     showAppSnackbar({
       message: "[ERROR] 更新失败 / Update failed: " + err,
       type: "error",
-      autoCloseDelay: 4500,
+      autoCloseDelay: SNACKBAR_AUTO_CLOSE,
     });
   }
 }
@@ -346,6 +351,12 @@ function groupDataByPool(flatList) {
     grouped[pool].push(item);
   });
   return grouped;
+}
+
+function setFetchingState(fetching) {
+  window.isFetching = fetching;
+  const btn = document.getElementById("btnCancelFetch");
+  if (btn) btn.style.display = fetching ? "inline-block" : "none";
 }
 
 function showLoadingState(mainText, subText) {
@@ -466,7 +477,6 @@ window.loadLocal = async function () {
     // 有多个存档，或者一个存档有双服数据 -> 显示选择界面
     renderLocalArchiveList(archives);
     document.getElementById("defaultBtnGroup").style.display = "none";
-    // document.getElementById("logModeTips").style.display = "none";
     document.getElementById("playerSelectArea").style.display = "block";
     const desc = document.querySelector("#playerSelectArea .analyze-important-desc");
     if(desc) desc.innerHTML = "> LOCAL ARCHIVES FOUND // 发现本地存档<br>> SELECT DATA SOURCE // 请选择要加载的记录";
@@ -550,7 +560,7 @@ function renderLocalArchiveList(archives) {
             showAppSnackbar({
               message: "[ERROR] 删除失败: " + err,
               type: "error",
-              autoCloseDelay: 4500,
+              autoCloseDelay: SNACKBAR_AUTO_CLOSE,
             });
           }
         };
@@ -619,7 +629,7 @@ window.handleImportTemp = async function() {
       showAppSnackbar({
         message: "[ERROR] Import Failed: " + err,
         type: "error",
-        autoCloseDelay: 4500,
+        autoCloseDelay: SNACKBAR_AUTO_CLOSE,
       });
     }
     resetToAnalyze();
@@ -645,10 +655,7 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
   } else {
     // 在线模式：先获取数据
     loadingText.textContent = 'FETCHING DATA ...';
-    // 显示取消按钮
-    window.isFetching = true;
-    const btnCancelFetch = document.getElementById("btnCancelFetch");
-    if (btnCancelFetch) btnCancelFetch.style.display = "inline-block";
+    setFetchingState(true);
 
     let charRes = null;
     let weaponRes = null;
@@ -671,14 +678,13 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
       console.warn("Weapon data fetch failed:", e);
     }
 
-    window.isFetching = false;
-    if (btnCancelFetch) btnCancelFetch.style.display = "none";
+    setFetchingState(false);
 
     if (charFetchError && weaponFetchError) {
       showAppSnackbar({
         message: `[ERROR] 角色池与武器池数据均加载失败: ${charFetchError} / ${weaponFetchError}。`,
         type: "error",
-        autoCloseDelay: 5200,
+        autoCloseDelay: SNACKBAR_AUTO_CLOSE,
       });
       resetToAnalyze();
       return;
@@ -695,7 +701,7 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
       showAppSnackbar({
         message: "[WARNING] " + warningMessages.join(" / "),
         type: "warning",
-        autoCloseDelay: 4200,
+        autoCloseDelay: SNACKBAR_AUTO_CLOSE,
       });
     }
     charDataGrouped = groupDataByPool(charList);
@@ -855,31 +861,25 @@ function renderNoDataState({
 function renderByType(type) {
   // 汇总模式处理
   if (type === 'all') {
+    const allPoolsNoDataConfig = {
+      chartMessage: '// NO ALL-POOLS CHART DATA',
+      detailTitle: '// NO SUMMARY DATA',
+      detailDesc: '当前汇总模式下暂无可展示记录。<br>Please switch type or load another archive.',
+      historyMessage: '// NO ALL-POOLS HISTORY',
+      detailLabel: 'ALL POOLS ANALYSIS',
+      historyColspan: 5,
+      hidePoolSelector: true
+    };
     const dataMap = (lastDataType === 'char') ? globalCharData : globalWeaponData;
     if (!dataMap || Object.keys(dataMap).length === 0) {
-      renderNoDataState({
-        chartMessage: '// NO ALL-POOLS CHART DATA',
-        detailTitle: '// NO SUMMARY DATA',
-        detailDesc: '当前汇总模式下暂无可展示记录。<br>Please switch type or load another archive.',
-        historyMessage: '// NO ALL-POOLS HISTORY',
-        detailLabel: 'ALL POOLS ANALYSIS',
-        historyColspan: 5,
-        hidePoolSelector: true
-      });
+      renderNoDataState(allPoolsNoDataConfig);
       return;
     }
     // 合并所有卡池数据
     currentAllPoolsData = mergeAllPoolsData(dataMap);
     // 如果合并后依然为空，也按汇总无数据处理
     if (!currentAllPoolsData || currentAllPoolsData.length === 0) {
-      renderNoDataState({
-        chartMessage: '// NO ALL-POOLS CHART DATA',
-        detailTitle: '// NO SUMMARY DATA',
-        detailDesc: '当前汇总模式下暂无可展示记录。<br>Please switch type or load another archive.',
-        historyMessage: '// NO ALL-POOLS HISTORY',
-        historyColspan: 5,
-        hidePoolSelector: true
-      });
+      renderNoDataState(allPoolsNoDataConfig);
       return;
     }
     // 汇总模式有数据时恢复概览条
@@ -1101,15 +1101,15 @@ function updateCurrencyDisplay(notFreeTotal, type) {
   if (type === 'char') {
     charCurrency.style.display = 'inline';
     weaponCurrency.style.display = 'none';
-    const jadeVal = notFreeTotal * 500;
-    const stoneVal = Math.floor(jadeVal / 75);
+    const jadeVal = notFreeTotal * JADE_PER_PULL;
+    const stoneVal = Math.floor(jadeVal / JADE_PER_STONE);
     document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
     document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
   } else {
     charCurrency.style.display = 'none';
     weaponCurrency.style.display = 'inline';
     const tenPulls = Math.floor(notFreeTotal / 10);
-    const weaponQuota = tenPulls * 1980;
+    const weaponQuota = tenPulls * WEAPON_QUOTA_PER_TEN;
     document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
   }
 }
@@ -1214,6 +1214,55 @@ async function loadPoolConfig() {
   return globalPoolConfig;
 }
 
+function calculateSparkInfo(reversed, targetUpChar) {
+  let sparkCount = 0;
+  let sparkConsumed = false;
+  for (let item of reversed) {
+    if (!item.isFree) sparkCount++;
+    const name = getItemName(item);
+    if (name === targetUpChar && !item.isFree && sparkCount <= SPARK_TIER1) {
+      sparkConsumed = true;
+    }
+  }
+
+  let targetLimit, rightCornerSub;
+  if (sparkCount >= SPARK_TIER2) {
+    targetLimit = SPARK_TIER2;
+    rightCornerSub = "MAX SPARK REACHED";
+  } else if (sparkCount > SPARK_TIER1) {
+    targetLimit = SPARK_TIER2;
+    rightCornerSub = `NEXT TARGET: ${SPARK_TIER2}`;
+  } else {
+    targetLimit = sparkConsumed ? SPARK_TIER2 : SPARK_TIER1;
+    rightCornerSub = sparkConsumed ? `${SPARK_TIER1} CONSUMED -> TARGET ${SPARK_TIER2}` : "LIMITED SPARK COUNT";
+  }
+
+  return { sparkCount, targetLimit, rightCornerSub };
+}
+
+function calculatePityBoost(currentPity, poolName) {
+  if (currentPity >= PITY_BOOST_START && poolName !== "基础寻访") {
+    const extraRate = (currentPity - (PITY_BOOST_START - 1)) * 5;
+    const nextProb = Math.min(0.8 + extraRate, 100);
+    return {
+      pityColor: "#ff5722",
+      pitySubText: `NEXT PROB: ${nextProb}%`
+    };
+  }
+  return {
+    pityColor: "var(--ef-yellow)",
+    pitySubText: "SINCE LAST 6★"
+  };
+}
+
+function calculatePoolStats(items) {
+  const total = items.length;
+  const notFreeTotal = items.filter(item => !item.isFree).length;
+  const sixStarCount = items.filter(i => i.rarity === 6).length;
+  const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
+  return { total, notFreeTotal, sixStarCount, rate };
+}
+
 function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName] || [];
   const poolUpCharConfig = globalPoolConfig || {};
@@ -1228,79 +1277,29 @@ function createSummaryStrip(dataMap, poolName) {
     }
   }
 
+  const { total, notFreeTotal, sixStarCount, rate } = calculatePoolStats(items);
+
   let centerLabel = "POOL TOTAL // 总抽取数";
-  let centerValueHtml = items.length;
+  let centerValueHtml = total;
   let rightCornerSub = (currentType === 'char') ? "6★ GUARANTEED AT 80" : "UP 6★ GUARANTEED AT 80";
-  let centerColor = "#ffffff";
   let pityCount = (currentType === 'char') ? 80 : 40;
   const targetUpChar = poolUpCharConfig[poolName] || null;
   if (currentType === 'char' && targetUpChar) {
     centerLabel = "POOL SPARK // 本池垫刀";
-    rightCornerSub = "LIMITED SPARK COUNT";
-    let sparkCount = 0;
-    let sparkConsumed  = false;
-
-    for(let item of reversed) {
-      if (!item.isFree) {
-        sparkCount++;
-      }
-      const name = getItemName(item);
-      if (name === targetUpChar && !item.isFree) {
-        if (sparkCount <= 120) {
-          sparkConsumed = true;
-        }
-      }
-    }
-
-    let targetLimit = 120;
-    if (sparkCount >= 240) {
-      targetLimit = 240;
-      rightCornerSub = "MAX SPARK REACHED";
-      centerColor = (sparkCount === 240) ? "#ff5252" : "#ffffff";
-    } else if (sparkCount > 120) {
-      targetLimit = 240;
-      rightCornerSub = "NEXT TARGET: 240";
-    } else {
-      if (sparkConsumed) {
-        targetLimit = 240;
-        rightCornerSub = "120 CONSUMED -> TARGET 240";
-      } else {
-        targetLimit = 120;
-      }
-    }
-
-    if (sparkCount >= targetLimit && targetLimit > 0) {
-      centerColor = "#ff5252";
-    } else {
-      centerColor = "var(--ef-yellow)";
-    }
-
-    centerValueHtml = `${sparkCount} <span style="font-size:12px;color:#666">/ ${targetLimit}</span>`;
+    const spark = calculateSparkInfo(reversed, targetUpChar);
+    rightCornerSub = spark.rightCornerSub;
+    centerValueHtml = `${spark.sparkCount} <span style="font-size:12px;color:#666">/ ${spark.targetLimit}</span>`;
   }
 
-  let nextProb = 0.8;
-  let pityColor = "var(--ef-yellow)";
-  let pitySubText = "SINCE LAST 6★";
-  if (currentPity >= 65 && poolName !== "基础寻访") {
-    pityColor = "#ff5722";
-    let extraRate = (currentPity - 64) * 5; // 65抽开始抬概率
-    nextProb = 0.8 + extraRate;
-    if (nextProb > 100) nextProb = 100;
-    pitySubText = `NEXT PROB: ${nextProb}%`;
-  }
-
-  const total = items.length;
-  const notFreeTotal = items.filter(item => !item.isFree).length;
-  const sixStarCount = items.filter(i => i.rarity === 6).length;
-  const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
+  const pityBoost = calculatePityBoost(currentPity, poolName);
   const typeLabel = (currentType === 'char') ? "CHARACTERS" : "WEAPONS";
   document.getElementById('summaryStrip').innerHTML = `
         <div class="info-card">
             <div class="info-label">CURRENT PITY // 当前水位</div>
-            <div class="info-value" style="color:${pityColor}">
+            <div class="info-value" style="color:${pityBoost.pityColor}">
                 ${currentPity} <span style="font-size:12px;color:#666">/ ${pityCount}</span>
             </div>
-            <div class="info-sub">${pitySubText}</div>
+            <div class="info-sub">${pityBoost.pitySubText}</div>
         </div>
         
         <div class="info-card">
@@ -1465,33 +1464,19 @@ function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
   input.focus();
   input.select();
 
-  // 仅允许输入数字
-  input.addEventListener('keydown', (e) => {
-    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'].includes(e.key)) {
-      e.preventDefault();
-    }
-  });
-
-  input.addEventListener('input', () => {
-    input.value = input.value.replace(/[^0-9]/g, '');
-  });
-
   // 确认跳页
   const confirmJump = () => {
     const newPage = parseInt(input.value, 10);
 
-    // 验证页码
     if (isNaN(newPage) || newPage < 1 || newPage > totalPages) {
       showAppSnackbar({
         message: `[WARNING] Invalid page number. Please enter a number between 1 and ${totalPages}`,
         type: "warning"
       });
-      // 恢复原始显示
       pageIndicator.textContent = originalText;
       return;
     }
 
-    // 跳页
     if (newPage !== currentHistoryPage) {
       currentHistoryPage = newPage;
       if (isAllPoolsMode) {
@@ -1500,25 +1485,26 @@ function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
         renderHistoryPage();
       }
     } else {
-      // 恢复原始显示
       pageIndicator.textContent = originalText;
     }
   };
 
-  // 回车确认
+  // 统一处理键盘事件
+  const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       confirmJump();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      pageIndicator.textContent = originalText;
+    } else if (!/[0-9]/.test(e.key) && !allowedKeys.includes(e.key)) {
+      e.preventDefault();
     }
   });
 
-  // ESC 取消
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      pageIndicator.textContent = originalText;
-    }
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/[^0-9]/g, '');
   });
 
   // 失焦时确认
@@ -1667,10 +1653,7 @@ function displayAllPoolsSummary(allItems) {
 }
 
 function createAllPoolsSummaryStrip(items) {
-  const total = items.length;
-  const notFreeTotal = items.filter(item => !item.isFree).length;
-  const sixStarCount = items.filter(i => i.rarity === 6).length;
-  const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
+  const { total, notFreeTotal, sixStarCount, rate } = calculatePoolStats(items);
   const typeLabel = (lastDataType === 'char') ? "CHARACTERS" : "WEAPONS";
 
   document.getElementById('summaryStrip').innerHTML = `
@@ -1806,20 +1789,11 @@ function startExitAnimation() {
         }
         if(logoWrapper) logoWrapper.style.transform = "";
         if(loadingText) loadingText.style.transform = "";
-        const elements = [
-          document.querySelector(".main-title"),
-          document.getElementById("typeSwitcher"),
-          document.getElementById("poolSelectorWrapper"),
-          document.getElementById("summaryStrip"),
-          document.getElementById("dashboardPanel"),
-          document.getElementById("historySection")
-        ];
+        const elements = APP_ELEMENT_IDS.map(id => document.getElementById(id));
+        const flexIds = new Set(["mainTitle", "typeSwitcher", "dashboardPanel"]);
         elements.forEach((el) => {
           if (!el) return;
-          const needFlex = el.id === 'typeSwitcher' ||
-              el.id === 'dashboardPanel' ||
-              (el.id === 'summaryStrip' && el.style.display !== 'none') ||
-              el.classList.contains('main-title');
+          const needFlex = flexIds.has(el.id) || (el.id === 'summaryStrip' && el.style.display !== 'none');
           el.style.display = needFlex ? 'flex' : 'block';
           el.classList.remove('pool-selector-hidden');
         });
@@ -1855,15 +1829,17 @@ window.resetToAnalyze = function() {
   loadingOverlay.style.transform = "";
 
   // 隐藏APP内部的DOM
-  document.querySelector(".main-title").style.display = "none";
-  document.getElementById("typeSwitcher").style.display = "none";
-  document.getElementById("poolSelectorWrapper").classList.add('pool-selector-hidden');
-  document.getElementById("poolSelectorWrapper").style.visibility = 'hidden';
-  document.getElementById("poolSelectorWrapper").style.height = '0';
-  document.getElementById("poolSelectorWrapper").style.overflow = 'hidden';
-  document.getElementById("summaryStrip").style.display = "none";
-  document.getElementById("dashboardPanel").style.display = "none";
-  document.getElementById("historySection").style.display = "none";
+  APP_ELEMENT_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = "none";
+    if (id === "poolSelectorWrapper") {
+      el.classList.add('pool-selector-hidden');
+      el.style.visibility = 'hidden';
+      el.style.height = '0';
+      el.style.overflow = 'hidden';
+    }
+  });
 
   // 显示登录卡片
   const analyzeContainer = document.getElementById("analyzeContainer");
@@ -1881,8 +1857,6 @@ window.resetToAnalyze = function() {
   // 恢复显示日志模式的提示
   const adTips = document.getElementById("analyzeDescription")
   if(adTips) adTips.style.display = "block";
-  // const logTips = document.getElementById("logModeTips");
-  // if(logTips) logTips.style.display = "block";
 
   // 复位输入框
   const input = document.getElementById("webTokenInput");
