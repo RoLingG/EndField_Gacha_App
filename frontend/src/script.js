@@ -1114,29 +1114,6 @@ function updateCurrencyDisplay(notFreeTotal, type) {
   }
 }
 
-// function calculateSixStarDetails(items, reverse = false) {
-//   const list = reverse ? items.slice().reverse() : items;
-//   const details = [];
-//   let pityCounter = 0;
-//
-//   list.forEach(item => {
-//     if (item.rarity === 6) {
-//       const detail = {
-//         name: getItemName(item),
-//         isNew: item.isNew,
-//         pityText: item.isFree ? "FREE" : ++pityCounter
-//       };
-//       if (item.poolName) detail.poolName = item.poolName;
-//       details.push(detail);
-//       if (!item.isFree) pityCounter = 0;
-//     } else {
-//       if (!item.isFree) pityCounter++;
-//     }
-//   });
-//
-//   return details;
-// }
-
 function calculateSixStarDetails(items, reverse = false) {
   const list = reverse ? items.slice().reverse() : items;
 
@@ -1217,8 +1194,22 @@ async function loadPoolConfig() {
       "熔火灼痕": "莱万汀",
       "轻飘飘的信使": "洁尔佩塔",
       "热烈色彩": "伊冯",
+      "河流的女儿": "汤汤",
+      "狼珀": "洛茜",
+      "春雷动，万物生": "庄方宜",
+      "拳出无悔": "弭弗",
+      "逐罪者": "卡缪",
     };
-    globalPoolOrder = ["熔火灼痕", "轻飘飘的信使", "热烈色彩"];
+    globalPoolOrder =
+        ["熔火灼痕",
+          "轻飘飘的信使",
+          "热烈色彩",
+          "河流的女儿",
+          "狼珀",
+          "春雷动，万物生",
+          "拳出无悔",
+          "逐罪者"
+        ];
   }
   return globalPoolConfig;
 }
