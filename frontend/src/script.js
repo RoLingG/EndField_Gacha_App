@@ -20,29 +20,9 @@ import {
   CancelCurrentOperation
 } from "../wailsjs/go/main/App";
 
-// mdui Snackbar封装
-function showAppSnackbar({
-                           message = "",
-                           type = "info",
-                           autoCloseDelay = 3200,
-                           closeable = false,
-                         } = {}) {
-  const snackbar = document.createElement("mdui-snackbar");
-  snackbar.className = `app-snackbar app-snackbar--${type}`;
-  snackbar.textContent = message;
-  snackbar.autoCloseDelay = SNACKBAR_AUTO_CLOSE;
-  snackbar.closeable = closeable;
-  document.body.appendChild(snackbar);
-  snackbar.open = true;
-  const cleanup = () => {
-    if (snackbar.parentNode) snackbar.remove();
-  };
-  snackbar.addEventListener("closed", cleanup, { once: true });
-  snackbar.addEventListener("close", () => {
-    setTimeout(cleanup, 300);
-  }, { once: true });
-  return snackbar;
-}
+// ============================================
+// CONSTANTS & CONFIGURATION
+// ============================================
 
 // chart.js全局配置
 Chart.defaults.color = '#ffffff';
@@ -58,123 +38,519 @@ if(maxBtn){
 document.getElementById("minBtn").onclick = () => WindowMinSize();
 document.getElementById("closeBtn").onclick = () => WindowClose();
 
-window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    const container = document.getElementById('analyzeContainer');
-    if (container) container.classList.add('show');
-  }, 100);
-  window.runtime.EventsOff('fetch-progress');
-  window.runtime.EventsOn('fetch-progress', (message) => {
-    const subtextElement = document.querySelector('.loading-subtext');
-    if (subtextElement) {
-      subtextElement.textContent = message;
-    }
-  });
-});
+// 需要参与入场/出场动画的 APP 主内容元素 ID
+const APP_ELEMENT_IDS = ["mainTitle", "typeSwitcher", "poolSelectorWrapper", "summaryStrip", "dashboardPanel", "historySection"];
 
-// 默认是在线模式
-window.isOfflineSelection = false;
-// 窗口顶部栏双按钮逻辑处理
-window.handleOpenFolder = async () => await OpenDataFolder();
-window.handleReload = async () => {
-  if (window.runtime && window.runtime.EventsOff) {
-    window.runtime.EventsOff('fetch-progress');
-  }
-  document.querySelectorAll('mdui-dialog').forEach(dialog => {
-    dialog.open = false;
-    dialog.remove();
-  });
-  if (window.Chart && window.Chart.instances) {
-    Object.values(window.Chart.instances).forEach(chart => {
-      if (chart && chart.destroy) {
-        chart.destroy();
-      }
-    });
-  }
-  window.isFetching = false;
-  await ReloadFrontend();
+// 游戏机制常量
+const JADE_PER_PULL = 500;           // 1抽 = 500嵌晶玉
+const JADE_PER_STONE = 75;           // 1衍质原石 = 75嵌晶玉
+const WEAPON_QUOTA_PER_TEN = 1980;   // 10连武器 = 1980配额
+const SPARK_TIER1 = 120;             // 垫刀第一阶段阈值
+const SPARK_TIER2 = 240;             // 垫刀第二阶段阈值
+const PITY_BOOST_START = 65;         // 概率提升起始抽数
+
+// UI 常量
+const SNACKBAR_AUTO_CLOSE = 4500;    // snackbar 自动关闭延迟 (ms)
+
+// Fallback 卡池配置（API 加载失败时使用）
+const FALLBACK_POOL_CONFIG = {
+  "熔火灼痕": "莱万汀",
+  "轻飘飘的信使": "洁尔佩塔",
+  "热烈色彩": "伊冯",
+  "河流的女儿": "汤汤",
+  "狼珀": "洛茜",
+  "春雷动，万物生": "庄方宜",
+  "拳出无悔": "弭弗",
+  "逐罪者": "卡缪",
 };
+const FALLBACK_POOL_ORDER = [
+  "熔火灼痕", "轻飘飘的信使", "热烈色彩", "河流的女儿",
+  "狼珀", "春雷动，万物生", "拳出无悔", "逐罪者",
+];
 
+// ============================================
+// STATE VARIABLES
+// ============================================
+
+// 窗口状态
+window.isOfflineSelection = false;
+window.isFetching = false;
+
+// 认证状态
+let cachedHgToken = ""; // 暂存前端用户发送的短 Token
 let currentUid = "";
 let currentServerType = "";
-window.isFetching = false
 
-window.handleCancelFetch = async function() {
-  if (!window.isFetching) return;
+// 全局数据存储
+let globalCharData = null;  // 全局角色池抽卡数据
+let globalWeaponData = null;  // 全局武器池抽卡数据
+let currentType = 'char'; // 'char' | 'weapon' | 'all'
+let lastDataType = 'char';  // 保存上次选择的数据类型（char 或 weapon），用于汇总模式
+let currentPool = null;
+let currentAllPoolsData = null;  // 存储合并后的汇总数据
+let isAllPoolsMode = false;  // 标识是否在汇总模式
+let gachaChartInstance = null; // 图表实例复用
 
-  // 创建自定义样式的 MDUI 对话框
-  const dialog = document.createElement('mdui-dialog');
-  dialog.headline = '// CONFIRM CANCELLATION';
-  dialog.description = '> 确定要取消当前操作吗？已抓取的数据将会丢失。';
-  dialog.innerHTML = `
-    <mdui-button slot="action" variant="text" class="dialog-cancel-btn">
-      [ CANCEL / 取消 ]
-    </mdui-button>
-    <mdui-button slot="action" variant="tonal" class="dialog-confirm-btn">
-      [ CONFIRM / 确定 ]
-    </mdui-button>
-  `;
-  document.body.appendChild(dialog);
-  dialog.open = true;
-  // 取消按钮
-  dialog.querySelector('.dialog-cancel-btn').onclick = () => {
-    dialog.open = false;
+// 白天模式
+let globalTheme = "night"
+const themeStorageKey = "ef-theme";
+
+// 全局卡池配置缓存
+let globalPoolConfig = null;
+// 全局卡池顺序列表（用于排序）
+let globalPoolOrder = [];
+
+// 分页逻辑
+let currentHistoryPage = 1;
+const historyPageSize = 10;
+let currentHistoryData = [];
+let currentPoolNameForPagination = "";
+
+// ============================================
+// UI UTILITIES
+// ============================================
+
+// mdui Snackbar封装
+function showAppSnackbar({
+                           message = "",
+                           type = "info",
+                           autoCloseDelay = SNACKBAR_AUTO_CLOSE,
+                           closeable = false,
+                         } = {}) {
+  const snackbar = document.createElement("mdui-snackbar");
+  snackbar.className = `app-snackbar app-snackbar--${type}`;
+  snackbar.textContent = message;
+  snackbar.closeable = closeable;
+  document.body.appendChild(snackbar);
+  snackbar.open = true;
+  const cleanup = () => {
+    if (snackbar.parentNode) snackbar.remove();
   };
-  // 确定按钮
-  dialog.querySelector('.dialog-confirm-btn').onclick = async () => {
-    dialog.open = false;
-    try {
-      await CancelCurrentOperation();
-      showAppSnackbar({
-        message: "[CANCELLED] 操作已取消 / Operation Canceled",
-        type: "warning"
-      });
-    } catch (err) {
-      console.error(err);
-      showAppSnackbar({
-        message: "[ERROR] 操作取消失败: " + err,
-        type: "error",
-        autoCloseDelay: SNACKBAR_AUTO_CLOSE,
-      });
-    }
-    setFetchingState(false);
-  };
-  // 对话框关闭时清理
-  dialog.addEventListener('closed', () => {
-    setTimeout(() => dialog.remove(), 300);
-  });
-};
+  snackbar.addEventListener("closed", cleanup, { once: true });
+  snackbar.addEventListener("close", () => {
+    setTimeout(cleanup, 300);
+  }, { once: true });
+  return snackbar;
+}
 
-window.handleExport = async function() {
-  // 防止用户还没加载数据就点击导出
-  if (!currentServerType) {
-    showAppSnackbar({
-      message: "[WARNING] 请先加载数据 (Please Initialize Data First)",
-      type: "warning"
-    });
-    return;
+function setFetchingState(fetching) {
+  window.isFetching = fetching;
+  const btn = document.getElementById("btnCancelFetch");
+  if (btn) btn.style.display = fetching ? "inline-block" : "none";
+}
+
+function resetButton(btn, text) {
+  btn.textContent = text;
+  btn.disabled = false;
+}
+
+function setPoolSelectorVisibility(el, visible) {
+  if (visible) {
+    el.classList.remove('pool-selector-hidden');
+    el.style.visibility = 'visible';
+    el.style.height = '';
+    el.style.overflow = '';
+  } else {
+    el.classList.add('pool-selector-hidden');
+    el.style.visibility = 'hidden';
+    el.style.height = '0';
+    el.style.overflow = 'hidden';
   }
+}
+
+function showLoadingState(mainText, subText) {
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  // 更新文本内容
+  document.querySelector('.loading-text').textContent = mainText;
+  document.querySelector('.loading-subtext').textContent = subText;
+  // 隐藏分析容器
+  const analyzeContainer = document.getElementById("analyzeContainer");
+  analyzeContainer.style.opacity = "0";
+  analyzeContainer.style.display = "none";
+  // 显示加载动画
+  requestAnimationFrame(() => {
+    loadingOverlay.classList.add("show");
+  });
+}
+
+function updateSummaryStripVisibility(visible) {
+  const summaryStrip = document.getElementById('summaryStrip');
+  if (!summaryStrip) return;
+  summaryStrip.style.display = visible ? 'flex' : 'none';
+}
+
+function clearDisplay() {
+  if (gachaChartInstance) {
+    gachaChartInstance.destroy();
+    gachaChartInstance = null;
+  }
+  document.getElementById("chartContainer").innerHTML = "";
+  document.getElementById("rareCharsContainer").innerHTML = "";
+  document.getElementById("summaryStrip").innerHTML = "";
+  document.getElementById("historyTableBody").innerHTML = "";
+  // 清除嵌晶玉/衍质原石转换显示
+  const currencyInfo = document.getElementById('currencyInfo');
+  if (currencyInfo) {
+    currencyInfo.style.display = 'none';
+    document.getElementById('jadeValue').textContent = '0';
+    document.getElementById('stoneValue').textContent = '0';
+  }
+}
+
+function updateCurrencyDisplay(notFreeTotal, type) {
+  const currencyInfo = document.getElementById('currencyInfo');
+  const charCurrency = document.getElementById('charCurrency');
+  const weaponCurrency = document.getElementById('weaponCurrency');
+  if (!currencyInfo) return;
+
+  currencyInfo.style.display = 'flex';
+  if (type === 'char') {
+    charCurrency.style.display = 'inline';
+    weaponCurrency.style.display = 'none';
+    const jadeVal = notFreeTotal * JADE_PER_PULL;
+    const stoneVal = Math.floor(jadeVal / JADE_PER_STONE);
+    document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
+    document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
+  } else {
+    charCurrency.style.display = 'none';
+    weaponCurrency.style.display = 'inline';
+    const tenPulls = Math.floor(notFreeTotal / 10);
+    const weaponQuota = tenPulls * WEAPON_QUOTA_PER_TEN;
+    document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
+  }
+}
+
+// ============================================
+// THEME
+// ============================================
+
+function applyTheme(theme) {
+  const body = document.body;
+  const btn = document.getElementById("themeToggle");
+  if (!body || !btn) return;
+  const rootStyle = document.documentElement.style;
+  let chartTextColor, chartBorderColor;
+  if (theme === "day") {
+    globalTheme = "day"
+    body.classList.add("theme-day");
+    btn.textContent = "[ MODE: DAY ]";
+    rootStyle.setProperty("--ef-accent", "#d9b500");
+    rootStyle.setProperty("--ef-text-strong", "#1f1f1f");
+    rootStyle.setProperty("--ef-text-muted", "#777");
+    rootStyle.setProperty("--ef-divider", "#cfcfc7");
+    rootStyle.setProperty("--ef-empty", "#777");
+    rootStyle.setProperty("--ef-chip-border", "#d45a2a");
+    rootStyle.setProperty("--ef-chip-text", "#d45a2a");
+    rootStyle.setProperty("--ef-chip-bg", "rgba(212, 90, 42, 0.12)");
+    chartTextColor = "#1f1f1f";
+    chartBorderColor = "#333333";
+  } else {
+    globalTheme = "night"
+    body.classList.remove("theme-day");
+    btn.textContent = "[ MODE: NIGHT ]";
+    rootStyle.setProperty("--ef-accent", "#fffa00");
+    rootStyle.setProperty("--ef-text-strong", "#cccccc");
+    rootStyle.setProperty("--ef-text-muted", "#666");
+    rootStyle.setProperty("--ef-divider", "#333");
+    rootStyle.setProperty("--ef-empty", "#444");
+    rootStyle.setProperty("--ef-chip-border", "#ff5722");
+    rootStyle.setProperty("--ef-chip-text", "#ff5722");
+    rootStyle.setProperty("--ef-chip-bg", "rgba(255, 87, 34, 0.1)");
+    chartTextColor = "#ffffff";
+    chartBorderColor = "#333333";
+  }
+  Chart.defaults.color = chartTextColor;
+  Chart.defaults.borderColor = chartBorderColor;
+  if (gachaChartInstance) {
+    gachaChartInstance.destroy();
+    gachaChartInstance = null;
+  }
+
+  if (isAllPoolsMode && currentAllPoolsData) {
+    // 汇总卡池模式
+    updateOrCreateChart(currentAllPoolsData);
+  } else if (currentPool) {
+    // 单类型卡池模式
+    const dataMap = (lastDataType === 'char') ? globalCharData : globalWeaponData;
+    if (dataMap && dataMap[currentPool]) {
+      updateOrCreateChart(dataMap[currentPool])
+    }
+  }
+}
+
+(function initThemeToggle() {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+
+  const saved = localStorage.getItem(themeStorageKey) || "night";
+  applyTheme(saved);
+
+  btn.addEventListener("click", () => {
+    const next = document.body.classList.contains("theme-day") ? "night" : "day";
+    localStorage.setItem(themeStorageKey, next);
+    applyTheme(next);
+    if (typeof window.onThemeChanged === "function") {
+      window.onThemeChanged(next);
+    }
+  });
+})();
+
+// ============================================
+// DATA PROCESSING & CALCULATIONS
+// ============================================
+
+function groupDataByPool(flatList) {
+  const grouped = {};
+  if (!flatList || flatList.length === 0) return grouped;
+  flatList.forEach(item => {
+    const pool = item.poolName || "未知卡池";
+    if (!grouped[pool]) {
+      grouped[pool] = [];
+    }
+    grouped[pool].push(item);
+  });
+  return grouped;
+}
+
+// 获取通用名称 (处理 CharName 和 WeaponName 的差异)
+function getItemName(item) {
+  return item.charName || item.weaponName || "UNKNOWN";
+}
+
+function calculateSixStarDetails(items, reverse = false) {
+  const list = reverse ? items.slice().reverse() : items;
+
+  // 按卡池分组，每个卡池独立计算保底
+  const pools = {};
+  const poolOrder = [];
+  list.forEach(item => {
+    const key = item.poolName;
+    if (!pools[key]) {
+      pools[key] = [];
+      poolOrder.push(key);
+    }
+    pools[key].push(item);
+  });
+
+  // 按卡池分别统计
+  const allDetails = [];
+  for (const key of poolOrder) {
+    const details = [];
+    let pityCounter = 0;
+    pools[key].forEach(item => {
+      if (item.rarity === 6) {
+        const detail = {
+          name: getItemName(item),
+          isNew: item.isNew,
+          pityText: item.isFree ? "FREE" : ++pityCounter
+        };
+        if (item.poolName) detail.poolName = item.poolName;
+        details.push(detail);
+        if (!item.isFree) pityCounter = 0;
+      } else {
+        if (!item.isFree) pityCounter++;
+      }
+    });
+    if (reverse) details.reverse();
+    allDetails.push(...details);
+  }
+  return allDetails;
+}
+
+function calculateSparkInfo(reversed, targetUpChar) {
+  let sparkCount = 0;
+  let sparkConsumed = false;
+  for (let item of reversed) {
+    if (!item.isFree) sparkCount++;
+    const name = getItemName(item);
+    if (name === targetUpChar && !item.isFree && sparkCount <= SPARK_TIER1) {
+      sparkConsumed = true;
+    }
+  }
+
+  let targetLimit, rightCornerSub;
+  if (sparkCount >= SPARK_TIER2) {
+    targetLimit = SPARK_TIER2;
+    rightCornerSub = "MAX SPARK REACHED";
+  } else if (sparkCount > SPARK_TIER1) {
+    targetLimit = SPARK_TIER2;
+    rightCornerSub = `NEXT TARGET: ${SPARK_TIER2}`;
+  } else {
+    targetLimit = sparkConsumed ? SPARK_TIER2 : SPARK_TIER1;
+    rightCornerSub = sparkConsumed ? `${SPARK_TIER1} CONSUMED -> TARGET ${SPARK_TIER2}` : "LIMITED SPARK COUNT";
+  }
+
+  return { sparkCount, targetLimit, rightCornerSub };
+}
+
+function calculatePityBoost(currentPity, poolName) {
+  if (currentPity >= PITY_BOOST_START && poolName !== "基础寻访") {
+    const extraRate = (currentPity - (PITY_BOOST_START - 1)) * 5;
+    const nextProb = Math.min(0.8 + extraRate, 100);
+    return {
+      pityColor: "#ff5722",
+      pitySubText: `NEXT PROB: ${nextProb}%`
+    };
+  }
+  return {
+    pityColor: "var(--ef-yellow)",
+    pitySubText: "SINCE LAST 6★"
+  };
+}
+
+function calculatePoolStats(items) {
+  const total = items.length;
+  const notFreeTotal = items.filter(item => !item.isFree).length;
+  const sixStarCount = items.filter(i => i.rarity === 6).length;
+  const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
+  return { total, notFreeTotal, sixStarCount, rate };
+}
+
+// 合并所有卡池的数据并按卡池配置顺序排序
+function mergeAllPoolsData(dataMap) {
+  const merged = [];
+  for (const poolName of globalPoolOrder) {
+    if (dataMap[poolName]) {
+      merged.push(...dataMap[poolName]);
+    }
+  }
+  for (const poolName in dataMap) {
+    if (!globalPoolOrder.includes(poolName)) {
+      merged.push(...dataMap[poolName]);
+    }
+  }
+  return merged.reverse();
+}
+
+// ============================================
+// POOL CONFIG & MANAGEMENT
+// ============================================
+
+// 加载卡池配置
+async function loadPoolConfig() {
+  if (globalPoolConfig) return globalPoolConfig;
   try {
-    const result = await ExportData(currentUid, currentServerType);
-    if (result === "success") {
-      showAppSnackbar({
-        message: "[SUCCESS] 导出成功 / Export Completed",
-        type: "success"
+    const config = await GetPoolConfig();
+    if (config && config.pools && config.pools.length > 0) {
+      globalPoolConfig = {};
+      globalPoolOrder = [];
+      config.pools.forEach(pool => {
+        globalPoolConfig[pool.poolName] = pool.up6Name;
+        globalPoolOrder.push(pool.poolName);
       });
-    } else if (result === "cancelled") {
-      console.log("User cancelled export");
     }
   } catch (err) {
-    console.error(err);
+    console.warn("Failed to load pool config, using fallback:", err);
+    globalPoolConfig = { ...FALLBACK_POOL_CONFIG };
+    globalPoolOrder = [...FALLBACK_POOL_ORDER];
+  }
+  return globalPoolConfig;
+}
+
+// 更新卡池配置（可选功能，可以在设置中调用）
+window.updatePoolConfig = async function() {
+  try {
+    let msg = await UpdatePoolConfig();
+    globalPoolConfig = null; // 清除缓存
+    await loadPoolConfig(); // 重新加载
     showAppSnackbar({
-      message: "[ERROR] 导出失败: " + err,
+      message: "[SUCCESS] " + msg,
+      type: "success"
+    });
+  } catch (err) {
+    console.error("Failed to update pool config:", err);
+    showAppSnackbar({
+      message: "[ERROR] 更新失败 / Update failed: " + err,
       type: "error",
       autoCloseDelay: SNACKBAR_AUTO_CLOSE,
     });
   }
 }
 
-let cachedHgToken = ""; // 暂存前端用户发送的短 Token
+function createPoolButtons(dataMap) {
+  const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
+  if (!poolSelectorWrapper) {
+    console.warn('poolSelectorWrapper element not found');
+    return;
+  }
+  poolSelectorWrapper.innerHTML = '';
+
+  const container = document.createElement('div');
+  container.className = 'pool-select-container';
+
+  const label = document.createElement('label');
+  label.className = 'pool-select-label';
+  label.textContent = 'SELECT POOL //';
+  container.appendChild(label);
+
+  // 创建下拉菜单容器
+  const dropdown = document.createElement('div');
+  dropdown.className = 'pool-dropdown-wrapper';
+
+  // 按 globalPoolOrder 顺序过滤 dataMap 中存在的卡池
+  const pools = globalPoolOrder.filter(poolName => poolName in dataMap);
+  // 处理配置中不存在的卡池（以防万一）
+  Object.keys(dataMap).forEach(poolName => {
+    if (!pools.includes(poolName)) {
+      pools.push(poolName);
+    }
+  });
+  currentPool = pools[pools.length - 1];
+
+  // 显示当前选中的池子
+  const display = document.createElement('div');
+  display.className = 'pool-display';
+  display.textContent = currentPool;
+  display.addEventListener('click', () => {
+    menu.classList.toggle('show');
+  });
+  dropdown.appendChild(display);
+
+  // 下拉菜单列表
+  const menu = document.createElement('div');
+  menu.className = 'pool-menu';
+
+  pools.reverse().forEach((poolName) => {
+    const item = document.createElement('div');
+    item.className = 'pool-menu-item';
+    item.textContent = poolName;
+    if (poolName === currentPool) {
+      item.classList.add('active');
+    }
+    item.addEventListener('click', () => {
+      // 更新显示
+      display.textContent = poolName;
+      currentPool = poolName;
+      // 更新菜单项状态
+      document.querySelectorAll('.pool-menu-item').forEach(i => {
+        i.classList.remove('active');
+      });
+      item.classList.add('active');
+      // 关闭菜单
+      menu.classList.remove('show');
+      // 更新显示
+      updateDisplay(dataMap, currentPool);
+    });
+    menu.appendChild(item);
+  });
+
+  // 根据层级组合菜单
+  dropdown.appendChild(menu);
+  container.appendChild(dropdown);
+  poolSelectorWrapper.appendChild(container);
+
+  // 点击外部关闭菜单
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) {
+      menu.classList.remove('show');
+    }
+  });
+}
+
+// ============================================
+// AUTH & TOKEN
+// ============================================
+
 // 点击 WEB TOKEN SYNC 按钮，显示输入界面
 window.showTokenInputUI = function() {
   document.getElementById("defaultBtnGroup").style.display = "none";
@@ -206,8 +582,7 @@ window.handleOfficialLoginWindow = async function() {
     console.error(err);
     document.getElementById("analyzeError").textContent = "LOGIN CANCELLED / FAILED";
   } finally {
-    btn.textContent = originalText;
-    btn.disabled = false;
+    resetButton(btn,originalText);
   }
 }
 
@@ -297,82 +672,9 @@ async function doTokenSync(player) {
   }
 }
 
-// 全局数据存储
-let globalCharData = null;
-let globalWeaponData = null;
-let currentType = 'char'; // 'char' | 'weapon' | 'all'
-let lastDataType = 'char';  // 保存上次选择的数据类型（char 或 weapon），用于汇总模式
-let currentPool = null;
-let currentAllPoolsData = null;  // 存储合并后的汇总数据
-let isAllPoolsMode = false;  // 标识是否在汇总模式
-let gachaChartInstance = null; // 图表实例复用
-// 需要参与入场/出场动画的 APP 主内容元素 ID
-const APP_ELEMENT_IDS = ["mainTitle", "typeSwitcher", "poolSelectorWrapper", "summaryStrip", "dashboardPanel", "historySection"];
-
-// 游戏机制常量
-const JADE_PER_PULL = 500;           // 1抽 = 500嵌晶玉
-const JADE_PER_STONE = 75;           // 1衍质原石 = 75嵌晶玉
-const WEAPON_QUOTA_PER_TEN = 1980;   // 10连武器 = 1980配额
-const SPARK_TIER1 = 120;             // 垫刀第一阶段阈值
-const SPARK_TIER2 = 240;             // 垫刀第二阶段阈值
-const PITY_BOOST_START = 65;         // 概率提升起始抽数
-
-// UI 常量
-const SNACKBAR_AUTO_CLOSE = 4500;    // snackbar 自动关闭延迟 (ms)
-
-// 更新卡池配置（可选功能，可以在设置中调用）
-window.updatePoolConfig = async function() {
-  try {
-    let msg = await UpdatePoolConfig();
-    globalPoolConfig = null; // 清除缓存
-    await loadPoolConfig(); // 重新加载
-    showAppSnackbar({
-      message: "[SUCCESS] " + msg,
-      type: "success"
-    });
-  } catch (err) {
-    console.error("Failed to update pool config:", err);
-    showAppSnackbar({
-      message: "[ERROR] 更新失败 / Update failed: " + err,
-      type: "error",
-      autoCloseDelay: SNACKBAR_AUTO_CLOSE,
-    });
-  }
-}
-
-function groupDataByPool(flatList) {
-  const grouped = {};
-  if (!flatList || flatList.length === 0) return grouped;
-  flatList.forEach(item => {
-    const pool = item.poolName || "未知卡池";
-    if (!grouped[pool]) {
-      grouped[pool] = [];
-    }
-    grouped[pool].push(item);
-  });
-  return grouped;
-}
-
-function setFetchingState(fetching) {
-  window.isFetching = fetching;
-  const btn = document.getElementById("btnCancelFetch");
-  if (btn) btn.style.display = fetching ? "inline-block" : "none";
-}
-
-function showLoadingState(mainText, subText) {
-  const loadingOverlay = document.getElementById("loadingOverlay");
-  // 更新文本内容
-  document.querySelector('.loading-text').textContent = mainText;
-  document.querySelector('.loading-subtext').textContent = subText;
-  // 隐藏分析容器
-  const analyzeContainer = document.getElementById("analyzeContainer");
-  analyzeContainer.style.opacity = "0";
-  analyzeContainer.style.display = "none";
-  // 显示加载动画
-  requestAnimationFrame(() => {
-    loadingOverlay.classList.add("show");
-  });
-}
+// ============================================
+// DATA LOADING & INITIALIZATION
+// ============================================
 
 // 双服选择逻辑处理
 window.onSelectServer = async function(serverName) {
@@ -423,8 +725,7 @@ window.analyze = async function () {
       document.getElementById("serverSelectArea").style.display = "block";
 
       // 恢复按钮状态，以便下次取消回来时正常
-      btn.textContent = originalText;
-      btn.disabled = false;
+      resetButton(btn, originalText);
       return; // 停在这里等待用户点击选择
     }
 
@@ -433,8 +734,7 @@ window.analyze = async function () {
     if (hasBilibili) targetServer = "bilibili";
 
     // 恢复按钮
-    btn.textContent = originalText;
-    btn.disabled = false;
+    resetButton(btn, originalText);
 
     showLoadingState("SYSTEM SYNCHRONIZING...", `TARGET CONFIRMED: ${targetServer.toUpperCase()}`);
     await initApp(false, targetServer, "");
@@ -443,8 +743,7 @@ window.analyze = async function () {
   } catch (err) {
     console.error(err);
     // 出错恢复按钮
-    btn.textContent = originalText;
-    btn.disabled = false;
+    resetButton(btn, originalText);
     document.getElementById("analyzeError").textContent = "ERR: " + err;
   }
 }
@@ -467,8 +766,7 @@ window.loadLocal = async function () {
       const targetArchive = archives[0];
       const targetServer = targetArchive.servers[0]; // "official" or "bilibili"
       const targetUid = targetArchive.uid;
-      btn.textContent = originalText;
-      btn.disabled = false;
+      resetButton(btn, originalText);
       window.isOfflineSelection = true;
       showLoadingState("LOADING LOCAL ARCHIVE...", `UID: ${targetUid} // ${targetServer.toUpperCase()}`);
       await initApp(true, targetServer, targetUid);
@@ -480,12 +778,10 @@ window.loadLocal = async function () {
     document.getElementById("playerSelectArea").style.display = "block";
     const desc = document.querySelector("#playerSelectArea .analyze-important-desc");
     if(desc) desc.innerHTML = "> LOCAL ARCHIVES FOUND // 发现本地存档<br>> SELECT DATA SOURCE // 请选择要加载的记录";
-    btn.textContent = originalText;
-    btn.disabled = false;
+    resetButton(btn, originalText);
   } catch (err) {
     console.error(err);
-    btn.textContent = originalText;
-    btn.disabled = false;
+    resetButton(btn, originalText);
     document.getElementById("analyzeError").textContent = "ERR: " + err;
   }
 }
@@ -728,6 +1024,10 @@ async function initApp(isOfflineMode, serverName = "official", uid = "") {
   startExitAnimation();
 }
 
+// ============================================
+// RENDERING - MAIN
+// ============================================
+
 // 核心切换逻辑
 window.switchType = function(type) {
   if(currentType === type) return;
@@ -747,115 +1047,13 @@ window.switchType = function(type) {
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
   if (type === 'all') {
     isAllPoolsMode = true;
-    if (poolSelectorWrapper) {
-      poolSelectorWrapper.classList.add('pool-selector-hidden');
-      poolSelectorWrapper.style.visibility = 'hidden';
-      poolSelectorWrapper.style.height = '0';
-      poolSelectorWrapper.style.overflow = 'hidden';
-    }
+    if (poolSelectorWrapper) setPoolSelectorVisibility(poolSelectorWrapper, false);
   } else {
     isAllPoolsMode = false;
-    if (poolSelectorWrapper) {
-      poolSelectorWrapper.classList.remove('pool-selector-hidden');
-      poolSelectorWrapper.style.visibility = 'visible';
-      poolSelectorWrapper.style.height = '';
-      poolSelectorWrapper.style.overflow = '';
-    }
+    if (poolSelectorWrapper) setPoolSelectorVisibility(poolSelectorWrapper, true);
   }
   // 重新渲染
   renderByType(type);
-}
-
-function updateSummaryStripVisibility(visible) {
-  const summaryStrip = document.getElementById('summaryStrip');
-  if (!summaryStrip) return;
-  summaryStrip.style.display = visible ? 'flex' : 'none';
-}
-
-// 统一渲染历史记录空状态
-function renderEmptyHistoryTable(message, colspan = 5) {
-  const historyTableBody = document.getElementById('historyTableBody');
-  if (!historyTableBody) return;
-
-  historyTableBody.innerHTML = `
-    <tr>
-      <td colspan="${colspan}" style="text-align:center; color:#666; padding:32px 0; font-weight:bold; font-size:16px;">
-        ${message}
-      </td>
-    </tr>
-  `;
-}
-
-// 统一更新历史记录分页区域 UI
-function updateHistoryPaginationUI(currentPage, totalPages) {
-  const pageInfo = document.getElementById('pageIndicator');
-  const prevBtn = document.getElementById('prevPageBtn');
-  const nextBtn = document.getElementById('nextPageBtn');
-
-  if (pageInfo) pageInfo.textContent = `PAGE ${currentPage} / ${totalPages}`;
-  if (prevBtn) prevBtn.disabled = (currentPage <= 1);
-  if (nextBtn) nextBtn.disabled = (currentPage >= totalPages || totalPages === 0);
-}
-
-// 统一渲染无数据主界面
-function renderNoDataState({
-                             poolMessage = '// NO DATA RECORDS FOUND',
-                             chartMessage = '// NO CHART DATA',
-                             detailTitle = '// NO DETAIL DATA',
-                             detailDesc = '当前所选类型暂无可展示记录。<br>Please switch pool/type or load another archive.',
-                             historyMessage = '// NO HISTORY RECORDS',
-                             detailLabel = 'TARGET POOL UNAVAILABLE',
-                             historyColspan = 4,
-                             hidePoolSelector = false
-                           } = {}) {
-  // 清空旧显示内容和旧图表实例
-  clearDisplay();
-  // 重置状态，避免残留旧池子/汇总数据
-  currentPool = null;
-  currentAllPoolsData = null;
-  const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
-  if (poolSelectorWrapper) {
-    if (hidePoolSelector) {
-      poolSelectorWrapper.classList.add('pool-selector-hidden');
-      poolSelectorWrapper.style.visibility = 'hidden';
-      poolSelectorWrapper.style.height = '0';
-      poolSelectorWrapper.style.overflow = 'hidden';
-    } else {
-      poolSelectorWrapper.classList.remove('pool-selector-hidden');
-      poolSelectorWrapper.style.visibility = 'visible';
-      poolSelectorWrapper.style.height = '';
-      poolSelectorWrapper.style.overflow = '';
-      poolSelectorWrapper.innerHTML = `
-        <div style="color:#666; padding:10px; font-weight: bold; font-size: 18px;">
-          ${poolMessage}
-        </div>
-      `;
-    }
-  }
-  // 无数据时隐藏概览条
-  updateSummaryStripVisibility(false);
-  const chartContainer = document.getElementById('chartContainer');
-  const rareCharsContainer = document.getElementById('rareCharsContainer');
-  if (chartContainer) {
-    chartContainer.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#666; font-size:20px; font-weight:bold;">
-        ${chartMessage}
-      </div>
-    `;
-  }
-  if (rareCharsContainer) {
-    rareCharsContainer.innerHTML = `
-      <div style="padding:40px 32px; color:#666;">
-        <div style="font-size:12px; letter-spacing:2px; margin-bottom:16px;">${detailLabel}</div>
-        <div style="font-size:28px; font-weight:bold; margin-bottom:16px;">${detailTitle}</div>
-        <div style="font-size:14px; line-height:1.8;">
-          ${detailDesc}
-        </div>
-      </div>
-    `;
-  }
-  renderEmptyHistoryTable(historyMessage, historyColspan);
-  updateHistoryPaginationUI(0, 0);
 }
 
 function renderByType(type) {
@@ -892,15 +1090,7 @@ function renderByType(type) {
   const dataMap = (type === 'char') ? globalCharData : globalWeaponData;
   // 如果没有数据
   if(!dataMap || Object.keys(dataMap).length === 0) {
-    renderNoDataState({
-      poolMessage: '// NO DATA RECORDS FOUND',
-      chartMessage: '// NO CHART DATA',
-      detailTitle: '// NO DETAIL DATA',
-      detailDesc: '当前所选类型暂无可展示记录。<br>Please switch pool/type or load another archive.',
-      historyMessage: '// NO HISTORY RECORDS',
-      historyColspan: 5,
-      hidePoolSelector: false
-    });
+    renderNoDataState();
     return;
   }
   // 如果有数据则恢复显示选择器
@@ -918,242 +1108,58 @@ function renderByType(type) {
   }
 }
 
-// 白天模式
-let globalTheme = "night"
-const themeStorageKey = "ef-theme";
-
-function applyTheme(theme) {
-  const body = document.body;
-  const btn = document.getElementById("themeToggle");
-  if (!body || !btn) return;
-  const rootStyle = document.documentElement.style;
-  let chartTextColor, chartBorderColor;
-  if (theme === "day") {
-    globalTheme = "day"
-    body.classList.add("theme-day");
-    btn.textContent = "[ MODE: DAY ]";
-    rootStyle.setProperty("--ef-accent", "#d9b500");
-    rootStyle.setProperty("--ef-text-strong", "#1f1f1f");
-    rootStyle.setProperty("--ef-text-muted", "#777");
-    rootStyle.setProperty("--ef-divider", "#cfcfc7");
-    rootStyle.setProperty("--ef-empty", "#777");
-    rootStyle.setProperty("--ef-chip-border", "#d45a2a");
-    rootStyle.setProperty("--ef-chip-text", "#d45a2a");
-    rootStyle.setProperty("--ef-chip-bg", "rgba(212, 90, 42, 0.12)");
-    chartTextColor = "#1f1f1f";
-    chartBorderColor = "#333333";
-  } else {
-    globalTheme = "night"
-    body.classList.remove("theme-day");
-    btn.textContent = "[ MODE: NIGHT ]";
-    rootStyle.setProperty("--ef-accent", "#fffa00");
-    rootStyle.setProperty("--ef-text-strong", "#cccccc");
-    rootStyle.setProperty("--ef-text-muted", "#666");
-    rootStyle.setProperty("--ef-divider", "#333");
-    rootStyle.setProperty("--ef-empty", "#444");
-    rootStyle.setProperty("--ef-chip-border", "#ff5722");
-    rootStyle.setProperty("--ef-chip-text", "#ff5722");
-    rootStyle.setProperty("--ef-chip-bg", "rgba(255, 87, 34, 0.1)");
-    chartTextColor = "#ffffff";
-    chartBorderColor = "#333333";
-  }
-  Chart.defaults.color = chartTextColor;
-  Chart.defaults.borderColor = chartBorderColor;
-  if (gachaChartInstance) {
-    gachaChartInstance.destroy();
-    gachaChartInstance = null;
-  }
-
-  if (isAllPoolsMode && currentAllPoolsData) {
-    // 汇总卡池模式
-    updateOrCreateChart(currentAllPoolsData);
-  } else if (currentPool) {
-    // 单类型卡池模式
-    const dataMap = (lastDataType === 'char') ? globalCharData : globalWeaponData;
-    if (dataMap && dataMap[currentPool]) {
-      updateOrCreateChart(dataMap[currentPool])
-    }
-  }
-}
-
-(function initThemeToggle() {
-  const btn = document.getElementById("themeToggle");
-  if (!btn) return;
-
-  const saved = localStorage.getItem(themeStorageKey) || "night";
-  applyTheme(saved);
-
-  btn.addEventListener("click", () => {
-    const next = document.body.classList.contains("theme-day") ? "night" : "day";
-    localStorage.setItem(themeStorageKey, next);
-    applyTheme(next);
-    if (typeof window.onThemeChanged === "function") {
-      window.onThemeChanged(next);
-    }
-  });
-})();
-
-function createPoolButtons(dataMap) {
+// 统一渲染无数据主界面
+function renderNoDataState({
+                             poolMessage = '// NO DATA RECORDS FOUND',
+                             chartMessage = '// NO CHART DATA',
+                             detailTitle = '// NO DETAIL DATA',
+                             detailDesc = '当前所选类型暂无可展示记录。<br>Please switch pool/type or load another archive.',
+                             historyMessage = '// NO HISTORY RECORDS',
+                             detailLabel = 'TARGET POOL UNAVAILABLE',
+                             historyColspan = 5,
+                             hidePoolSelector = false
+                           } = {}) {
+  // 清空旧显示内容和旧图表实例
+  clearDisplay();
+  // 重置状态，避免残留旧池子/汇总数据
+  currentPool = null;
+  currentAllPoolsData = null;
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
-  if (!poolSelectorWrapper) {
-    console.warn('poolSelectorWrapper element not found');
-    return;
-  }
-  poolSelectorWrapper.innerHTML = '';
-
-  const container = document.createElement('div');
-  container.className = 'pool-select-container';
-
-  const label = document.createElement('label');
-  label.className = 'pool-select-label';
-  label.textContent = 'SELECT POOL //';
-  container.appendChild(label);
-
-  // 创建下拉菜单容器
-  const dropdown = document.createElement('div');
-  dropdown.className = 'pool-dropdown-wrapper';
-
-  // 按 globalPoolOrder 顺序过滤 dataMap 中存在的卡池
-  const pools = globalPoolOrder.filter(poolName => poolName in dataMap);
-  // 处理配置中不存在的卡池（以防万一）
-  Object.keys(dataMap).forEach(poolName => {
-    if (!pools.includes(poolName)) {
-      pools.push(poolName);
+  if (poolSelectorWrapper) {
+    setPoolSelectorVisibility(poolSelectorWrapper, !hidePoolSelector);
+    if (!hidePoolSelector) {
+      poolSelectorWrapper.innerHTML = `
+        <div style="color:#666; padding:10px; font-weight: bold; font-size: 18px;">
+          ${poolMessage}
+        </div>
+      `;
     }
-  });
-  currentPool = pools[pools.length - 1];
-
-  // 显示当前选中的池子
-  const display = document.createElement('div');
-  display.className = 'pool-display';
-  display.textContent = currentPool;
-  display.addEventListener('click', () => {
-    menu.classList.toggle('show');
-  });
-  dropdown.appendChild(display);
-
-  // 下拉菜单列表
-  const menu = document.createElement('div');
-  menu.className = 'pool-menu';
-
-  pools.reverse().forEach((poolName) => {
-    const item = document.createElement('div');
-    item.className = 'pool-menu-item';
-    item.textContent = poolName;
-    if (poolName === currentPool) {
-      item.classList.add('active');
-    }
-    item.addEventListener('click', () => {
-      // 更新显示
-      display.textContent = poolName;
-      currentPool = poolName;
-      // 更新菜单项状态
-      document.querySelectorAll('.pool-menu-item').forEach(i => {
-        i.classList.remove('active');
-      });
-      item.classList.add('active');
-      // 关闭菜单
-      menu.classList.remove('show');
-      // 更新显示
-      updateDisplay(dataMap, currentPool);
-    });
-    menu.appendChild(item);
-  });
-
-  // 根据层级组合菜单
-  dropdown.appendChild(menu);
-  container.appendChild(dropdown);
-  poolSelectorWrapper.appendChild(container);
-
-  // 点击外部关闭菜单
-  document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target)) {
-      menu.classList.remove('show');
-    }
-  });
-}
-
-function clearDisplay() {
-  if (gachaChartInstance) {
-    gachaChartInstance.destroy();
-    gachaChartInstance = null;
   }
-  document.getElementById("chartContainer").innerHTML = "";
-  document.getElementById("rareCharsContainer").innerHTML = "";
-  document.getElementById("summaryStrip").innerHTML = "";
-  document.getElementById("historyTableBody").innerHTML = "";
-  // 清除嵌晶玉/衍质原石转换显示
-  const currencyInfo = document.getElementById('currencyInfo');
-  if (currencyInfo) {
-    currencyInfo.style.display = 'none';
-    document.getElementById('jadeValue').textContent = '0';
-    document.getElementById('stoneValue').textContent = '0';
+  // 无数据时隐藏概览条
+  updateSummaryStripVisibility(false);
+  const chartContainer = document.getElementById('chartContainer');
+  const rareCharsContainer = document.getElementById('rareCharsContainer');
+  if (chartContainer) {
+    chartContainer.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#666; font-size:20px; font-weight:bold;">
+        ${chartMessage}
+      </div>
+    `;
   }
-}
-
-function updateCurrencyDisplay(notFreeTotal, type) {
-  const currencyInfo = document.getElementById('currencyInfo');
-  const charCurrency = document.getElementById('charCurrency');
-  const weaponCurrency = document.getElementById('weaponCurrency');
-  if (!currencyInfo) return;
-
-  currencyInfo.style.display = 'flex';
-  if (type === 'char') {
-    charCurrency.style.display = 'inline';
-    weaponCurrency.style.display = 'none';
-    const jadeVal = notFreeTotal * JADE_PER_PULL;
-    const stoneVal = Math.floor(jadeVal / JADE_PER_STONE);
-    document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
-    document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
-  } else {
-    charCurrency.style.display = 'none';
-    weaponCurrency.style.display = 'inline';
-    const tenPulls = Math.floor(notFreeTotal / 10);
-    const weaponQuota = tenPulls * WEAPON_QUOTA_PER_TEN;
-    document.getElementById('weaponQuotaValue').textContent = weaponQuota.toLocaleString();
+  if (rareCharsContainer) {
+    rareCharsContainer.innerHTML = `
+      <div style="padding:40px 32px; color:#666;">
+        <div style="font-size:12px; letter-spacing:2px; margin-bottom:16px;">${detailLabel}</div>
+        <div style="font-size:28px; font-weight:bold; margin-bottom:16px;">${detailTitle}</div>
+        <div style="font-size:14px; line-height:1.8;">
+          ${detailDesc}
+        </div>
+      </div>
+    `;
   }
+  renderEmptyHistoryTable(historyMessage, historyColspan);
+  updateHistoryPaginationUI(0, 0);
 }
-
-function calculateSixStarDetails(items, reverse = false) {
-  const list = reverse ? items.slice().reverse() : items;
-
-  // 按卡池分组，每个卡池独立计算保底
-  const pools = {};
-  const poolOrder = [];
-  list.forEach(item => {
-    const key = item.poolName;
-    if (!pools[key]) {
-      pools[key] = [];
-      poolOrder.push(key);
-    }
-    pools[key].push(item);
-  });
-
-  // 按卡池分别统计
-  const allDetails = [];
-  for (const key of poolOrder) {
-    const details = [];
-    let pityCounter = 0;
-    pools[key].forEach(item => {
-      if (item.rarity === 6) {
-        const detail = {
-          name: getItemName(item),
-          isNew: item.isNew,
-          pityText: item.isFree ? "FREE" : ++pityCounter
-        };
-        if (item.poolName) detail.poolName = item.poolName;
-        details.push(detail);
-        if (!item.isFree) pityCounter = 0;
-      } else {
-        if (!item.isFree) pityCounter++;
-      }
-    });
-    if (reverse) details.reverse();
-    allDetails.push(...details);
-  }
-  return allDetails;
-}
-
 
 function updateDisplay(dataMap, poolName) {
   if (!poolName || !dataMap || !dataMap[poolName]) return;
@@ -1164,104 +1170,26 @@ function updateDisplay(dataMap, poolName) {
   createHistoryTable(dataMap, poolName);
 }
 
-// 获取通用名称 (处理 CharName 和 WeaponName 的差异)
-function getItemName(item) {
-  return item.charName || item.weaponName || "UNKNOWN";
+// 汇总模式的主显示函数
+function displayAllPoolsSummary(allItems) {
+  updateOrCreateChart(allItems);
+  createAllPoolsRareRecordsCard(allItems);
+  createAllPoolsSummaryStrip(allItems);
+  createAllPoolsHistoryTable(allItems);
 }
 
-// 全局卡池配置缓存
-let globalPoolConfig = null;
-// 全局卡池顺序列表（用于排序）
-let globalPoolOrder = [];
-
-// 加载卡池配置
-async function loadPoolConfig() {
-  if (globalPoolConfig) return globalPoolConfig;
-  try {
-    const config = await GetPoolConfig();
-    if (config && config.pools && config.pools.length > 0) {
-      globalPoolConfig = {};
-      globalPoolOrder = [];
-      config.pools.forEach(pool => {
-        globalPoolConfig[pool.poolName] = pool.up6Name;
-        globalPoolOrder.push(pool.poolName);
-      });
-    }
-  } catch (err) {
-    console.warn("Failed to load pool config, using fallback:", err);
-    // 使用默认配置作为后备
-    globalPoolConfig = {
-      "熔火灼痕": "莱万汀",
-      "轻飘飘的信使": "洁尔佩塔",
-      "热烈色彩": "伊冯",
-      "河流的女儿": "汤汤",
-      "狼珀": "洛茜",
-      "春雷动，万物生": "庄方宜",
-      "拳出无悔": "弭弗",
-      "逐罪者": "卡缪",
-    };
-    globalPoolOrder =
-        ["熔火灼痕",
-          "轻飘飘的信使",
-          "热烈色彩",
-          "河流的女儿",
-          "狼珀",
-          "春雷动，万物生",
-          "拳出无悔",
-          "逐罪者"
-        ];
-  }
-  return globalPoolConfig;
+// 更新汇总卡池标签
+function updateAllBtnText() {
+  const btn = document.getElementById('btnTypeAll');
+  if (!btn) return;
+  // 你想显示的提示文字
+  const hint = (lastDataType === 'char') ? "CHAR" : "WEAPON"; // 默认 CHAR
+  btn.textContent = `[ ALL POOLS / 汇总分析 (${hint}) ]`;
 }
 
-function calculateSparkInfo(reversed, targetUpChar) {
-  let sparkCount = 0;
-  let sparkConsumed = false;
-  for (let item of reversed) {
-    if (!item.isFree) sparkCount++;
-    const name = getItemName(item);
-    if (name === targetUpChar && !item.isFree && sparkCount <= SPARK_TIER1) {
-      sparkConsumed = true;
-    }
-  }
-
-  let targetLimit, rightCornerSub;
-  if (sparkCount >= SPARK_TIER2) {
-    targetLimit = SPARK_TIER2;
-    rightCornerSub = "MAX SPARK REACHED";
-  } else if (sparkCount > SPARK_TIER1) {
-    targetLimit = SPARK_TIER2;
-    rightCornerSub = `NEXT TARGET: ${SPARK_TIER2}`;
-  } else {
-    targetLimit = sparkConsumed ? SPARK_TIER2 : SPARK_TIER1;
-    rightCornerSub = sparkConsumed ? `${SPARK_TIER1} CONSUMED -> TARGET ${SPARK_TIER2}` : "LIMITED SPARK COUNT";
-  }
-
-  return { sparkCount, targetLimit, rightCornerSub };
-}
-
-function calculatePityBoost(currentPity, poolName) {
-  if (currentPity >= PITY_BOOST_START && poolName !== "基础寻访") {
-    const extraRate = (currentPity - (PITY_BOOST_START - 1)) * 5;
-    const nextProb = Math.min(0.8 + extraRate, 100);
-    return {
-      pityColor: "#ff5722",
-      pitySubText: `NEXT PROB: ${nextProb}%`
-    };
-  }
-  return {
-    pityColor: "var(--ef-yellow)",
-    pitySubText: "SINCE LAST 6★"
-  };
-}
-
-function calculatePoolStats(items) {
-  const total = items.length;
-  const notFreeTotal = items.filter(item => !item.isFree).length;
-  const sixStarCount = items.filter(i => i.rarity === 6).length;
-  const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
-  return { total, notFreeTotal, sixStarCount, rate };
-}
+// ============================================
+// RENDERING - SUMMARY STRIP
+// ============================================
 
 function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName] || [];
@@ -1301,7 +1229,7 @@ function createSummaryStrip(dataMap, poolName) {
             </div>
             <div class="info-sub">${pityBoost.pitySubText}</div>
         </div>
-        
+
         <div class="info-card">
             <div class="info-label">${centerLabel}</div>
             <div class="info-value">
@@ -1319,11 +1247,229 @@ function createSummaryStrip(dataMap, poolName) {
   updateCurrencyDisplay(notFreeTotal, currentType);
 }
 
-// 分页逻辑
-let currentHistoryPage = 1;
-const historyPageSize = 10;
-let currentHistoryData = [];
-let currentPoolNameForPagination = "";
+function createAllPoolsSummaryStrip(items) {
+  const { total, notFreeTotal, sixStarCount, rate } = calculatePoolStats(items);
+  const typeLabel = (lastDataType === 'char') ? "CHARACTERS" : "WEAPONS";
+
+  document.getElementById('summaryStrip').innerHTML = `
+    <div class="info-card">
+      <div class="info-label">TOTAL DRAWS // 总抽取数</div>
+      <div class="info-value">${total}</div>
+      <div class="info-sub">ALL POOLS COMBINED</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-label">6★ COUNT // 六星出货数</div>
+      <div class="info-value">${sixStarCount}</div>
+      <div class="info-sub">TOTAL 6★ OBTAINED</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-label">6★ RATIO // 出货率</div>
+      <div class="info-value">${rate}%</div>
+      <div class="info-sub">${sixStarCount} ${typeLabel}</div>
+    </div>
+  `;
+  updateCurrencyDisplay(notFreeTotal, lastDataType);
+}
+
+// ============================================
+// RENDERING - CHART
+// ============================================
+
+function updateOrCreateChart(items) {
+  const rarityCounts = {4: 0, 5: 0, 6: 0 };
+  items.forEach(item => {
+    if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
+  });
+  if (gachaChartInstance) {
+    gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
+    gachaChartInstance.update();
+    return;
+  }
+  const chartContainer = document.getElementById("chartContainer");
+  chartContainer.innerHTML = '';
+  const corner = document.createElement("div");
+  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
+  chartContainer.appendChild(corner);
+
+  const ctx = document.createElement("canvas");
+  ctx.style.maxWidth = "280px";
+  ctx.style.maxHeight = "280px";
+  chartContainer.appendChild(ctx);
+  gachaChartInstance = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["4★", "5★", "6★"],
+      datasets: [{
+        data: [rarityCounts[4], rarityCounts[5], rarityCounts[6]],
+        backgroundColor: ["#9c27b0", "#ffca28", "#ff5722"],
+        borderColor: Chart.defaults.borderColor,
+        borderWidth: 2,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      animation: { duration: 800, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
+        title: { display: false }
+      }
+    }
+  });
+}
+
+// ============================================
+// RENDERING - RARE RECORDS
+// ============================================
+
+function renderRareItemChip({
+                              label,
+                              isUpItem,
+                              isNewItem,
+                              chipBorderColor,
+                              chipTextColor,
+                              chipBgColor
+                            }) {
+  let borderColor, textColor, bgColor;
+  let hasGlowEffect = false;
+  if (isUpItem) {
+    borderColor = chipBorderColor;
+    textColor = chipTextColor;
+    bgColor = chipBgColor;
+    if (isNewItem) {
+      hasGlowEffect = true;
+    }
+  } else if (isNewItem) {
+    borderColor = "#e8a035";
+    textColor = "#e8a035";
+    bgColor = "rgba(255, 235, 59, 0.15)";
+  } else {
+    borderColor = "#666666";
+    textColor = "#888888";
+    bgColor = "#66666619";
+  }
+  const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
+  background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
+  const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
+  return `<span ${glowClass} style="${styleStr}">${label}</span>`;
+}
+
+function renderRareRecordsCard(options) {
+  const {
+    sixStarDetails,
+    headerText,
+    titleText,
+    countLabel,
+    countValue,
+    labelText,
+    getChipLabel,
+    getUpCharName,
+  } = options;
+
+  const container = document.getElementById("rareCharsContainer");
+  container.style.padding = "24px";
+  const accentColor = "var(--ef-accent)";
+  const textStrong = "var(--ef-text-strong)";
+  const textMuted = "var(--ef-text-muted)";
+  const emptyColor = "var(--ef-empty)";
+  const chipBorderColor = "var(--ef-chip-border)";
+  const chipTextColor = "var(--ef-chip-text)";
+  const chipBgColor = "var(--ef-chip-bg)";
+
+  const chipsHtml = sixStarDetails.map(item => {
+    const upCharName = getUpCharName ? getUpCharName(item) : null;
+    const isUpItem = upCharName && item.name === upCharName;
+    return renderRareItemChip({
+      label: getChipLabel(item),
+      isUpItem,
+      isNewItem: item.isNew,
+      chipBorderColor, chipTextColor, chipBgColor
+    });
+  }).join("");
+
+  const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
+  container.innerHTML = `
+    <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
+    <div style="margin-left: 8px;">
+      <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">${headerText}</div>
+      <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${titleText}</div>
+      <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
+        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${countLabel}</div>
+        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${countValue}</div>
+      </div>
+      <div>
+        <div style="font-size:10px; color:${textMuted}; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
+        <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
+          ${sixStarDetails.length > 0 ? chipsHtml : emptyHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function createRareRecordCard(dataMap, poolName) {
+  const items = dataMap[poolName] || [];
+  const sixStarDetails = calculateSixStarDetails(items, true);
+  const labelText = (currentType === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
+
+  renderRareRecordsCard({
+    sixStarDetails,
+    headerText: "TARGET POOL IDENTIFIED",
+    titleText: poolName,
+    countLabel: "TOTAL RECORDS:",
+    countValue: items.length,
+    labelText,
+    getChipLabel: (item) => `${item.name} [${item.pityText}]`,
+    getUpCharName: () => globalPoolConfig && globalPoolConfig[poolName] ? globalPoolConfig[poolName] : null,
+  });
+}
+
+function createAllPoolsRareRecordsCard(items) {
+  const sixStarDetails = calculateSixStarDetails(items);
+  const labelText = (currentType === 'char') ? "ALL 6★ CHARACTERS" : "ALL 6★ WEAPONS";
+
+  renderRareRecordsCard({
+    sixStarDetails,
+    headerText: "ALL POOLS ANALYSIS",
+    titleText: "历史汇总",
+    countLabel: "TOTAL 6★ RECORDS:",
+    countValue: sixStarDetails.length,
+    labelText,
+    getChipLabel: (item) => `${item.name} - ${item.poolName} [${item.pityText}]`,
+    getUpCharName: (item) => globalPoolConfig && globalPoolConfig[item.poolName] ? globalPoolConfig[item.poolName] : null,
+  });
+}
+
+// ============================================
+// RENDERING - HISTORY TABLE & PAGINATION
+// ============================================
+
+// 统一渲染历史记录空状态
+function renderEmptyHistoryTable(message, colspan = 5) {
+  const historyTableBody = document.getElementById('historyTableBody');
+  if (!historyTableBody) return;
+
+  historyTableBody.innerHTML = `
+    <tr>
+      <td colspan="${colspan}" style="text-align:center; color:#666; padding:32px 0; font-weight:bold; font-size:16px;">
+        ${message}
+      </td>
+    </tr>
+  `;
+}
+
+// 统一更新历史记录分页区域 UI
+function updateHistoryPaginationUI(currentPage, totalPages) {
+  const pageInfo = document.getElementById('pageIndicator');
+  const prevBtn = document.getElementById('prevPageBtn');
+  const nextBtn = document.getElementById('nextPageBtn');
+
+  if (pageInfo) pageInfo.textContent = `PAGE ${currentPage} / ${totalPages}`;
+  if (prevBtn) prevBtn.disabled = (currentPage <= 1);
+  if (nextBtn) nextBtn.disabled = (currentPage >= totalPages || totalPages === 0);
+}
 
 // 统一渲染卡池历史记录分页
 function renderPagedHistoryTable({
@@ -1384,6 +1530,22 @@ function renderHistoryPage() {
     items: currentHistoryData,
     isAllPoolsMode: false,
     getPoolLabel: () => currentPoolNameForPagination,
+    emptyMessage: 'NO DATA AVAILABLE',
+    emptyColspan: 5
+  });
+}
+
+function createAllPoolsHistoryTable(items) {
+  currentHistoryPage = 1;
+  currentHistoryData = items.slice();
+  renderAllPoolsHistoryPage();
+}
+
+function renderAllPoolsHistoryPage() {
+  renderPagedHistoryTable({
+    items: currentHistoryData,
+    isAllPoolsMode: true,
+    getPoolLabel: (item) => item.poolName,
     emptyMessage: 'NO DATA AVAILABLE',
     emptyColspan: 5
   });
@@ -1517,241 +1679,109 @@ function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
   });
 }
 
-function renderRareItemChip({
-                              label,
-                              isUpItem,
-                              isNewItem,
-                              chipBorderColor,
-                              chipTextColor,
-                              chipBgColor
-                            }) {
-  let borderColor, textColor, bgColor;
-  let hasGlowEffect = false;
-  if (isUpItem) {
-    borderColor = chipBorderColor;
-    textColor = chipTextColor;
-    bgColor = chipBgColor;
-    if (isNewItem) {
-      hasGlowEffect = true;
-    }
-  } else if (isNewItem) {
-    borderColor = "#e8a035";
-    textColor = "#e8a035";
-    bgColor = "rgba(255, 235, 59, 0.15)";
-  } else {
-    borderColor = "#666666";
-    textColor = "#888888";
-    bgColor = "#66666619";
+// ============================================
+// WINDOW ACTIONS
+// ============================================
+
+// 窗口顶部栏双按钮逻辑处理
+window.handleOpenFolder = async () => await OpenDataFolder();
+window.handleReload = async () => {
+  if (window.runtime && window.runtime.EventsOff) {
+    window.runtime.EventsOff('fetch-progress');
   }
-  const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
-  background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
-  const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
-  return `<span ${glowClass} style="${styleStr}">${label}</span>`;
-}
-
-function renderRareRecordsCard(options) {
-  const {
-    sixStarDetails,
-    headerText,
-    titleText,
-    countLabel,
-    countValue,
-    labelText,
-    getChipLabel,
-    getUpCharName,
-  } = options;
-
-  const container = document.getElementById("rareCharsContainer");
-  container.style.padding = "24px";
-  const accentColor = "var(--ef-accent)";
-  const textStrong = "var(--ef-text-strong)";
-  const textMuted = "var(--ef-text-muted)";
-  const emptyColor = "var(--ef-empty)";
-  const chipBorderColor = "var(--ef-chip-border)";
-  const chipTextColor = "var(--ef-chip-text)";
-  const chipBgColor = "var(--ef-chip-bg)";
-
-  const chipsHtml = sixStarDetails.map(item => {
-    const upCharName = getUpCharName ? getUpCharName(item) : null;
-    const isUpItem = upCharName && item.name === upCharName;
-    return renderRareItemChip({
-      label: getChipLabel(item),
-      isUpItem,
-      isNewItem: item.isNew,
-      chipBorderColor, chipTextColor, chipBgColor
+  document.querySelectorAll('mdui-dialog').forEach(dialog => {
+    dialog.open = false;
+    dialog.remove();
+  });
+  if (window.Chart && window.Chart.instances) {
+    Object.values(window.Chart.instances).forEach(chart => {
+      if (chart && chart.destroy) {
+        chart.destroy();
+      }
     });
-  }).join("");
-
-  const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
-  container.innerHTML = `
-    <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
-    <div style="margin-left: 8px;">
-      <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">${headerText}</div>
-      <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${titleText}</div>
-      <div style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #777; padding-bottom:12px; margin-bottom:12px;">
-        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${countLabel}</div>
-        <div style="font-size:16px; font-weight: bold; color:${textStrong};">${countValue}</div>
-      </div>
-      <div>
-        <div style="font-size:10px; color:${textMuted}; margin-bottom:8px; font-family:'Consolas';">// ${labelText}</div>
-        <div style="display:flex; flex-wrap:wrap; margin-left:-4px;">
-          ${sixStarDetails.length > 0 ? chipsHtml : emptyHtml}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function createRareRecordCard(dataMap, poolName) {
-  const items = dataMap[poolName] || [];
-  const sixStarDetails = calculateSixStarDetails(items, true);
-  const labelText = (currentType === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
-
-  renderRareRecordsCard({
-    sixStarDetails,
-    headerText: "TARGET POOL IDENTIFIED",
-    titleText: poolName,
-    countLabel: "TOTAL RECORDS:",
-    countValue: items.length,
-    labelText,
-    getChipLabel: (item) => `${item.name} [${item.pityText}]`,
-    getUpCharName: () => globalPoolConfig && globalPoolConfig[poolName] ? globalPoolConfig[poolName] : null,
-  });
-}
-
-// 更新汇总卡池标签
-function updateAllBtnText() {
-  const btn = document.getElementById('btnTypeAll');
-  if (!btn) return;
-  // 你想显示的提示文字
-  const hint = (lastDataType === 'char') ? "CHAR" : "WEAPON"; // 默认 CHAR
-  btn.textContent = `[ ALL POOLS / 汇总分析 (${hint}) ]`;
-}
-
-// 合并所有卡池的数据并按卡池配置顺序排序
-function mergeAllPoolsData(dataMap) {
-  const merged = [];
-  for (const poolName of globalPoolOrder) {
-    if (dataMap[poolName]) {
-      merged.push(...dataMap[poolName]);
-    }
   }
-  for (const poolName in dataMap) {
-    if (!globalPoolOrder.includes(poolName)) {
-      merged.push(...dataMap[poolName]);
-    }
-  }
-  return merged.reverse();
-}
+  window.isFetching = false;
+  await ReloadFrontend();
+};
 
-// 汇总模式的主显示函数
-function displayAllPoolsSummary(allItems) {
-  updateOrCreateChart(allItems);
-  createAllPoolsRareRecordsCard(allItems);
-  createAllPoolsSummaryStrip(allItems);
-  createAllPoolsHistoryTable(allItems);
-}
+window.handleCancelFetch = async function() {
+  if (!window.isFetching) return;
 
-function createAllPoolsSummaryStrip(items) {
-  const { total, notFreeTotal, sixStarCount, rate } = calculatePoolStats(items);
-  const typeLabel = (lastDataType === 'char') ? "CHARACTERS" : "WEAPONS";
-
-  document.getElementById('summaryStrip').innerHTML = `
-    <div class="info-card">
-      <div class="info-label">TOTAL DRAWS // 总抽取数</div>
-      <div class="info-value">${total}</div>
-      <div class="info-sub">ALL POOLS COMBINED</div>
-    </div>
-    
-    <div class="info-card">
-      <div class="info-label">6★ COUNT // 六星出货数</div>
-      <div class="info-value">${sixStarCount}</div>
-      <div class="info-sub">TOTAL 6★ OBTAINED</div>
-    </div>
-    
-    <div class="info-card">
-      <div class="info-label">6★ RATIO // 出货率</div>
-      <div class="info-value">${rate}%</div>
-      <div class="info-sub">${sixStarCount} ${typeLabel}</div>
-    </div>
+  // 创建自定义样式的 MDUI 对话框
+  const dialog = document.createElement('mdui-dialog');
+  dialog.headline = '// CONFIRM CANCELLATION';
+  dialog.description = '> 确定要取消当前操作吗？已抓取的数据将会丢失。';
+  dialog.innerHTML = `
+    <mdui-button slot="action" variant="text" class="dialog-cancel-btn">
+      [ CANCEL / 取消 ]
+    </mdui-button>
+    <mdui-button slot="action" variant="tonal" class="dialog-confirm-btn">
+      [ CONFIRM / 确定 ]
+    </mdui-button>
   `;
-  updateCurrencyDisplay(notFreeTotal, lastDataType);
-}
-
-function createAllPoolsRareRecordsCard(items) {
-  const sixStarDetails = calculateSixStarDetails(items);
-  const labelText = (currentType === 'char') ? "ALL 6★ CHARACTERS" : "ALL 6★ WEAPONS";
-
-  renderRareRecordsCard({
-    sixStarDetails,
-    headerText: "ALL POOLS ANALYSIS",
-    titleText: "历史汇总",
-    countLabel: "TOTAL 6★ RECORDS:",
-    countValue: sixStarDetails.length,
-    labelText,
-    getChipLabel: (item) => `${item.name} - ${item.poolName} [${item.pityText}]`,
-    getUpCharName: (item) => globalPoolConfig && globalPoolConfig[item.poolName] ? globalPoolConfig[item.poolName] : null,
+  document.body.appendChild(dialog);
+  dialog.open = true;
+  // 取消按钮
+  dialog.querySelector('.dialog-cancel-btn').onclick = () => {
+    dialog.open = false;
+  };
+  // 确定按钮
+  dialog.querySelector('.dialog-confirm-btn').onclick = async () => {
+    dialog.open = false;
+    try {
+      await CancelCurrentOperation();
+      showAppSnackbar({
+        message: "[CANCELLED] 操作已取消 / Operation Canceled",
+        type: "warning"
+      });
+    } catch (err) {
+      console.error(err);
+      showAppSnackbar({
+        message: "[ERROR] 操作取消失败: " + err,
+        type: "error",
+        autoCloseDelay: SNACKBAR_AUTO_CLOSE,
+      });
+    }
+    setFetchingState(false);
+  };
+  // 对话框关闭时清理
+  dialog.addEventListener('closed', () => {
+    setTimeout(() => dialog.remove(), 300);
   });
-}
+};
 
-function createAllPoolsHistoryTable(items) {
-  currentHistoryPage = 1;
-  currentHistoryData = items.slice();
-  renderAllPoolsHistoryPage();
-}
-
-function renderAllPoolsHistoryPage() {
-  renderPagedHistoryTable({
-    items: currentHistoryData,
-    isAllPoolsMode: true,
-    getPoolLabel: (item) => item.poolName,
-    emptyMessage: 'NO DATA AVAILABLE',
-    emptyColspan: 5
-  });
-}
-
-function updateOrCreateChart(items) {
-  const rarityCounts = {4: 0, 5: 0, 6: 0 };
-  items.forEach(item => {
-    if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
-  });
-  if (gachaChartInstance) {
-    gachaChartInstance.data.datasets[0].data = [rarityCounts[4], rarityCounts[5], rarityCounts[6]];
-    gachaChartInstance.update();
+window.handleExport = async function() {
+  // 防止用户还没加载数据就点击导出
+  if (!currentServerType) {
+    showAppSnackbar({
+      message: "[WARNING] 请先加载数据 (Please Initialize Data First)",
+      type: "warning"
+    });
     return;
   }
-  const chartContainer = document.getElementById("chartContainer");
-  chartContainer.innerHTML = '';
-  const corner = document.createElement("div");
-  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
-  chartContainer.appendChild(corner);
-
-  const ctx = document.createElement("canvas");
-  ctx.style.maxWidth = "280px";
-  ctx.style.maxHeight = "280px";
-  chartContainer.appendChild(ctx);
-  gachaChartInstance = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: ["4★", "5★", "6★"],
-      datasets: [{
-        data: [rarityCounts[4], rarityCounts[5], rarityCounts[6]],
-        backgroundColor: ["#9c27b0", "#ffca28", "#ff5722"],
-        borderColor: Chart.defaults.borderColor,
-        borderWidth: 2,
-        hoverOffset: 8
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '60%',
-      animation: { duration: 800, easing: 'easeOutQuart' },
-      plugins: {
-        legend: { position: "bottom", labels: { font: { family: 'Consolas' }, boxWidth: 10, padding: 10 } },
-        title: { display: false }
-      }
+  try {
+    const result = await ExportData(currentUid, currentServerType);
+    if (result === "success") {
+      showAppSnackbar({
+        message: "[SUCCESS] 导出成功 / Export Completed",
+        type: "success"
+      });
+    } else if (result === "cancelled") {
+      console.log("User cancelled export");
     }
-  });
+  } catch (err) {
+    console.error(err);
+    showAppSnackbar({
+      message: "[ERROR] 导出失败: " + err,
+      type: "error",
+      autoCloseDelay: SNACKBAR_AUTO_CLOSE,
+    });
+  }
 }
+
+// ============================================
+// ANIMATION & NAVIGATION
+// ============================================
 
 function startExitAnimation() {
   const loadingOverlay = document.getElementById('loadingOverlay');
@@ -1833,12 +1863,7 @@ window.resetToAnalyze = function() {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "none";
-    if (id === "poolSelectorWrapper") {
-      el.classList.add('pool-selector-hidden');
-      el.style.visibility = 'hidden';
-      el.style.height = '0';
-      el.style.overflow = 'hidden';
-    }
+    if (id === "poolSelectorWrapper") setPoolSelectorVisibility(el, false);
   });
 
   // 显示登录卡片
@@ -1891,3 +1916,21 @@ window.resetToAnalyze = function() {
   const errDiv = document.getElementById("analyzeError");
   if (errDiv) errDiv.textContent = "";
 }
+
+// ============================================
+// INIT & EVENTS
+// ============================================
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const container = document.getElementById('analyzeContainer');
+    if (container) container.classList.add('show');
+  }, 100);
+  window.runtime.EventsOff('fetch-progress');
+  window.runtime.EventsOn('fetch-progress', (message) => {
+    const subtextElement = document.querySelector('.loading-subtext');
+    if (subtextElement) {
+      subtextElement.textContent = message;
+    }
+  });
+});
