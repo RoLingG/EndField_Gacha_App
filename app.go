@@ -578,6 +578,7 @@ func (a *App) UpdatePoolConfig() (string, error) {
 			}
 		}
 		configs = append(configs, config)
+		time.Sleep(300 * time.Millisecond) // 请求间隔，避免频繁访问官方服务器
 	}
 
 	if len(configs) == 0 {

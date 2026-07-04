@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -163,6 +164,7 @@ func fetchCharDataFromPool(ctx context.Context, sess *gachaSession, poolType str
 		if !apiResp.Data.HasMore || len(apiResp.Data.List) == 0 {
 			break
 		}
+		time.Sleep(200 * time.Millisecond) // 分页间隔，避免频繁请求
 		seqID = apiResp.Data.List[len(apiResp.Data.List)-1].SeqID
 	}
 	return list, nil
@@ -188,7 +190,6 @@ func FetchWeaponDataAll(ctx context.Context, token, serverID, lang string) ([]mo
 			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
 		default:
 		}
-
 		poolData, err := fetchWeaponDataByPool(ctx, sess, pool.PoolID)
 		if err != nil {
 			logger.Log.Warn("Failed to fetch specific weapon pool",
@@ -198,6 +199,7 @@ func FetchWeaponDataAll(ctx context.Context, token, serverID, lang string) ([]mo
 		}
 		successCount++
 		allData = append(allData, poolData...)
+		time.Sleep(300 * time.Millisecond) // 请求间隔，避免频繁访问官方服务器
 	}
 	if len(pools) > 0 && successCount == 0 {
 		return nil, fmt.Errorf("未获取到任何武器池详情数据")
@@ -268,6 +270,7 @@ func fetchWeaponDataByPool(ctx context.Context, sess *gachaSession, poolID strin
 		if !apiResp.Data.HasMore || len(apiResp.Data.List) == 0 {
 			break
 		}
+		time.Sleep(200 * time.Millisecond) // 分页间隔，避免频繁请求
 		seqID = apiResp.Data.List[len(apiResp.Data.List)-1].SeqID
 	}
 	return list, nil
