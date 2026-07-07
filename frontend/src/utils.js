@@ -37,15 +37,26 @@ export function resetButton(btn, text) {
 
 export function setPoolSelectorVisibility(el, visible) {
   if (visible) {
-    el.classList.remove('pool-selector-hidden');
-    el.style.visibility = 'visible';
-    el.style.height = '';
-    el.style.overflow = '';
+    const h = el.scrollHeight;
+    el.style.transition = "height .25s ease-out, opacity .25s ease-out";
+    el.style.height = "0px";
+    el.style.marginBottom = "20px"
+    requestAnimationFrame(() => {
+      el.style.height = h + "px";
+      el.style.opacity = "1";
+    });
+    el.addEventListener("transitionend", function handler() {
+      el.style.height = "";
+      el.removeEventListener("transitionend", handler);
+    });
   } else {
-    el.classList.add('pool-selector-hidden');
-    el.style.visibility = 'hidden';
-    el.style.height = '0';
-    el.style.overflow = 'hidden';
+    el.style.transition = "height .25s ease-in, opacity .20s ease-out";
+    el.style.height = el.scrollHeight + "px";
+    requestAnimationFrame(() => {
+      el.style.height = "0px";
+      el.style.opacity = "0";
+      el.style.marginBottom = "0"
+    });
   }
 }
 

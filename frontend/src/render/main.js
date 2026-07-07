@@ -30,10 +30,12 @@ export function switchType(type) {
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
   if (type === 'all') {
     setIsAllPoolsMode(true);
-    if (poolSelectorWrapper) setPoolSelectorVisibility(poolSelectorWrapper, false);
+    if (poolSelectorWrapper && poolSelectorWrapper.style.opacity !== '0')
+      setPoolSelectorVisibility(poolSelectorWrapper, false);
   } else {
     setIsAllPoolsMode(false);
-    if (poolSelectorWrapper) setPoolSelectorVisibility(poolSelectorWrapper, true);
+    if (poolSelectorWrapper && poolSelectorWrapper.style.opacity === '0')
+      setPoolSelectorVisibility(poolSelectorWrapper, true);
   }
 
   renderByType(type);
@@ -100,7 +102,10 @@ export function renderNoDataState({
 
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
   if (poolSelectorWrapper) {
-    setPoolSelectorVisibility(poolSelectorWrapper, !hidePoolSelector);
+    const isHidden = poolSelectorWrapper.style.opacity === '0';
+    if (isHidden !== hidePoolSelector) {
+      setPoolSelectorVisibility(poolSelectorWrapper, !hidePoolSelector);
+    }
     if (!hidePoolSelector) {
       poolSelectorWrapper.innerHTML = `
         <div style="color:#666; padding:10px; font-weight: bold; font-size: 18px;">
