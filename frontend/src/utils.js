@@ -38,19 +38,28 @@ export function resetButton(btn, text) {
 export function setPoolSelectorVisibility(el, visible) {
   if (visible) {
     const h = el.scrollHeight;
-    el.style.transition = "height .25s ease-out, opacity .25s ease-out";
+    el.style.transition = "height .25s ease-out, opacity .20s ease-out, margin-bottom .25s ease-in";
     el.style.height = "0px";
     el.style.marginBottom = "20px"
     requestAnimationFrame(() => {
       el.style.height = h + "px";
       el.style.opacity = "1";
     });
-    el.addEventListener("transitionend", function handler() {
+    el.addEventListener("transitionend", function handler(e) {
+      if (e.propertyName !== "height") return;
       el.style.height = "";
+      el.style.overflow = "";
+      el.style.transition = "";
       el.removeEventListener("transitionend", handler);
     });
   } else {
-    el.style.transition = "height .25s ease-in, opacity .20s ease-out";
+    // 先禁用 pool-menu 的 max-height transition，避免和 wrapper 的 collapse 冲突
+    const menu = el.querySelector('.pool-menu');
+    if (menu) {
+      menu.style.transition = 'none';
+      menu.classList.remove('show');
+    }
+    el.style.transition = "height .25s ease-in, opacity .20s ease-out, margin-bottom .25s ease-in";
     el.style.height = el.scrollHeight + "px";
     requestAnimationFrame(() => {
       el.style.height = "0px";

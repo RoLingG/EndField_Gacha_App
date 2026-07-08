@@ -206,7 +206,6 @@ function startExitAnimation() {
           if (!el) return;
           const needFlex = flexIds.has(el.id) || (el.id === 'summaryStrip' && el.style.display !== 'none');
           el.style.display = needFlex ? 'flex' : 'block';
-          el.classList.remove('pool-selector-hidden');
         });
         elements.forEach((el, index) => {
           if (el) {
