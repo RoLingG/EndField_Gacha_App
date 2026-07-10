@@ -45,6 +45,7 @@ export function setPoolSelectorVisibility(el, visible) {
       el.style.height = h + "px";
       el.style.opacity = "1";
     });
+    // 针对 height 做对应的 transitionend 处理
     el.addEventListener("transitionend", function handler(e) {
       if (e.propertyName !== "height") return;
       el.style.height = "";
@@ -53,7 +54,7 @@ export function setPoolSelectorVisibility(el, visible) {
       el.removeEventListener("transitionend", handler);
     });
   } else {
-    // 先禁用 pool-menu 的 max-height transition，避免和 wrapper 的 collapse 冲突
+    // 禁用 pool-menu 的 max-height transition，避免和 wrapper 的 collapse 冲突
     const menu = el.querySelector('.pool-menu');
     if (menu) {
       menu.style.transition = 'none';

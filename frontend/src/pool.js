@@ -1,11 +1,13 @@
 import { GetPoolConfig, UpdatePoolConfig } from "../wailsjs/go/main/App";
-
 import {FALLBACK_POOL_CONFIG, FALLBACK_POOL_ORDER, SNACKBAR_AUTO_CLOSE,} from './constants.js';
 import {
   getGlobalPoolConfig, setGlobalPoolConfig, getGlobalPoolOrder,
   setGlobalPoolOrder, getCurrentPool, setCurrentPool,
 } from './state.js';
 import { showAppSnackbar } from './utils.js';
+
+// 追踪当前的 click-outside handler，避免重复绑定
+let currentOutsideClickHandler = null;
 
 // 加载卡池配置
 export async function loadPoolConfig() {
@@ -57,6 +59,12 @@ export function createPoolButtons(dataMap, onPoolChange) {
     return;
   }
   poolSelectorWrapper.innerHTML = '';
+
+  // 移除上一次绑定的 click-outside handler，避免泄漏
+  if (currentOutsideClickHandler) {
+    document.removeEventListener('click', currentOutsideClickHandler);
+    currentOutsideClickHandler = null;
+  }
 
   const container = document.createElement('div');
   container.className = 'pool-select-container';
@@ -114,9 +122,11 @@ export function createPoolButtons(dataMap, onPoolChange) {
   container.appendChild(dropdown);
   poolSelectorWrapper.appendChild(container);
 
-  document.addEventListener('click', (e) => {
+  // 全局 currentOutsideClickHandler 绑定 click handler，方便处理重复绑定问题
+  currentOutsideClickHandler = (e) => {
     if (!dropdown.contains(e.target)) {
       menu.classList.remove('show');
     }
-  });
+  };
+  document.addEventListener('click', currentOutsideClickHandler);
 }
