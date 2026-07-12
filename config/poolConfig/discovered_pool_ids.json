@@ -1,5 +1,5 @@
 {
-  "poolIds": [
+  "charPoolIds": [
     "special_1_0_3",
     "special_1_0_1",
     "special_1_0_2",
@@ -9,5 +9,8 @@
     "special_1_3_1",
     "special_1_3_2"
   ],
-  "lastUpdate": "2026-06-26 23:12:25"
+  "weaponPoolIds": [
+    "weponbox_1_3_2"
+  ],
+  "lastUpdate": "2026-07-13 01:24:58"
 }

@@ -120,8 +120,8 @@ func FetchCharDataAll(ctx context.Context, token, serverID, lang string) ([]mode
 	for id := range poolIDSet {
 		poolIDs = append(poolIDs, id)
 	}
-	if err := storage.SaveDiscoveredPoolIDs(poolIDs); err != nil {
-		logger.Log.Error("Failed to save discovered pool IDs", zap.Error(err))
+	if err := storage.SaveDiscoveredPoolIDs(poolIDs, false); err != nil {
+		logger.Log.Error("Failed to save discovered char pool IDs", zap.Error(err))
 	}
 
 	return allData, nil
@@ -204,6 +204,20 @@ func FetchWeaponDataAll(ctx context.Context, token, serverID, lang string) ([]mo
 	if len(pools) > 0 && successCount == 0 {
 		return nil, fmt.Errorf("未获取到任何武器池详情数据")
 	}
+
+	// 提取所有武器池的 pool_id 并保存
+	poolIDSet := make(map[string]struct{})
+	for _, pool := range pools {
+		poolIDSet[pool.PoolID] = struct{}{}
+	}
+	poolIDs := make([]string, 0, len(poolIDSet))
+	for id := range poolIDSet {
+		poolIDs = append(poolIDs, id)
+	}
+	if err := storage.SaveDiscoveredPoolIDs(poolIDs, true); err != nil {
+		logger.Log.Error("Failed to save discovered weapon pool IDs", zap.Error(err))
+	}
+
 	return allData, nil
 }
 

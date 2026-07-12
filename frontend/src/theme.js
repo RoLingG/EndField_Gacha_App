@@ -10,45 +10,58 @@ export function setChartUpdater(fn) {
   chartUpdater = fn;
 }
 
+// 主题色
+const themes = {
+  day: {
+    vars: {
+      "--ef-accent": "#d9b500",
+      "--ef-text-strong": "#1f1f1f",
+      "--ef-text-muted": "#777",
+      "--ef-divider": "#cfcfc7",
+      "--ef-empty": "#777",
+      "--ef-chip-border": "#d45a2a",
+      "--ef-chip-text": "#d45a2a",
+      "--ef-chip-bg": "rgba(212, 90, 42, 0.12)"
+    },
+    chartTextColor: "#1f1f1f",
+  },
+  night: {
+    vars: {
+      "--ef-accent": "#fffa00",
+      "--ef-text-strong": "#cccccc",
+      "--ef-text-muted": "#666",
+      "--ef-divider": "#333",
+      "--ef-empty": "#444",
+      "--ef-chip-border": "#ff5722",
+      "--ef-chip-text": "#ff5722",
+      "--ef-chip-bg": "rgba(255, 87, 34, 0.1)"
+    },
+    chartTextColor: "#ffffff",
+  }
+};
+
 export function applyTheme(theme) {
   const body = document.body;
   const btn = document.getElementById("themeToggle");
   if (!body || !btn) return;
   const rootStyle = document.documentElement.style;
-  let chartTextColor, chartBorderColor;
+  const themeConfig = themes[theme] || themes.night;
 
   if (theme === "day") {
     setGlobalTheme("day");
     body.classList.add("theme-day");
     btn.textContent = "[ MODE: DAY ]";
-    rootStyle.setProperty("--ef-accent", "#d9b500");
-    rootStyle.setProperty("--ef-text-strong", "#1f1f1f");
-    rootStyle.setProperty("--ef-text-muted", "#777");
-    rootStyle.setProperty("--ef-divider", "#cfcfc7");
-    rootStyle.setProperty("--ef-empty", "#777");
-    rootStyle.setProperty("--ef-chip-border", "#d45a2a");
-    rootStyle.setProperty("--ef-chip-text", "#d45a2a");
-    rootStyle.setProperty("--ef-chip-bg", "rgba(212, 90, 42, 0.12)");
-    chartTextColor = "#1f1f1f";
-    chartBorderColor = "#333333";
   } else {
     setGlobalTheme("night");
     body.classList.remove("theme-day");
     btn.textContent = "[ MODE: NIGHT ]";
-    rootStyle.setProperty("--ef-accent", "#fffa00");
-    rootStyle.setProperty("--ef-text-strong", "#cccccc");
-    rootStyle.setProperty("--ef-text-muted", "#666");
-    rootStyle.setProperty("--ef-divider", "#333");
-    rootStyle.setProperty("--ef-empty", "#444");
-    rootStyle.setProperty("--ef-chip-border", "#ff5722");
-    rootStyle.setProperty("--ef-chip-text", "#ff5722");
-    rootStyle.setProperty("--ef-chip-bg", "rgba(255, 87, 34, 0.1)");
-    chartTextColor = "#ffffff";
-    chartBorderColor = "#333333";
   }
 
-  Chart.defaults.color = chartTextColor;
-  Chart.defaults.borderColor = chartBorderColor;
+  // 修改主题色
+  for (const [key, value] of Object.entries(themeConfig.vars)) {
+    rootStyle.setProperty(key, value);
+  }
+  Chart.defaults.color = themeConfig.chartTextColor;
 
   const chartInstance = getGachaChartInstance();
   if (chartInstance) {

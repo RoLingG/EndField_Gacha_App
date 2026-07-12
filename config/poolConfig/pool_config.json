@@ -1,5 +1,5 @@
 {
-  "pools": [
+  "charPools": [
     {
       "poolName": "基础寻访",
       "poolType": "standard",
@@ -81,5 +81,15 @@
       "lastUpdate": "2026-06-26 23:12:25"
     }
   ],
-  "lastUpdate": "2026-06-26 23:12:25"
+  "weaponPools": [
+    {
+      "poolName": "染赤申领",
+      "poolType": "",
+      "up6Name": "镀红祝福",
+      "up6CharId": "wpn_lance_0015",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-07-13 01:24:58"
+    }
+  ],
+  "lastUpdate": "2026-07-13 01:55:07"
 }

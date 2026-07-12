@@ -189,6 +189,7 @@ type PoolConfig struct {
 
 // PoolConfigList 卡池配置列表
 type PoolConfigList struct {
-	Pools      []PoolConfig `json:"pools"`
-	LastUpdate string       `json:"lastUpdate"`
+	CharPools   []PoolConfig `json:"charPools"`
+	WeaponPools []PoolConfig `json:"weaponPools"`
+	LastUpdate  string       `json:"lastUpdate"`
 }

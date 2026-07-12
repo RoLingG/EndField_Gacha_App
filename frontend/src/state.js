@@ -23,7 +23,8 @@ const themeStorageKey = "ef-theme";
 
 // 卡池配置缓存
 let globalPoolConfig = null;
-let globalPoolOrder = [];
+let globalCharPoolOrder = [];
+let globalWeaponPoolOrder = [];
 
 // 分页逻辑
 let currentHistoryPage = 1;
@@ -82,8 +83,11 @@ export function getThemeStorageKey() { return themeStorageKey; }
 export function getGlobalPoolConfig() { return globalPoolConfig; }
 export function setGlobalPoolConfig(v) { globalPoolConfig = v; }
 
-export function getGlobalPoolOrder() { return globalPoolOrder; }
-export function setGlobalPoolOrder(v) { globalPoolOrder = v; }
+export function getGlobalCharPoolOrder() { return globalCharPoolOrder; }
+export function setGlobalCharPoolOrder(v) { globalCharPoolOrder = v; }
+
+export function getGlobalWeaponPoolOrder() { return globalWeaponPoolOrder; }
+export function setGlobalWeaponPoolOrder(v) { globalWeaponPoolOrder = v; }
 
 export function getCurrentHistoryPage() { return currentHistoryPage; }
 export function setCurrentHistoryPage(v) { currentHistoryPage = v; }

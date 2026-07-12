@@ -1,8 +1,10 @@
 import { GetPoolConfig, UpdatePoolConfig } from "../wailsjs/go/main/App";
 import {FALLBACK_POOL_CONFIG, FALLBACK_POOL_ORDER, SNACKBAR_AUTO_CLOSE,} from './constants.js';
 import {
-  getGlobalPoolConfig, setGlobalPoolConfig, getGlobalPoolOrder,
-  setGlobalPoolOrder, getCurrentPool, setCurrentPool,
+  getGlobalPoolConfig, setGlobalPoolConfig,
+  getGlobalCharPoolOrder, setGlobalCharPoolOrder,
+  getGlobalWeaponPoolOrder, setGlobalWeaponPoolOrder,
+  getCurrentPool, setCurrentPool,
 } from './state.js';
 import { showAppSnackbar } from './utils.js';
 
@@ -14,20 +16,33 @@ export async function loadPoolConfig() {
   if (getGlobalPoolConfig()) return getGlobalPoolConfig();
   try {
     const config = await GetPoolConfig();
-    if (config && config.pools && config.pools.length > 0) {
+    if (config && (config.charPools?.length > 0 || config.weaponPools?.length > 0)) {
       const poolConfig = {};
-      const poolOrder = [];
-      config.pools.forEach(pool => {
-        poolConfig[pool.poolName] = pool.up6Name;
-        poolOrder.push(pool.poolName);
-      });
+      const charPoolOrder = [];
+      const weaponPoolOrder = [];
+      // 加载角色池配置
+      if (config.charPools) {
+        config.charPools.forEach(pool => {
+          poolConfig[pool.poolName] = pool.up6Name;
+          charPoolOrder.push(pool.poolName);
+        });
+      }
+      // 加载武器池配置
+      if (config.weaponPools) {
+        config.weaponPools.forEach(pool => {
+          poolConfig[pool.poolName] = pool.up6Name;
+          weaponPoolOrder.push(pool.poolName);
+        });
+      }
       setGlobalPoolConfig(poolConfig);
-      setGlobalPoolOrder(poolOrder);
+      setGlobalCharPoolOrder(charPoolOrder);
+      setGlobalWeaponPoolOrder(weaponPoolOrder);
     }
   } catch (err) {
     console.warn("Failed to load pool config, using fallback:", err);
     setGlobalPoolConfig({ ...FALLBACK_POOL_CONFIG });
-    setGlobalPoolOrder([...FALLBACK_POOL_ORDER]);
+    setGlobalCharPoolOrder([...FALLBACK_POOL_ORDER]);
+    setGlobalWeaponPoolOrder([]);
   }
   return getGlobalPoolConfig();
 }
@@ -52,7 +67,7 @@ export async function updatePoolConfigHandler() {
   }
 }
 
-export function createPoolButtons(dataMap, onPoolChange) {
+export function createPoolButtons(dataMap, onPoolChange, type = 'char') {
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
   if (!poolSelectorWrapper) {
     console.warn('poolSelectorWrapper element not found');
@@ -77,8 +92,8 @@ export function createPoolButtons(dataMap, onPoolChange) {
   const dropdown = document.createElement('div');
   dropdown.className = 'pool-dropdown-wrapper';
 
-  // 按 globalPoolOrder 顺序过滤 dataMap 中存在的卡池
-  const poolOrder = getGlobalPoolOrder();
+  // 按对应类型的 poolOrder 顺序过滤 dataMap 中存在的卡池
+  const poolOrder = (type === 'weapon') ? getGlobalWeaponPoolOrder() : getGlobalCharPoolOrder();
   const pools = poolOrder.filter(poolName => poolName in dataMap);
   Object.keys(dataMap).forEach(poolName => {
     if (!pools.includes(poolName)) {

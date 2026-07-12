@@ -1,4 +1,4 @@
-import { getGlobalPoolOrder } from './state.js';
+import { getGlobalCharPoolOrder, getGlobalWeaponPoolOrder } from './state.js';
 import { SPARK_TIER1, SPARK_TIER2, PITY_BOOST_START } from './constants.js';
 
 export function groupDataByPool(flatList) {
@@ -59,13 +59,13 @@ export function calculateSixStarDetails(items, reverse = false) {
   return allDetails;
 }
 
-export function calculateSparkInfo(reversed, targetUpChar) {
+export function calculateSparkInfo(reversed, targetUp) {
   let sparkCount = 0;
   let sparkConsumed = false;
   for (let item of reversed) {
     if (!item.isFree) sparkCount++;
     const name = getItemName(item);
-    if (name === targetUpChar && !item.isFree && sparkCount <= SPARK_TIER1) {
+    if (name === targetUp && !item.isFree && sparkCount <= SPARK_TIER1) {
       sparkConsumed = true;
     }
   }
@@ -109,14 +109,15 @@ export function calculatePoolStats(items) {
 }
 
 // 合并所有卡池的数据并按卡池配置顺序排序
-export function mergeAllPoolsData(dataMap) {
-  const poolOrder = getGlobalPoolOrder();
+export function mergeAllPoolsData(dataMap, type = 'char') {
+  const poolOrder = (type === 'weapon') ? getGlobalWeaponPoolOrder() : getGlobalCharPoolOrder();
   const merged = [];
   for (const poolName of poolOrder) {
     if (dataMap[poolName]) {
       merged.push(...dataMap[poolName]);
     }
   }
+  // 再把 dataMap 中有但 poolOrder 没有的池子加进去（保底）
   for (const poolName in dataMap) {
     if (!poolOrder.includes(poolName)) {
       merged.push(...dataMap[poolName]);

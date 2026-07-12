@@ -90,7 +90,6 @@ export async function loadLocal() {
   document.getElementById("analyzeError").textContent = "";
   try {
     const archives = await CheckLocalFiles();
-    console.log("Local Archives:", archives);
     if (!archives || archives.length === 0) {
       throw "NO LOCAL ARCHIVES FOUND // 未找到本地历史记录";
     }
@@ -141,9 +140,7 @@ export function renderLocalArchiveList(archives) {
         </div>
       `;
 
-      div.onclick = () => {
-        doLocalLoad(arc.uid, server).then(r => {});
-      };
+      div.onclick = () => doLocalLoad(arc.uid, server);
 
       const deleteBtn = div.querySelector('.del-archive-btn');
       deleteBtn.onclick = (e) => {
@@ -274,32 +271,22 @@ export async function initApp(isOfflineMode, serverName = "official", uid = "") 
   if (isOfflineMode) {
     loadingText.textContent = 'READING LOCAL FILES...';
     const dataStruct = await LoadLocalGachaHistory(uid, serverName);
-    charDataGrouped = JSON.parse(dataStruct.char || "{}");
-    weaponDataGrouped = JSON.parse(dataStruct.weapon || "{}");
+    charDataGrouped = dataStruct.char || {};
+    weaponDataGrouped = dataStruct.weapon || {};
   } else {
     loadingText.textContent = 'FETCHING DATA ...';
     setFetchingState(true);
 
-    let charRes = null;
-    let weaponRes = null;
-    let charList = [];
-    let weaponList = [];
-    let charFetchError = null;
-    let weaponFetchError = null;
-    try {
-      charRes = await GetCharacterData(serverName);
-      charList = charRes?.list || [];
-    } catch (e) {
-      charFetchError = e;
-      console.warn("Character data fetch failed:", e);
-    }
-    try {
-      weaponRes = await GetWeaponData(serverName);
-      weaponList = weaponRes?.list || [];
-    } catch (e) {
-      weaponFetchError = e;
-      console.warn("Weapon data fetch failed:", e);
-    }
+    const [charResult, weaponResult] = await Promise.all([
+      GetCharacterData(serverName).catch(e => { console.warn("Character data fetch failed:", e); return null; }),
+      GetWeaponData(serverName).catch(e => { console.warn("Weapon data fetch failed:", e); return null; }),
+    ]);
+    const charRes = charResult;
+    const weaponRes = weaponResult;
+    const charList = charRes?.list || [];
+    const weaponList = weaponRes?.list || [];
+    const charFetchError = charResult === null ? true : null;
+    const weaponFetchError = weaponResult === null ? true : null;
 
     setFetchingState(false);
 

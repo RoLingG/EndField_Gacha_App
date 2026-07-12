@@ -4,7 +4,7 @@ import { updateCurrencyDisplay } from '../utils.js';
 
 export function createSummaryStrip(dataMap, poolName) {
   const items = dataMap[poolName] || [];
-  const poolUpCharConfig = getGlobalPoolConfig() || {};
+  const poolUpConfig = getGlobalPoolConfig() || {};
   const reversed = items.slice().reverse();
 
   let currentPity = 0;
@@ -23,10 +23,10 @@ export function createSummaryStrip(dataMap, poolName) {
   let centerValueHtml = total;
   let rightCornerSub = (currentType === 'char') ? "6★ GUARANTEED AT 80" : "UP 6★ GUARANTEED AT 80";
   let pityCount = (currentType === 'char') ? 80 : 40;
-  const targetUpChar = poolUpCharConfig[poolName] || null;
-  if (currentType === 'char' && targetUpChar) {
+  const targetUp = poolUpConfig[poolName] || null;
+  if (currentType === 'char' && targetUp) {
     centerLabel = "POOL SPARK // 本池垫刀";
-    const spark = calculateSparkInfo(reversed, targetUpChar);
+    const spark = calculateSparkInfo(reversed, targetUp);
     rightCornerSub = spark.rightCornerSub;
     centerValueHtml = `${spark.sparkCount} <span style="font-size:12px;color:#666">/ ${spark.targetLimit}</span>`;
   }

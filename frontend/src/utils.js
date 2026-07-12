@@ -18,9 +18,6 @@ export function showAppSnackbar({
     if (snackbar.parentNode) snackbar.remove();
   };
   snackbar.addEventListener("closed", cleanup, { once: true });
-  snackbar.addEventListener("close", () => {
-    setTimeout(cleanup, 300);
-  }, { once: true });
   return snackbar;
 }
 

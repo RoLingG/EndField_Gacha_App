@@ -27,7 +27,6 @@ export async function handleOfficialLoginWindow() {
   document.getElementById("analyzeError").textContent = "";
   try {
     const res = await OpenOfficialLoginWindow();
-    console.log("Login Success:", res);
     setCachedHgToken(res.hgToken);
     if (res.players && res.players.length === 1) {
       await doTokenSync(res.players[0]);
@@ -37,7 +36,6 @@ export async function handleOfficialLoginWindow() {
       document.getElementById("playerSelectArea").style.display = "block";
     }
   } catch (err) {
-    console.error(err);
     document.getElementById("analyzeError").textContent = "LOGIN CANCELLED / FAILED";
   } finally {
     resetButton(btn, originalText);
@@ -68,7 +66,6 @@ export async function handleToken() {
     document.getElementById("tokenInputArea").style.display = "none";
     document.getElementById("playerSelectArea").style.display = "block";
   } catch (err) {
-    console.error(err);
     showAppSnackbar({
       message: "[ERROR] 处理 Token 失败: " + err,
       type: "error",
@@ -113,14 +110,9 @@ export async function doTokenSync(player) {
   setFetchingState(true);
   try {
     const res = await SyncDataByChoice(getCachedHgToken(), player.uid, serverName);
-    if (res === "success") {
-      setTimeout(async () => {
-        await dataLoader(true, serverName, player.uid);
-      }, 1000);
-    }
+    if (res === "success") await dataLoader(true, serverName, player.uid);
   } catch (err) {
     setFetchingState(false);
-    console.error(err);
     document.getElementById("analyzeError").textContent = "SYNC ERR: " + err;
     window.resetToAnalyze();
   }

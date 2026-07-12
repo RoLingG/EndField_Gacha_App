@@ -9,7 +9,6 @@ import (
 	"Go_Arknights_Gacha_App/internal/storage"
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -369,8 +368,8 @@ func parseParamsFromURL(rawURL string) (token, serverID, lang string, err error)
 // ================= Offline / Local Data =================
 
 type LocalDataResponse struct {
-	CharJson   string `json:"char"`
-	WeaponJson string `json:"weapon"`
+	Char   map[string][]model.EndFieldCharInfo   `json:"char"`
+	Weapon map[string][]model.EndFieldWeaponInfo `json:"weapon"`
 }
 
 // CheckLocalFiles 检查本地文件是否存在
@@ -411,35 +410,20 @@ func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataRes
 		)
 		weaponList = []model.EndFieldWeaponInfo{}
 	}
-	charJson := "{}"
+
+	charGrouped := make(map[string][]model.EndFieldCharInfo)
 	if len(charList) > 0 {
-		grouped := groupByCharPoolName(charList)
-		if b, err := json.MarshalIndent(grouped, "", "  "); err == nil {
-			charJson = string(b)
-		} else {
-			logger.Log.Error("Failed to marshal local char history, fallback to empty json",
-				zap.String("uid", uid),
-				zap.String("server", serverType),
-				zap.Error(err),
-			)
-		}
+		charGrouped = groupByCharPoolName(charList)
 	}
-	weaponJson := "{}"
+
+	weaponGrouped := make(map[string][]model.EndFieldWeaponInfo)
 	if len(weaponList) > 0 {
-		grouped := groupByWeaponPoolName(weaponList)
-		if b, err := json.MarshalIndent(grouped, "", "  "); err == nil {
-			weaponJson = string(b)
-		} else {
-			logger.Log.Error("Failed to marshal local weapon history, fallback to empty json",
-				zap.String("uid", uid),
-				zap.String("server", serverType),
-				zap.Error(err),
-			)
-		}
+		weaponGrouped = groupByWeaponPoolName(weaponList)
 	}
+
 	return LocalDataResponse{
-		CharJson:   charJson,
-		WeaponJson: weaponJson,
+		Char:   charGrouped,
+		Weapon: weaponGrouped,
 	}, nil
 }
 
@@ -531,7 +515,7 @@ func (a *App) ImportTemporaryJson() (ImportResponse, error) {
 
 // ================= Pool Config Management =================
 
-// UpdatePoolConfig 更新卡池配置
+// UpdatePoolConfig 更新卡池配置（分别处理角色池和武器池）
 func (a *App) UpdatePoolConfig() (string, error) {
 	logger.Log.Info("Frontend requested: UpdatePoolConfig")
 
@@ -541,26 +525,23 @@ func (a *App) UpdatePoolConfig() (string, error) {
 		return "", fmt.Errorf("加载卡池ID列表失败: %v", err)
 	}
 
-	poolIDs := discovered.PoolIDs
-	if len(poolIDs) == 0 {
-		return "", fmt.Errorf("未发现任何卡池ID，请先获取抽卡记录")
-	}
-
-	var configs []model.PoolConfig
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
-
 	serverID := "1"
 	lang := "zh-cn"
 
-	for _, poolID := range poolIDs {
+	// --- 角色池处理 ---
+	var charConfigs []model.PoolConfig
+	for _, poolID := range discovered.CharPoolIDs {
+		if poolID == "gachaPool_0" || poolID == "gachaPool_1" {
+			continue
+		}
 		resp, err := api.FetchPoolContent(poolID, serverID, lang)
 		if err != nil {
-			logger.Log.Warn("Failed to fetch pool content",
+			logger.Log.Warn("Failed to fetch char pool content",
 				zap.String("pool_id", poolID),
 				zap.Error(err))
 			continue
 		}
-		// 提取需要的信息
 		config := model.PoolConfig{
 			PoolName:   resp.Data.Pool.PoolName,
 			PoolType:   resp.Data.Pool.PoolType,
@@ -568,7 +549,6 @@ func (a *App) UpdatePoolConfig() (string, error) {
 			GachaType:  resp.Data.Pool.PoolGachaType,
 			LastUpdate: currentTime,
 		}
-		// 如果有角色列表，取第一个6星角色的ID
 		if len(resp.Data.Pool.All) > 0 {
 			for _, char := range resp.Data.Pool.All {
 				if char.Rarity == 6 {
@@ -577,26 +557,78 @@ func (a *App) UpdatePoolConfig() (string, error) {
 				}
 			}
 		}
-		configs = append(configs, config)
-		time.Sleep(300 * time.Millisecond) // 请求间隔，避免频繁访问官方服务器
+		charConfigs = append(charConfigs, config)
+		time.Sleep(300 * time.Millisecond)
 	}
 
-	if len(configs) == 0 {
+	// --- 武器池处理 ---
+	var weaponConfigs []model.PoolConfig
+	for _, poolID := range discovered.WeaponPoolIDs {
+		resp, err := api.FetchPoolContent(poolID, serverID, lang)
+		if err != nil {
+			logger.Log.Warn("Failed to fetch weapon pool content",
+				zap.String("pool_id", poolID),
+				zap.Error(err))
+			continue
+		}
+		config := model.PoolConfig{
+			PoolName:   resp.Data.Pool.PoolName,
+			PoolType:   resp.Data.Pool.PoolType,
+			Up6Name:    resp.Data.Pool.Up6Name,
+			GachaType:  resp.Data.Pool.PoolGachaType,
+			LastUpdate: currentTime,
+		}
+		if len(resp.Data.Pool.All) > 0 {
+			for _, char := range resp.Data.Pool.All {
+				if char.Rarity == 6 {
+					config.Up6CharID = char.ID
+					break
+				}
+			}
+		}
+		weaponConfigs = append(weaponConfigs, config)
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	if len(charConfigs) == 0 && len(weaponConfigs) == 0 {
 		return "", fmt.Errorf("未获取到任何有效的卡池配置")
 	}
 
-	// 保存到文件
+	// 构建配置列表
 	configList := model.PoolConfigList{
-		Pools:      configs,
-		LastUpdate: currentTime,
+		CharPools:   charConfigs,
+		WeaponPools: weaponConfigs,
+		LastUpdate:  currentTime,
 	}
-	msg, err := storage.SavePoolConfig(configList)
+
+	// 分别保存角色池和武器池配置
+	msg, err := storage.SavePoolConfig(configList, false)
 	if err != nil {
-		logger.Log.Error("Failed to save pool config", zap.Error(err))
+		logger.Log.Error("Failed to save char pool config", zap.Error(err))
 		return "", err
 	}
 
-	return msg, nil
+	msg2, err := storage.SavePoolConfig(configList, true)
+	if err != nil {
+		logger.Log.Error("Failed to save weapon pool config", zap.Error(err))
+		return "", err
+	}
+
+	// 合并消息
+	finalMsg := msg
+	if msg2 != "卡池配置无变动 / Pool config unchanged" {
+		if finalMsg == "卡池配置无变动 / Pool config unchanged" {
+			finalMsg = msg2
+		} else {
+			finalMsg += "；" + msg2
+		}
+	}
+
+	logger.Log.Info("Pool config updated successfully",
+		zap.Int("char_pools", len(charConfigs)),
+		zap.Int("weapon_pools", len(weaponConfigs)))
+
+	return finalMsg, nil
 }
 
 // GetPoolConfig 获取卡池配置

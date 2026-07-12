@@ -57,7 +57,7 @@ export function renderByType(type) {
       renderNoDataState(allPoolsNoDataConfig);
       return;
     }
-    const allPoolsData = mergeAllPoolsData(dataMap);
+    const allPoolsData = mergeAllPoolsData(dataMap, getLastDataType());
     if (!allPoolsData || allPoolsData.length === 0) {
       renderNoDataState(allPoolsNoDataConfig);
       return;
@@ -76,7 +76,7 @@ export function renderByType(type) {
 
   updateSummaryStripVisibility(true);
   setCurrentPool(Object.keys(dataMap)[0]);
-  createPoolButtons(dataMap, updateDisplay);
+  createPoolButtons(dataMap, updateDisplay, type);
   updateDisplay(dataMap, getCurrentPool());
 
   const thEl = document.getElementById('thName');

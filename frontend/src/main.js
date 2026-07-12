@@ -6,7 +6,7 @@ import {
 import {
   setCachedHgToken, setCurrentUid, setCurrentServerType, setGlobalCharData,
   setGlobalWeaponData, setCurrentType, setLastDataType, setCurrentPool, setCurrentAllPoolsData,
-  setIsAllPoolsMode, getIsFetching, getCurrentServerType, getCurrentUid,
+  setIsAllPoolsMode, getIsFetching, getCurrentServerType, getCurrentUid, setIsFetching,
 } from './state.js';
 
 import { APP_ELEMENT_IDS, SNACKBAR_AUTO_CLOSE } from './constants.js';
@@ -83,7 +83,7 @@ async function handleReload() {
       }
     });
   }
-  window.isFetching = false;
+  setIsFetching(false)
   await ReloadFrontend();
 }
 
@@ -242,7 +242,6 @@ window.resetToAnalyze = function () {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "none";
-    if (id === "poolSelectorWrapper") setPoolSelectorVisibility(el, false);
   });
 
   const analyzeContainer = document.getElementById("analyzeContainer");
