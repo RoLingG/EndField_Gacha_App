@@ -18,10 +18,10 @@
 <!-- 顶部窗口栏 -->
 <header class="fake-menu">
     <div class="brand-tag">ENDFIELD // GACHA LOG</div>
-    <span class="fake-menu-item" onclick="handleReload()">[ SYSTEM_RELOAD ]</span>
-    <span class="fake-menu-item" onclick="handleOpenFolder()">[ DATA_FOLDER ]</span>
-    <span class="fake-menu-item" id="btnExportExcel" onclick="handleExport()">[ EXPORT_EXCEL ]</span>
-    <span class="fake-menu-item" id="btnCancelFetch" onclick="handleCancelFetch()" style="display:none;">[ CANCEL_FETCH ]</span>
+    <span class="fake-menu-item" id="btnReload">[ SYSTEM_RELOAD ]</span>
+    <span class="fake-menu-item" id="btnOpenFolder">[ DATA_FOLDER ]</span>
+    <span class="fake-menu-item" id="btnExportExcel">[ EXPORT_EXCEL ]</span>
+    <span class="fake-menu-item" id="btnCancelFetch" style="display:none;">[ CANCEL_FETCH ]</span>
     <span class="fake-menu-item theme-toggle" id="themeToggle">[ MODE: NIGHT ]</span>
     <div class="window-controls">
         <button class="win-btn" id="minBtn">_</button>
@@ -51,7 +51,7 @@
             <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
                 > LOGIN PROTOCOL // 推荐方式<br>
             </div>
-            <button id="btnLoginWindow" class="ef-btn ef-btn-outline" onclick="handleOfficialLoginWindow()" style="border: 1px solid var(--ef-yellow);">
+            <button id="btnLoginWindow" class="ef-btn ef-btn-outline" style="border: 1px solid var(--ef-yellow);">
                 CONNECT (OFFICIAL)
             </button>
 
@@ -61,7 +61,7 @@
             <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
                 > MANUAL OVERRIDE // 手动粘贴 Token
             </div>
-            <form onsubmit="event.preventDefault(); handleToken();" style="margin: 0; padding: 0;">
+            <form id="tokenForm" style="margin: 0; padding: 0;">
                 <input type="text" id="webTokenInput" name="endfield_hg_token" autocomplete="on" class="ef-input" placeholder="PASTE TOKEN HERE //" />
 
                 <button type="submit" id="btnManualConnect" class="ef-btn ef-btn-outline" style="margin-top: 10px;">
@@ -71,7 +71,7 @@
 
             <div class="analyze-divider"></div>
 
-            <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
+            <div id="cancelTokenInput" style="text-align:center; cursor:pointer; font-size:12px; color:#666;">[ CANCEL / 取消 ]</div>
         </div>
 
         <!-- 角色选择区域 -->
@@ -82,7 +82,7 @@
             <!-- 角色列表容器 -->
             <div id="playerListContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;"></div>
             <div class="analyze-divider"></div>
-            <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
+            <div id="cancelPlayerSelect" style="text-align:center; cursor:pointer; font-size:12px; color:#666;">[ CANCEL / 取消 ]</div>
         </div>
 
         <div id="logModeTips" style="display:none;">
@@ -96,17 +96,17 @@
             <div class="analyze-important-desc" style="margin-bottom: 12px; border-color: var(--ef-grey); color: var(--ef-yellow);">
                 > SIGNAL CONFLICT // 检测到多端数据<br>> SELECT YOUR SERVER // 请选择要同步的服务器节点
             </div>
-            <button class="ef-btn ef-btn-outline" onclick="onSelectServer('official')" style="margin-bottom: 10px;">OFFICIAL // 官服</button>
-            <button class="ef-btn ef-btn-outline" onclick="onSelectServer('bilibili')">BILIBILI // B服</button>
+            <button id="btnOfficial" class="ef-btn ef-btn-outline" style="margin-bottom: 10px;">OFFICIAL // 官服</button>
+            <button id="btnBilibili" class="ef-btn ef-btn-outline">BILIBILI // B服</button>
             <div class="analyze-divider"></div>
-            <div style="text-align:center; cursor:pointer; font-size:12px; color:#666;" onclick="resetToAnalyze()">[ CANCEL / 取消 ]</div>
+            <div id="cancelServerSelect" style="text-align:center; cursor:pointer; font-size:12px; color:#666;">[ CANCEL / 取消 ]</div>
         </div>
 
         <!-- 按钮组 -->
         <div id="defaultBtnGroup">
-            <button id="webTokenBtn" class="ef-btn" onclick="showTokenInputUI()" style="margin-top: 10px;">WEB TOKEN SYNC</button>
-            <button id="localBtn" class="ef-btn ef-btn-outline" onclick="loadLocal()" style="margin-top: 10px;">LOCAL INITIALIZE</button>
-            <button id="importBtn" class="ef-btn ef-btn-outline" onclick="handleImportTemp()" style="margin-top: 10px; border-style: dashed;">IMPORT TEMP JSON</button>
+            <button id="webTokenBtn" class="ef-btn" style="margin-top: 10px;">WEB TOKEN SYNC</button>
+            <button id="localBtn" class="ef-btn ef-btn-outline" style="margin-top: 10px;">LOCAL INITIALIZE</button>
+            <button id="importBtn" class="ef-btn ef-btn-outline" style="margin-top: 10px; border-style: dashed;">IMPORT TEMP JSON</button>
             <button id="analyzeBtn" class="ef-btn ef-btn-outline ef-btn-glitch" disabled style="margin-top: 10px" data-text="ONLINE INITIALIZE">ONLINE INITIALIZE</button>
         </div>
         <div id="analyzeError"></div>
@@ -150,9 +150,9 @@
 
     <!-- 类型切换 Tab -->
     <div class="type-switcher" id="typeSwitcher" style="display:none;">
-        <button class="type-btn active" id="btnTypeChar" onclick="switchType('char')">[ CHARACTERS / 干员 ]</button>
-        <button class="type-btn" id="btnTypeWeapon" onclick="switchType('weapon')">[ WEAPONS / 武器 ]</button>
-        <button class="type-btn" id="btnTypeAll" onclick="switchType('all')">[ ALL POOLS / 汇总分析 ]</button>
+        <button class="type-btn active" id="btnTypeChar">[ CHARACTERS / 干员 ]</button>
+        <button class="type-btn" id="btnTypeWeapon">[ WEAPONS / 武器 ]</button>
+        <button class="type-btn" id="btnTypeAll">[ ALL POOLS / 汇总分析 ]</button>
     </div>
 
     <!-- 卡池选择器 -->
@@ -190,9 +190,9 @@
                 <tbody id="historyTableBody"></tbody>
             </table>
             <div class="pagination-controls">
-                <button id="prevPageBtn" class="page-btn" onclick="window.changePage(-1)">[ PREV ]</button>
+                <button id="prevPageBtn" class="page-btn">[ PREV ]</button>
                 <span id="pageIndicator">PAGE 1 / 1</span>
-                <button id="nextPageBtn" class="page-btn" onclick="window.changePage(1)">[ NEXT ]</button>
+                <button id="nextPageBtn" class="page-btn">[ NEXT ]</button>
             </div>
         </div>
     </div>

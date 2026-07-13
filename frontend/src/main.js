@@ -12,12 +12,11 @@ import {
 import { APP_ELEMENT_IDS, SNACKBAR_AUTO_CLOSE } from './constants.js';
 import { switchType } from './render/main.js';
 import { changePage } from './render/history.js';
-import { updatePoolConfigHandler } from './pool.js';
 import { updateOrCreateChart } from './render/chart.js';
 import { setChartUpdater, initThemeToggle } from './theme.js';
-import { showAppSnackbar, setFetchingState, setPoolSelectorVisibility,} from './utils.js';
+import { showAppSnackbar, setFetchingState } from './utils.js';
 import { showTokenInputUI, handleOfficialLoginWindow, handleToken, setDataLoader,} from './auth.js';
-import { onSelectServer, analyze, loadLocal, handleImportTemp, initApp, setExitAnimator,} from './loader.js';
+import { onSelectServer, loadLocal, handleImportTemp, initApp, setExitAnimator,} from './loader.js';
 
 // ============================================
 // 注入回调，打破循环依赖
@@ -45,24 +44,6 @@ if (maxBtn) {
 }
 document.getElementById("minBtn").onclick = () => WindowMinSize();
 document.getElementById("closeBtn").onclick = () => WindowClose();
-
-// ============================================
-// 绑定 window 函数（供 HTML onclick 调用）
-// ============================================
-window.showTokenInputUI = showTokenInputUI;
-window.handleOfficialLoginWindow = handleOfficialLoginWindow;
-window.handleToken = handleToken;
-window.onSelectServer = onSelectServer;
-window.analyze = analyze;
-window.loadLocal = loadLocal;
-window.handleImportTemp = handleImportTemp;
-window.switchType = switchType;
-window.changePage = changePage;
-window.updatePoolConfig = updatePoolConfigHandler;
-window.handleOpenFolder = async () => await OpenDataFolder();
-window.handleReload = handleReload;
-window.handleCancelFetch = handleCancelFetch;
-window.handleExport = handleExport;
 
 // ============================================
 // 窗口操作函数
@@ -169,6 +150,7 @@ function startExitAnimation() {
   const loadingText = document.querySelector('.loading-text');
   const loadingTrack = document.querySelector('.tech-progress-track');
   const logoWrapper = document.querySelector('.logo-wrapper');
+  const techStatRow = document.querySelector('.tech-stat-row');
 
   if (loadingTrack) {
     loadingTrack.style.transition = "transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease";
@@ -190,6 +172,10 @@ function startExitAnimation() {
     setTimeout(() => {
       loadingOverlay.style.transition = "transform 0.6s cubic-bezier(0.8, 0, 0.2, 1)";
       loadingOverlay.style.transform = "translateY(-100%)";
+      if (techStatRow) {
+        techStatRow.style.transition = "opacity 0.2s ease-in";
+        techStatRow.style.opacity = "0";
+      }
 
       setTimeout(() => {
         loadingOverlay.classList.remove("show");
@@ -200,6 +186,11 @@ function startExitAnimation() {
         }
         if (logoWrapper) logoWrapper.style.transform = "";
         if (loadingText) loadingText.style.transform = "";
+        if (techStatRow) {
+          techStatRow.style.transition = "";
+          techStatRow.style.opacity = "";
+          techStatRow.style.transform = "";
+        }
         const elements = APP_ELEMENT_IDS.map(id => document.getElementById(id));
         const flexIds = new Set(["mainTitle", "typeSwitcher", "dashboardPanel"]);
         elements.forEach((el) => {
@@ -305,4 +296,42 @@ window.addEventListener('DOMContentLoaded', () => {
       subtextElement.textContent = message;
     }
   });
+
+  // ============================================
+  // 事件绑定
+  // ============================================
+
+  // 顶部菜单栏
+  document.getElementById('btnReload')?.addEventListener('click', handleReload);
+  document.getElementById('btnOpenFolder')?.addEventListener('click', () => OpenDataFolder());
+  document.getElementById('btnExportExcel')?.addEventListener('click', handleExport);
+  document.getElementById('btnCancelFetch')?.addEventListener('click', handleCancelFetch);
+
+  // 登录区
+  document.getElementById('btnLoginWindow')?.addEventListener('click', handleOfficialLoginWindow);
+  document.getElementById('tokenForm')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleToken();
+  });
+  document.getElementById('webTokenBtn')?.addEventListener('click', showTokenInputUI);
+  document.getElementById('localBtn')?.addEventListener('click', loadLocal);
+  document.getElementById('importBtn')?.addEventListener('click', handleImportTemp);
+
+  // 服务器选择
+  document.getElementById('btnOfficial')?.addEventListener('click', () => onSelectServer('official'));
+  document.getElementById('btnBilibili')?.addEventListener('click', () => onSelectServer('bilibili'));
+
+  // 取消按钮（resetToAnalyze）
+  document.getElementById('cancelTokenInput')?.addEventListener('click', resetToAnalyze);
+  document.getElementById('cancelPlayerSelect')?.addEventListener('click', resetToAnalyze);
+  document.getElementById('cancelServerSelect')?.addEventListener('click', resetToAnalyze);
+
+  // 类型切换
+  document.getElementById('btnTypeChar')?.addEventListener('click', () => switchType('char'));
+  document.getElementById('btnTypeWeapon')?.addEventListener('click', () => switchType('weapon'));
+  document.getElementById('btnTypeAll')?.addEventListener('click', () => switchType('all'));
+
+  // 翻页
+  document.getElementById('prevPageBtn')?.addEventListener('click', () => changePage(-1));
+  document.getElementById('nextPageBtn')?.addEventListener('click', () => changePage(1));
 });

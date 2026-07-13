@@ -267,7 +267,6 @@ func fetchWeaponDataByPool(ctx context.Context, sess *gachaSession, poolID strin
 			if seqID != "" {
 				params.Set("seq_id", seqID)
 			}
-
 			body, err := sess.get(ctx, BaseUrlWeapon, params, "gacha_weapon")
 			if err != nil {
 				return err
