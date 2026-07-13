@@ -166,7 +166,9 @@
     <!-- 核心仪表盘 -->
     <div class="dashboard-panel" id="dashboardPanel" style="display:none;">
         <!-- 左侧：图表 -->
-        <div class="panel-left" id="chartContainer"></div>
+        <div class="panel-left" id="chartContainer">
+            <div class="chart-corner"></div>
+        </div>
         <!-- 右侧：详情 -->
         <div class="panel-right" id="rareCharsContainer"></div>
     </div>
@@ -538,6 +540,17 @@
         height: 20px;
         border-bottom: 2px solid var(--ef-yellow);
         border-right: 2px solid var(--ef-yellow);
+    }
+
+    .chart-corner {
+        position: absolute;
+        top: -1px;
+        left: -1px;
+        width: 10px;
+        height: 10px;
+        border-top: 2px solid var(--ef-yellow);
+        border-left: 2px solid var(--ef-yellow);
+        z-index: 10;
     }
 
     .analyze-logo {

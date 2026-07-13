@@ -120,11 +120,12 @@ export function renderNoDataState({
   const chartContainer = document.getElementById('chartContainer');
   const rareCharsContainer = document.getElementById('rareCharsContainer');
   if (chartContainer) {
-    chartContainer.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#666; font-size:20px; font-weight:bold;">
-        ${chartMessage}
-      </div>
-    `;
+    chartContainer.querySelectorAll("canvas, .chart-no-data").forEach(el => el.remove());
+    const noData = document.createElement("div");
+    noData.className = "chart-no-data";
+    noData.style.cssText = "display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#666; font-size:20px; font-weight:bold;";
+    noData.textContent = chartMessage;
+    chartContainer.appendChild(noData);
   }
   if (rareCharsContainer) {
     rareCharsContainer.innerHTML = `

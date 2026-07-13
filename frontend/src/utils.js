@@ -91,7 +91,8 @@ export function clearDisplay() {
     chartInstance.destroy();
     setGachaChartInstance(null);
   }
-  document.getElementById("chartContainer").innerHTML = "";
+  const chartContainer = document.getElementById("chartContainer");
+  chartContainer.querySelectorAll("canvas, .chart-no-data").forEach(el => el.remove());
   document.getElementById("rareCharsContainer").innerHTML = "";
   document.getElementById("summaryStrip").innerHTML = "";
   document.getElementById("historyTableBody").innerHTML = "";

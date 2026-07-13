@@ -13,11 +13,10 @@ export function updateOrCreateChart(items) {
     return;
   }
 
+  // 获取 chartContainer 元素，清除旧数据的 chart 实例
   const chartContainer = document.getElementById("chartContainer");
-  chartContainer.innerHTML = '';
-  const corner = document.createElement("div");
-  corner.style.cssText = "position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid var(--ef-accent); border-left:2px solid var(--ef-accent); z-index:10;";
-  chartContainer.appendChild(corner);
+  const oldCanvas = chartContainer.querySelector("canvas");
+  if (oldCanvas) oldCanvas.remove();
 
   const ctx = document.createElement("canvas");
   ctx.style.maxWidth = "280px";
