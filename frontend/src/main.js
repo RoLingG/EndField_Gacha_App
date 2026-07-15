@@ -11,7 +11,7 @@ import {
 
 import { APP_ELEMENT_IDS, SNACKBAR_AUTO_CLOSE } from './constants.js';
 import { switchType } from './render/main.js';
-import { changePage } from './render/history.js';
+import { changePage, resetFilters } from './render/history.js';
 import { updateOrCreateChart } from './render/chart.js';
 import { setChartUpdater, initThemeToggle } from './theme.js';
 import { showAppSnackbar, setFetchingState } from './utils.js';
@@ -224,6 +224,7 @@ window.resetToAnalyze = function () {
   setCurrentPool(null);
   setCurrentAllPoolsData(null);
   setIsAllPoolsMode(false);
+  resetFilters();
 
   const loadingOverlay = document.getElementById("loadingOverlay");
   loadingOverlay.classList.remove("show");

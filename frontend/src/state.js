@@ -7,6 +7,11 @@ let cachedHgToken = "";
 let currentUid = "";
 let currentServerType = "";
 
+// 筛选状态
+let filterSearchText = "";  // 搜索关键词
+let filterRarity = 0;   // 0: 全部，3/4/5/6: 指定稀有度
+let filterIsFree = -1;  // -1: 不筛选, 0: 非免费, 1: 免费
+
 // 全局数据存储
 let globalCharData = null;
 let globalWeaponData = null;
@@ -99,3 +104,12 @@ export function setCurrentHistoryData(v) { currentHistoryData = v; }
 
 export function getCurrentPoolNameForPagination() { return currentPoolNameForPagination; }
 export function setCurrentPoolNameForPagination(v) { currentPoolNameForPagination = v; }
+
+export function getFilterSearchText() { return filterSearchText; }
+export function setFilterSearchText(v) { filterSearchText = v; }
+
+export function getFilterRarity() { return filterRarity; }
+export function setFilterRarity(v) { filterRarity = v; }
+
+export function getFilterIsFree() { return filterIsFree; }
+export function setFilterIsFree(v) { filterIsFree = v; }

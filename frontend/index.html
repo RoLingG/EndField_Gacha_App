@@ -175,7 +175,24 @@
 
     <!-- 最近记录列表 -->
     <div class="history-section" id="historySection" style="display:none;">
-        <div class="section-title">[ Gacha Record List ]</div>
+        <div class="section-title">
+            <span>[ Gacha Record List ]</span>
+            <div class="history-filter-bar" id="historyFilterBar">
+                <input type="text" id="filterSearchInput" placeholder="SEARCH NAME..." />
+                <select id="filterRaritySelect">
+                    <option value="0">ALL ★</option>
+                    <option value="6">6★</option>
+                    <option value="5">5★</option>
+                    <option value="4">4★</option>
+                    <option value="3">3★</option>
+                </select>
+                <select id="filterIsFreeSelect">
+                    <option value="-1">ALL</option>
+                    <option value="0">PAID</option>
+                    <option value="1">FREE</option>
+                </select>
+            </div>
+        </div>
         <div class="history-table-container">
             <table class="ef-table">
                 <thead>
@@ -1276,6 +1293,10 @@
         font-weight: bold;
         border-bottom: 1px solid #333;
         padding-bottom: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
     }
 
     .history-table-container {
@@ -1351,6 +1372,51 @@
     .page-btn:disabled {
         color: #333;
         cursor: not-allowed;
+    }
+
+    /* 筛选栏 */
+    .history-filter-bar {
+        display: flex;
+        gap: 6px;
+        font-family: 'Consolas', monospace;
+    }
+
+    .history-filter-bar input[type="text"] {
+        flex: 1;
+        min-width: 0;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-family: 'Consolas', monospace;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--ef-grey);
+        color: var(--ef-white);
+        outline: none;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .history-filter-bar input[type="text"]::placeholder {
+        color: #555;
+    }
+
+    .history-filter-bar input[type="text"]:focus {
+        border-color: var(--ef-yellow);
+        box-shadow: 0 0 8px rgba(255, 250, 0, 0.1);
+    }
+
+    .history-filter-bar select {
+        padding: 6px 8px;
+        font-size: 12px;
+        font-family: 'Consolas', monospace;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--ef-grey);
+        color: var(--ef-white);
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.3s;
+    }
+
+    .history-filter-bar select:focus {
+        border-color: var(--ef-yellow);
     }
 
     #pageIndicator {
@@ -1682,6 +1748,10 @@
         font-weight: bold;
         border-bottom: 1px solid #cfcfc7;
         padding-bottom: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
     }
 
     .theme-day .ef-table th {
@@ -1712,6 +1782,34 @@
         color: #1f1f1f;
         text-shadow: none;
         background: #efe6b5;
+    }
+
+    .theme-day .history-filter-bar {
+        gap: 6px;
+    }
+
+    .theme-day .history-filter-bar input[type="text"] {
+        background: #fff;
+        border-color: #cfcfc7;
+        color: #1f1f1f;
+    }
+
+    .theme-day .history-filter-bar input[type="text"]::placeholder {
+        color: #999;
+    }
+
+    .theme-day .history-filter-bar input[type="text"]:focus {
+        border-color: var(--ef-yellow);
+    }
+
+    .theme-day .history-filter-bar select {
+        background: #fff;
+        border-color: #cfcfc7;
+        color: #1f1f1f;
+    }
+
+    .theme-day .history-filter-bar select:focus {
+        border-color: var(--ef-yellow);
     }
 
     .theme-day #pageIndicator {

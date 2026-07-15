@@ -2,6 +2,9 @@ import {
   getCurrentHistoryPage, setCurrentHistoryPage, getHistoryPageSize,
   getCurrentHistoryData, setCurrentHistoryData, getIsAllPoolsMode,
   setCurrentPoolNameForPagination, getCurrentPoolNameForPagination,
+  getFilterSearchText, setFilterSearchText,
+  getFilterRarity, setFilterRarity,
+  getFilterIsFree, setFilterIsFree,
 } from '../state.js';
 import { getItemName } from '../data.js';
 import { showAppSnackbar } from '../utils.js';
@@ -31,6 +34,81 @@ export function updateHistoryPaginationUI(currentPage, totalPages) {
   if (nextBtn) nextBtn.disabled = (currentPage >= totalPages || totalPages === 0);
 }
 
+// 根据筛选状态过滤数据
+function applyFilters(items) {
+  const searchText = getFilterSearchText().toLowerCase();
+  const rarity = getFilterRarity();
+  const isFree = getFilterIsFree();
+
+  return items.filter(item => {
+    if (searchText) {
+      const name = getItemName(item).toLowerCase();
+      if (!name.includes(searchText)) return false;
+    }
+    if (rarity > 0 && item.rarity !== rarity) return false;
+    if (isFree === 0 && item.isFree) return false;
+    if (isFree === 1 && !item.isFree) return false;
+    return true;
+  });
+}
+
+// 筛选栏事件绑定（只初始化一次）
+let filterBarInitialized = false;
+export function initFilterBar() {
+  if (filterBarInitialized) return;
+  filterBarInitialized = true;
+
+  const searchInput = document.getElementById('filterSearchInput');
+  const raritySelect = document.getElementById('filterRaritySelect');
+  const isFreeSelect = document.getElementById('filterIsFreeSelect');
+
+  // 搜索输入防抖
+  let debounceTimer = null;
+  searchInput?.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      setFilterSearchText(searchInput.value.trim());
+      setCurrentHistoryPage(1);
+      reRenderCurrentPage();
+    }, 300);
+  });
+
+  raritySelect?.addEventListener('change', (e) => {
+    setFilterRarity(parseInt(e.target.value, 10));
+    setCurrentHistoryPage(1);
+    reRenderCurrentPage();
+  });
+
+  isFreeSelect?.addEventListener('change', (e) => {
+    setFilterIsFree(parseInt(e.target.value, 10));
+    setCurrentHistoryPage(1);
+    reRenderCurrentPage();
+  });
+}
+
+// 重置筛选状态和 UI
+export function resetFilters() {
+  setFilterSearchText("");
+  setFilterRarity(0);
+  setFilterIsFree(-1);
+
+  const searchInput = document.getElementById('filterSearchInput');
+  const raritySelect = document.getElementById('filterRaritySelect');
+  const isFreeSelect = document.getElementById('filterIsFreeSelect');
+  if (searchInput) searchInput.value = "";
+  if (raritySelect) raritySelect.value = "0";
+  if (isFreeSelect) isFreeSelect.value = "-1";
+}
+
+// 根据当前模式重新渲染
+function reRenderCurrentPage() {
+  if (getIsAllPoolsMode()) {
+    renderAllPoolsHistoryPage();
+  } else {
+    renderHistoryPage();
+  }
+}
+
 // 统一渲染卡池历史记录分页
 export function renderPagedHistoryTable({
   items,
@@ -43,7 +121,9 @@ export function renderPagedHistoryTable({
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  const totalItems = items.length;
+  // 应用筛选
+  const filteredItems = applyFilters(items);
+  const totalItems = filteredItems.length;
   const pageSize = getHistoryPageSize();
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
   let page = getCurrentHistoryPage();
@@ -53,14 +133,14 @@ export function renderPagedHistoryTable({
 
   const startIndex = (page - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const pageItems = items.slice(startIndex, endIndex);
+  const pageItems = filteredItems.slice(startIndex, endIndex);
 
   if (pageItems.length === 0) {
     renderEmptyHistoryTable(emptyMessage, emptyColspan);
   } else {
     pageItems.forEach((item, index) => {
       const tr = document.createElement('tr');
-      const displayNum = totalItems - (startIndex + index);
+      const displayNum = item._originalNum || (totalItems - (startIndex + index));
       const name = getItemName(item);
       const isFree = item.isFree ? "YES" : "NO";
       const poolLabel = getPoolLabel(item);
@@ -84,8 +164,11 @@ export function createHistoryTable(dataMap, poolName) {
     setCurrentHistoryPage(1);
     setCurrentPoolNameForPagination(poolName);
   }
-  const items = dataMap[poolName];
-  setCurrentHistoryData(items.slice());
+  const items = dataMap[poolName].slice();
+  // 为每条记录保留原始序号（筛选时不重新编号）
+  items.forEach((item, index) => { item._originalNum = items.length - index; });
+  setCurrentHistoryData(items);
+  initFilterBar();
   renderHistoryPage();
 }
 
@@ -101,7 +184,10 @@ export function renderHistoryPage() {
 
 export function createAllPoolsHistoryTable(items) {
   setCurrentHistoryPage(1);
-  setCurrentHistoryData(items.slice());
+  const sliced = items.slice();
+  sliced.forEach((item, index) => { item._originalNum = sliced.length - index; });
+  setCurrentHistoryData(sliced);
+  initFilterBar();
   renderAllPoolsHistoryPage();
 }
 
