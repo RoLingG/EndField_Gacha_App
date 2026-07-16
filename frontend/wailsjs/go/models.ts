@@ -247,7 +247,8 @@ export namespace model {
 	    poolName: string;
 	    poolType: string;
 	    up6Name: string;
-	    up6CharId: string;
+	    up6CharId?: string;
+	    up6WeaponId?: string;
 	    gachaType: string;
 	    lastUpdate: string;
 	
@@ -261,6 +262,7 @@ export namespace model {
 	        this.poolType = source["poolType"];
 	        this.up6Name = source["up6Name"];
 	        this.up6CharId = source["up6CharId"];
+	        this.up6WeaponId = source["up6WeaponId"];
 	        this.gachaType = source["gachaType"];
 	        this.lastUpdate = source["lastUpdate"];
 	    }

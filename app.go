@@ -579,9 +579,9 @@ func (a *App) UpdatePoolConfig() (string, error) {
 			LastUpdate: currentTime,
 		}
 		if len(resp.Data.Pool.All) > 0 {
-			for _, char := range resp.Data.Pool.All {
-				if char.Rarity == 6 {
-					config.Up6CharID = char.ID
+			for _, item := range resp.Data.Pool.All {
+				if item.Rarity == 6 {
+					config.Up6WeaponID = item.ID
 					break
 				}
 			}

@@ -182,11 +182,11 @@ export function renderHistoryPage() {
   });
 }
 
-export function createAllPoolsHistoryTable(items) {
+export function createAllPoolsHistoryTable(allItems) {
   setCurrentHistoryPage(1);
-  const sliced = items.slice();
-  sliced.forEach((item, index) => { item._originalNum = sliced.length - index; });
-  setCurrentHistoryData(sliced);
+  const sorted = allItems.slice();
+  sorted.forEach((item, index) => { item._originalNum = sorted.length - index; });
+  setCurrentHistoryData(sorted);
   initFilterBar();
   renderAllPoolsHistoryPage();
 }

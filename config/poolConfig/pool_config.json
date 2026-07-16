@@ -4,7 +4,6 @@
       "poolName": "基础寻访",
       "poolType": "standard",
       "up6Name": "",
-      "up6CharId": "",
       "gachaType": "char",
       "lastUpdate": "2026-02-20 15:26:16"
     },
@@ -12,7 +11,6 @@
       "poolName": "启程寻访",
       "poolType": "beginner",
       "up6Name": "",
-      "up6CharId": "",
       "gachaType": "char",
       "lastUpdate": "2026-02-21 15:26:16"
     },
@@ -79,17 +77,129 @@
       "up6CharId": "chr_0033_camille",
       "gachaType": "char",
       "lastUpdate": "2026-06-26 23:12:25"
+    },
+    {
+      "poolName": "临渊望北",
+      "poolType": "special",
+      "up6Name": "诀",
+      "up6CharId": "chr_0032_lizhiyan",
+      "gachaType": "char",
+      "lastUpdate": "2026-07-16 14:56:32"
     }
   ],
   "weaponPools": [
     {
+      "poolName": "坚冰申领",
+      "poolType": "",
+      "up6Name": "赫拉芬格",
+      "up6WeaponId": "wpn_claym_0013",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-01-21 20:24:35"
+    },
+    {
+      "poolName": "星声申领",
+      "poolType": "",
+      "up6Name": "沧溟星梦",
+      "up6WeaponId": "wpn_funnel_0013",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-01-21 20:24:35"
+    },
+    {
+      "poolName": "远途申领",
+      "poolType": "",
+      "up6Name": "不知归",
+      "up6WeaponId": "wpn_sword_0016",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-01-21 20:24:35"
+    },
+    {
+      "poolName": "崇山申领",
+      "poolType": "",
+      "up6Name": "负山",
+      "up6WeaponId": "wpn_lance_0012",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-01-21 20:24:35"
+    },
+    {
+      "poolName": "雷鸣申领",
+      "poolType": "",
+      "up6Name": "大雷斑",
+      "up6WeaponId": "wpn_claym_0007",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-01-21 20:24:35"
+    },
+    {
+      "poolName": "熔铸申领",
+      "poolType": "",
+      "up6Name": "熔铸火焰",
+      "up6WeaponId": "wpn_sword_0006",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-01-21 20:24:35"
+    },
+    {
+      "poolName": "迅行申领",
+      "poolType": "",
+      "up6Name": "使命必达",
+      "up6WeaponId": "wpn_funnel_0011",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-02-06 20:24:35"
+    },
+    {
+      "poolName": "绘涂申领",
+      "poolType": "",
+      "up6Name": "艺术暴君",
+      "up6WeaponId": "wpn_pistol_0010",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-02-23 20:24:35"
+    },
+    {
+      "poolName": "新芽申领",
+      "poolType": "",
+      "up6Name": "落草",
+      "up6WeaponId": "wpn_pistol_0011",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-03-11 20:24:35"
+    },
+    {
+      "poolName": "绯珀申领",
+      "poolType": "",
+      "up6Name": "狼之绯",
+      "up6WeaponId": "wpn_sword_0022",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-03-28 20:24:35"
+    },
+    {
+      "poolName": "行舟申领",
+      "poolType": "",
+      "up6Name": "孤舟",
+      "up6WeaponId": "wpn_funnel_0015",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-04-16 20:24:35"
+    },
+    {
+      "poolName": "绛结申领",
+      "poolType": "",
+      "up6Name": "赤缨",
+      "up6WeaponId": "wpn_claym_0017",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-06-03 20:24:35"
+    },
+    {
       "poolName": "染赤申领",
       "poolType": "",
       "up6Name": "镀红祝福",
-      "up6CharId": "wpn_lance_0015",
+      "up6WeaponId": "wpn_lance_0015",
       "gachaType": "weapon",
       "lastUpdate": "2026-07-13 01:24:58"
+    },
+    {
+      "poolName": "军列申领",
+      "poolType": "",
+      "up6Name": "四二式·肃阵",
+      "up6WeaponId": "wpn_funnel_0016",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-07-16 14:56:32"
     }
   ],
-  "lastUpdate": "2026-07-13 01:55:07"
+  "lastUpdate": "2026-07-16 21:43:39"
 }

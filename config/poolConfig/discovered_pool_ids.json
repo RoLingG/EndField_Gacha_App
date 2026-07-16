@@ -1,16 +1,30 @@
 {
   "charPoolIds": [
-    "special_1_0_3",
     "special_1_0_1",
     "special_1_0_2",
+    "special_1_0_3",
     "special_1_1_1",
     "special_1_1_2",
     "special_1_2_1",
     "special_1_3_1",
-    "special_1_3_2"
+    "special_1_3_2",
+    "special_1_4_1"
   ],
   "weaponPoolIds": [
-    "weponbox_1_3_2"
+    "weaponbox_constant_1",
+    "weaponbox_constant_2",
+    "weaponbox_constant_3",
+    "weaponbox_constant_4",
+    "weaponbox_constant_5",
+    "weponbox_1_0_1",
+    "weponbox_1_0_3",
+    "weponbox_1_0_2",
+    "weponbox_1_1_1",
+    "weponbox_1_1_2",
+    "weponbox_1_2_1",
+    "weponbox_1_3_1",
+    "weponbox_1_3_2",
+    "weponbox_1_4_1"
   ],
-  "lastUpdate": "2026-07-13 01:24:58"
+  "lastUpdate": "2026-07-16 14:56:32"
 }
