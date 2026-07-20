@@ -56,7 +56,7 @@ jobs:
           build-platform: ${{ matrix.build.platform }}
           package: false
           disable-release: true
-          go-version: '1.24'
+          go-version: '1.26'
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
