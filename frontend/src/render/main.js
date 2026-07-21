@@ -5,6 +5,7 @@ import {
   getCurrentPool, setCurrentPool, setCurrentAllPoolsData,
   setIsAllPoolsMode, getIsAllPoolsMode, setCurrentHistoryPage,
   getGlobalPoolConfig,
+  getComingFromStats, setComingFromStats,
 } from '../state.js';
 import { createPoolButtons } from '../pool.js';
 import { mergeAllPoolsData, calculateAvgPity, calculateMaxDrought, calculateMonthlyStats, calculatePityDistribution } from '../data.js';
@@ -17,6 +18,7 @@ import { createHistoryTable, createAllPoolsHistoryTable, renderEmptyHistoryTable
 // 核心切换逻辑
 export function switchType(type) {
   if (getCurrentType() === type) return;
+  setComingFromStats(getCurrentType() === 'stats' && type !== 'stats');
   setCurrentType(type);
   setCurrentHistoryPage(1);
   if (type !== 'all' && type !== 'stats') {
@@ -41,8 +43,24 @@ export function switchType(type) {
   } else {
     // 离开统计 tab：隐藏 statsPanel，恢复 dashboard 和 history
     if (statsPanel) statsPanel.style.display = 'none';
-    if (dashboardPanel) dashboardPanel.style.display = '';
-    if (historySection) historySection.style.display = '';
+    if (dashboardPanel) {
+      dashboardPanel.style.display = '';
+      if (getComingFromStats()) {
+        dashboardPanel.style.animation = 'statsChartFadeIn 0.4s ease-out';
+        dashboardPanel.addEventListener('animationend', () => {
+          dashboardPanel.style.animation = '';
+        }, { once: true });
+      }
+    }
+    if (historySection) {
+      historySection.style.display = '';
+      if (getComingFromStats()) {
+        historySection.style.animation = 'statsChartFadeIn 0.4s ease-out';
+        historySection.addEventListener('animationend', () => {
+          historySection.style.animation = '';
+        }, { once: true });
+      }
+    }
   }
 
   if (type === 'all') {

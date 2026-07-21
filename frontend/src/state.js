@@ -11,6 +11,7 @@ let currentServerType = "";
 let filterSearchText = "";  // 搜索关键词
 let filterRarity = 0;   // 0: 全部，3/4/5/6: 指定稀有度
 let filterIsFree = -1;  // -1: 不筛选, 0: 非免费, 1: 免费
+let comingFromStats = false;
 
 // 全局数据存储
 let globalCharData = null;
@@ -121,3 +122,6 @@ export function setFilterRarity(v) { filterRarity = v; }
 
 export function getFilterIsFree() { return filterIsFree; }
 export function setFilterIsFree(v) { filterIsFree = v; }
+
+export function getComingFromStats() { return comingFromStats; }
+export function setComingFromStats(v) { comingFromStats = v; }

@@ -1,4 +1,4 @@
-import { getGachaChartInstance, setGachaChartInstance, setIsFetching } from './state.js';
+import { getGachaChartInstance, setGachaChartInstance, setIsFetching, getComingFromStats } from './state.js';
 import { destroyStatsCharts } from './render/chart.js';
 import { SNACKBAR_AUTO_CLOSE, JADE_PER_PULL, JADE_PER_STONE, WEAPON_QUOTA_PER_TEN } from './constants.js';
 
@@ -84,6 +84,12 @@ export function updateSummaryStripVisibility(visible) {
   const summaryStrip = document.getElementById('summaryStrip');
   if (!summaryStrip) return;
   summaryStrip.style.display = visible ? 'flex' : 'none';
+  if (visible && getComingFromStats()) {
+    summaryStrip.style.animation = 'statsChartFadeIn 0.4s ease-out';
+    summaryStrip.addEventListener('animationend', () => {
+      summaryStrip.style.animation = '';
+    }, { once: true });
+  }
 }
 
 export function clearDisplay() {

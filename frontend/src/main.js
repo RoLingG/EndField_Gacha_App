@@ -4,9 +4,9 @@ import {
 } from "../wailsjs/go/main/App";
 
 import {
-  setCachedHgToken, setCurrentUid, setCurrentServerType, setGlobalCharData,
-  setGlobalWeaponData, setCurrentType, setLastDataType, setCurrentPool, setCurrentAllPoolsData,
-  setIsAllPoolsMode, getIsFetching, getCurrentServerType, getCurrentUid, setIsFetching,
+  setCachedHgToken, setCurrentUid, setCurrentServerType, setGlobalCharData, setGlobalWeaponData,
+  setCurrentType, setLastDataType, setCurrentPool, setCurrentAllPoolsData, setIsAllPoolsMode,
+  setIsFetching, getIsFetching, getCurrentServerType, getCurrentUid, getCurrentType,
 } from './state.js';
 
 import { APP_ELEMENT_IDS, SNACKBAR_AUTO_CLOSE } from './constants.js';
@@ -194,29 +194,20 @@ function startExitAnimation() {
         }
         const elements = APP_ELEMENT_IDS.map(id => document.getElementById(id));
         const flexIds = new Set(["mainTitle", "typeSwitcher", "dashboardPanel"]);
-        const noAnimIds = new Set(["poolSelectorWrapper", "dashboardPanel"]);
         elements.forEach((el) => {
-          if (!el) return;
+          if (!el || el.id === 'statsPanel') return;
           const needFlex = flexIds.has(el.id) || (el.id === 'summaryStrip' && el.style.display !== 'none');
           el.style.display = needFlex ? 'flex' : 'block';
-          if (noAnimIds.has(el.id)) {
-            el.style.opacity = "1";
-            el.style.visibility = "visible";
-          }
         });
-        const animatedEls = elements.filter(el => el && !noAnimIds.has(el.id));
-        animatedEls.forEach((el, index) => {
+        elements.forEach((el, index) => {
+          if (!el || el.id === 'statsPanel') return;
           setTimeout(() => {
-            el.style.transition = "all 0.5s ease-out";
+            el.style.transition = "opacity 0.5s ease-out, visibility 0.5s ease-out, transform 0.5s ease-out";
             el.style.opacity = "1";
             el.style.visibility = "visible";
             el.style.transform = "translateY(0)";
           }, index * 100);
         });
-        setTimeout(() => {
-          const statsPanel = document.getElementById('statsPanel');
-          if (statsPanel) statsPanel.style.display = 'none';
-        }, animatedEls.length * 100 + 500);
       }, 500);
     }, 400);
   }, 400);
@@ -345,4 +336,51 @@ window.addEventListener('DOMContentLoaded', () => {
   // 翻页
   document.getElementById('prevPageBtn')?.addEventListener('click', () => changePage(-1));
   document.getElementById('nextPageBtn')?.addEventListener('click', () => changePage(1));
+
+  // 快捷键
+  document.addEventListener('keydown', (e) => {
+    // 输入框内不触发快捷键
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    // Ctrl+R 重置到初始界面
+    if (e.ctrlKey && e.key === 'r') {
+      e.preventDefault();
+      resetToAnalyze();
+      return;
+    }
+
+    // 以下快捷键仅在 APP 加载后生效
+    const appLoaded = document.getElementById('dashboardPanel')?.style.display !== 'none'
+      || document.getElementById('statsPanel')?.style.display !== 'none';
+    if (!appLoaded) return;
+
+    // Tab 切换类型循环
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const types = ['char', 'weapon', 'all', 'stats'];
+      const idx = types.indexOf(getCurrentType());
+      switchType(types[(idx + 1) % types.length]);
+      return;
+    }
+
+    // ← → 翻页
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      changePage(-1);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      changePage(1);
+      return;
+    }
+
+    // Esc 关闭池子下拉菜单
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.pool-menu.show').forEach(m =>
+          m.classList.remove('show')
+      );
+    }
+  });
 });
