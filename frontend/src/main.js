@@ -10,10 +10,10 @@ import {
 } from './state.js';
 
 import { APP_ELEMENT_IDS, SNACKBAR_AUTO_CLOSE } from './constants.js';
-import { switchType } from './render/main.js';
+import { switchType, rerenderStatsCharts } from './render/main.js';
 import { changePage, resetFilters } from './render/history.js';
 import { updateOrCreateChart } from './render/chart.js';
-import { setChartUpdater, initThemeToggle } from './theme.js';
+import { setChartUpdater, setStatsChartUpdater, initThemeToggle } from './theme.js';
 import { showAppSnackbar, setFetchingState } from './utils.js';
 import { showTokenInputUI, handleOfficialLoginWindow, handleToken, setDataLoader,} from './auth.js';
 import { onSelectServer, loadLocal, handleImportTemp, initApp, setExitAnimator,} from './loader.js';
@@ -22,6 +22,7 @@ import { onSelectServer, loadLocal, handleImportTemp, initApp, setExitAnimator,}
 // 注入回调，打破循环依赖
 // ============================================
 setChartUpdater(updateOrCreateChart);
+setStatsChartUpdater(rerenderStatsCharts);
 setExitAnimator(startExitAnimation);
 setDataLoader(initApp);
 
@@ -193,21 +194,29 @@ function startExitAnimation() {
         }
         const elements = APP_ELEMENT_IDS.map(id => document.getElementById(id));
         const flexIds = new Set(["mainTitle", "typeSwitcher", "dashboardPanel"]);
+        const noAnimIds = new Set(["poolSelectorWrapper", "dashboardPanel"]);
         elements.forEach((el) => {
           if (!el) return;
           const needFlex = flexIds.has(el.id) || (el.id === 'summaryStrip' && el.style.display !== 'none');
           el.style.display = needFlex ? 'flex' : 'block';
-        });
-        elements.forEach((el, index) => {
-          if (el) {
-            setTimeout(() => {
-              el.style.transition = "all 0.5s ease-out";
-              el.style.opacity = "1";
-              el.style.visibility = "visible";
-              el.style.transform = "translateY(0)";
-            }, index * 100);
+          if (noAnimIds.has(el.id)) {
+            el.style.opacity = "1";
+            el.style.visibility = "visible";
           }
         });
+        const animatedEls = elements.filter(el => el && !noAnimIds.has(el.id));
+        animatedEls.forEach((el, index) => {
+          setTimeout(() => {
+            el.style.transition = "all 0.5s ease-out";
+            el.style.opacity = "1";
+            el.style.visibility = "visible";
+            el.style.transform = "translateY(0)";
+          }, index * 100);
+        });
+        setTimeout(() => {
+          const statsPanel = document.getElementById('statsPanel');
+          if (statsPanel) statsPanel.style.display = 'none';
+        }, animatedEls.length * 100 + 500);
       }, 500);
     }, 400);
   }, 400);
@@ -331,6 +340,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnTypeChar')?.addEventListener('click', () => switchType('char'));
   document.getElementById('btnTypeWeapon')?.addEventListener('click', () => switchType('weapon'));
   document.getElementById('btnTypeAll')?.addEventListener('click', () => switchType('all'));
+  document.getElementById('btnTypeStats')?.addEventListener('click', () => switchType('stats'));
 
   // 翻页
   document.getElementById('prevPageBtn')?.addEventListener('click', () => changePage(-1));

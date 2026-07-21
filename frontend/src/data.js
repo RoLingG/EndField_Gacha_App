@@ -126,3 +126,133 @@ export function mergeAllPoolsData(dataMap, type = 'char') {
   }
   return merged;
 }
+
+// 平均出货抽数（排除免费抽，按池隔离计算再取平均）
+export function calculateAvgPity(items) {
+  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs));
+  let currentPoolPulls = 0;
+  let sixCount = 0;
+  let lastPool = null;
+  const poolAvgList = [];
+  for (const item of sorted) {
+    if (item.isFree) continue;
+    if (lastPool !== null && item.poolName !== lastPool) {
+      currentPoolPulls = 0;
+    }
+    lastPool = item.poolName;
+    currentPoolPulls++;
+    if (item.rarity === 6) {
+      poolAvgList.push(currentPoolPulls);
+      currentPoolPulls = 0;
+      sixCount++;
+    }
+  }
+  // 最后一个池未出6★的抽数不计入平均（没有出货就不计入平均水位）
+  const avgPity = poolAvgList.length > 0
+    ? +(poolAvgList.reduce((a, b) => a + b, 0) / poolAvgList.length).toFixed(1)
+    : 0;
+  return { avgPity, sixStarCount: sixCount };
+}
+
+// 最长不出货记录（排除免费抽，跨池重置保底计数）
+export function calculateMaxDrought(items) {
+  // 按时间升序排序，确保抽数计算顺序正确
+  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs));
+  let maxDrought = 0;
+  let currentStreak = 0;
+  let lastPool = null;
+  for (const item of sorted) {
+    if (item.isFree) continue;
+    // 切换卡池时重置保底计数（保底不跨池继承）
+    if (lastPool !== null && item.poolName !== lastPool) {
+      if (currentStreak > maxDrought) maxDrought = currentStreak;
+      currentStreak = 0;
+    }
+    lastPool = item.poolName;
+    if (item.rarity === 6) {
+      if (currentStreak > maxDrought) maxDrought = currentStreak+1;
+      currentStreak = 0;
+    } else {
+      currentStreak++;
+    }
+  }
+  return { maxDrought, currentDrought: currentStreak };
+}
+
+// 按月统计抽数和出货数（排除免费抽）
+export function calculateMonthlyStats(items, poolConfig = {}) {
+  const monthMap = new Map();
+  for (const item of items) {
+    if (item.isFree) continue;
+    const date = new Date(Number(item.gachaTs));
+    if (isNaN(date.getTime())) continue;
+    const month = date.toISOString().slice(0, 7);
+    if (!monthMap.has(month)) {
+      monthMap.set(month, { totalPulls: 0, sixStarCount: 0, upCount: 0, offCount: 0 });
+    }
+    const entry = monthMap.get(month);
+    entry.totalPulls++;
+    if (item.rarity === 6) {
+      entry.sixStarCount++;
+      const upName = poolConfig[item.poolName];
+      if (upName && getItemName(item) === upName) {
+        entry.upCount++;
+      } else {
+        entry.offCount++;
+      }
+    }
+  }
+  const result = [];
+  for (const [month, data] of monthMap) {
+    result.push({
+      month,
+      totalPulls: data.totalPulls,
+      sixStarCount: data.sixStarCount,
+      upCount: data.upCount,
+      offCount: data.offCount,
+      rate: data.sixStarCount > 0
+        ? ((data.sixStarCount / data.totalPulls) * 100).toFixed(2) + '%'
+        : '0.00%'
+    });
+  }
+  // 按月份从旧到新排序
+  result.sort((a, b) => a.month.localeCompare(b.month));
+  return result;
+}
+
+// 6★ 之间的抽数间隔分布（排除免费抽，跨池重置保底计数）
+export function calculatePityDistribution(items, poolConfig = {}) {
+  // 按时间升序排序，确保抽数计算顺序正确
+  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs));
+  const buckets = [0, 0, 0, 0, 0, 0, 0, 0, 0]; // 1-10, 11-20, ..., 71-80, 80+
+  const upBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const offBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let streak = 0;
+  let lastPool = null;
+  for (const item of sorted) {
+    if (item.isFree) continue;
+    // 切换卡池时重置保底计数（保底不跨池继承）
+    if (lastPool !== null && item.poolName !== lastPool) {
+      streak = 0;
+    }
+    lastPool = item.poolName;
+    streak++;
+    if (item.rarity === 6) {
+      const bucketIndex = Math.min(Math.floor((streak - 1) / 10), 8);
+      buckets[bucketIndex]++;
+      const upName = poolConfig[item.poolName];
+      if (upName && getItemName(item) === upName) {
+        upBuckets[bucketIndex]++;
+      } else {
+        offBuckets[bucketIndex]++;
+      }
+      streak = 0;
+    }
+  }
+  return {
+    labels: ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '80+'],
+    counts: buckets,
+    upCounts: upBuckets,
+    offCounts: offBuckets
+  };
+}

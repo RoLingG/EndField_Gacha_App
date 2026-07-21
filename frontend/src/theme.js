@@ -10,6 +10,12 @@ export function setChartUpdater(fn) {
   chartUpdater = fn;
 }
 
+// stats 图表重建回调
+let statsChartUpdater = null;
+export function setStatsChartUpdater(fn) {
+  statsChartUpdater = fn;
+}
+
 // 主题色
 const themes = {
   day: {
@@ -79,6 +85,11 @@ export function applyTheme(theme) {
         chartUpdater(dataMap[getCurrentPool()]);
       }
     }
+  }
+
+  // 重建 stats 图表（如果当前在 stats 标签页）
+  if (statsChartUpdater) {
+    statsChartUpdater();
   }
 }
 

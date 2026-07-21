@@ -1,4 +1,5 @@
 import { getGachaChartInstance, setGachaChartInstance, setIsFetching } from './state.js';
+import { destroyStatsCharts } from './render/chart.js';
 import { SNACKBAR_AUTO_CLOSE, JADE_PER_PULL, JADE_PER_STONE, WEAPON_QUOTA_PER_TEN } from './constants.js';
 
 // mdui Snackbar封装
@@ -91,6 +92,7 @@ export function clearDisplay() {
     chartInstance.destroy();
     setGachaChartInstance(null);
   }
+  destroyStatsCharts();
   const chartContainer = document.getElementById("chartContainer");
   chartContainer.querySelectorAll("canvas, .chart-no-data").forEach(el => el.remove());
   document.getElementById("rareCharsContainer").innerHTML = "";

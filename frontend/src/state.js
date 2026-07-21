@@ -21,6 +21,8 @@ let currentPool = null;
 let currentAllPoolsData = null;
 let isAllPoolsMode = false;
 let gachaChartInstance = null;
+let pityDistChartInstance = null;
+let monthlyTrendChartInstance = null;
 
 // 主题
 let globalTheme = "night";
@@ -79,6 +81,12 @@ export function setIsAllPoolsMode(v) { isAllPoolsMode = v; }
 
 export function getGachaChartInstance() { return gachaChartInstance; }
 export function setGachaChartInstance(v) { gachaChartInstance = v; }
+
+export function getPityDistChartInstance() { return pityDistChartInstance; }
+export function setPityDistChartInstance(v) { pityDistChartInstance = v; }
+
+export function getMonthlyTrendChartInstance() { return monthlyTrendChartInstance; }
+export function setMonthlyTrendChartInstance(v) { monthlyTrendChartInstance = v; }
 
 export function getGlobalTheme() { return globalTheme; }
 export function setGlobalTheme(v) { globalTheme = v; }

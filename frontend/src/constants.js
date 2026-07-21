@@ -1,7 +1,7 @@
 // 需要参与入场/出场动画的 APP 主内容元素 ID
 export const APP_ELEMENT_IDS = [
   "mainTitle", "typeSwitcher", "poolSelectorWrapper",
-  "summaryStrip", "dashboardPanel", "historySection"
+  "summaryStrip", "dashboardPanel", "statsPanel", "historySection"
 ];
 
 // 游戏机制常量
