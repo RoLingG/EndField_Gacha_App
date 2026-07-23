@@ -7,6 +7,7 @@ import {
   getCurrentPool, setCurrentPool,
 } from './state.js';
 import { showAppSnackbar } from './utils.js';
+import { t } from './i18n.js';
 
 // 追踪当前的 click-outside handler，避免重复绑定
 let currentOutsideClickHandler = null;
@@ -60,7 +61,7 @@ export async function updatePoolConfigHandler() {
   } catch (err) {
     console.error("Failed to update pool config:", err);
     showAppSnackbar({
-      message: "[ERROR] 更新失败 / Update failed: " + err,
+      message: t('snackbar.updateFailed') + err,
       type: "error",
       autoCloseDelay: SNACKBAR_AUTO_CLOSE,
     });
@@ -86,7 +87,7 @@ export function createPoolButtons(dataMap, onPoolChange, type = 'char') {
 
   const label = document.createElement('label');
   label.className = 'pool-select-label';
-  label.textContent = 'SELECT POOL //';
+  label.textContent = t('pool.select');
   container.appendChild(label);
 
   const dropdown = document.createElement('div');

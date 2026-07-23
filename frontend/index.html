@@ -18,11 +18,11 @@
 <!-- 顶部窗口栏 -->
 <header class="fake-menu">
     <div class="brand-tag">ENDFIELD // GACHA LOG</div>
-    <span class="fake-menu-item" id="btnReload">[ SYSTEM_RELOAD ]</span>
-    <span class="fake-menu-item" id="btnOpenFolder">[ DATA_FOLDER ]</span>
-    <span class="fake-menu-item" id="btnExportExcel">[ EXPORT_EXCEL ]</span>
-    <span class="fake-menu-item" id="btnCancelFetch" style="display:none;">[ CANCEL_FETCH ]</span>
-    <span class="fake-menu-item theme-toggle" id="themeToggle">[ MODE: NIGHT ]</span>
+    <span class="fake-menu-item" id="btnReload" data-i18n="menu.reload">[ SYSTEM_RELOAD ]</span>
+    <span class="fake-menu-item" id="btnOpenFolder" data-i18n="menu.dataFolder">[ DATA_FOLDER ]</span>
+    <span class="fake-menu-item" id="btnExportExcel" data-i18n="menu.exportExcel">[ EXPORT_EXCEL ]</span>
+    <span class="fake-menu-item" id="btnCancelFetch" style="display:none;" data-i18n="menu.cancelFetch">[ CANCEL_FETCH ]</span>
+    <span class="fake-menu-item theme-toggle" id="themeToggle" data-i18n="menu.modeNight">[ MODE: NIGHT ]</span>
     <div class="window-controls">
         <button class="win-btn" id="minBtn">_</button>
         <button class="win-btn" id="maxBtn">□</button>
@@ -38,76 +38,76 @@
         <div style="text-align:center;margin-bottom:24px; position: relative;">
             <img src="./src/assets/images/logo.jpg" class="analyze-logo" />
         </div>
-        <div class="analyze-title">TERMINAL ACCESS<br>
-            <span class="analyze-sub-title">终末地寻访记录</span>
+        <div class="analyze-title"><span data-i18n="login.terminalAccess">TERMINAL ACCESS</span><br>
+            <span class="analyze-sub-title" data-i18n="login.subtitle">终末地寻访记录</span>
         </div>
         <div id="analyzeDescription">
-            <div class="analyze-desc">> WEB TOKEN SYNC 请求鹰角官方接口获取数据<br>> LOCAL INITIALIZE 读取本地 JSON 文件获取数据<br>> 第一次获取官方数据会在APP同级目录下生成数据文件夹<br>> 每次从官方接口获取数据都会查重增量同步合并到本地</div>
+            <div class="analyze-desc" data-i18n-html="login.desc">> WEB TOKEN SYNC 请求鹰角官方接口获取数据</div>
         </div>
 
         <div class="analyze-divider"></div>
 
         <div id="tokenInputArea" style="display:none; animation: fadeIn 0.5s;">
-            <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
+            <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);" data-i18n-html="login.protocol">
                 > LOGIN PROTOCOL // 推荐方式<br>
             </div>
-            <button id="btnLoginWindow" class="ef-btn ef-btn-outline" style="border: 1px solid var(--ef-yellow);">
+            <button id="btnLoginWindow" class="ef-btn ef-btn-outline" style="border: 1px solid var(--ef-yellow);" data-i18n="login.connectOfficial">
                 CONNECT (OFFICIAL)
             </button>
 
             <!-- 分割线 -->
             <div class="analyze-divider"></div>
 
-            <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);">
+            <div class="analyze-important-desc" style="margin-bottom: 12px; color: var(--ef-yellow);" data-i18n="login.manualOverride">
                 > MANUAL OVERRIDE // 手动粘贴 Token
             </div>
             <form id="tokenForm" style="margin: 0; padding: 0;">
-                <input type="text" id="webTokenInput" name="endfield_hg_token" autocomplete="on" class="ef-input" placeholder="PASTE TOKEN HERE //" />
+                <input type="text" id="webTokenInput" name="endfield_hg_token" autocomplete="on" class="ef-input" placeholder="PASTE TOKEN HERE //" data-i18n-placeholder="login.tokenPlaceholder" />
 
-                <button type="submit" id="btnManualConnect" class="ef-btn ef-btn-outline" style="margin-top: 10px;">
-                    CONNECT (LOCAL)
+                <button type="submit" id="btnManualConnect" class="ef-btn ef-btn-outline" style="margin-top: 10px;" data-i18n="login.connect">
+                    CONNECT
                 </button>
             </form>
 
             <div class="analyze-divider"></div>
 
-            <div id="cancelTokenInput" style="text-align:center; cursor:pointer; font-size:12px; color:#666;">[ CANCEL / 取消 ]</div>
+            <div id="cancelTokenInput" style="text-align:center; cursor:pointer; font-size:12px; color:#666;" data-i18n="dialog.cancel">[ CANCEL / 取消 ]</div>
         </div>
 
         <!-- 角色选择区域 -->
         <div id="playerSelectArea" style="display:none; animation: fadeIn 0.5s;">
-            <div class="analyze-important-desc" style="margin-bottom: 12px;">
+            <div class="analyze-important-desc" style="margin-bottom: 12px;" data-i18n-html="login.multiAccount">
                 > TARGET IDENTIFIED // 检测到多个角色<br>> SELECT YOUR SERVER DATA // 选择要同步的服务器数据
             </div>
             <!-- 角色列表容器 -->
             <div id="playerListContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;"></div>
             <div class="analyze-divider"></div>
-            <div id="cancelPlayerSelect" style="text-align:center; cursor:pointer; font-size:12px; color:#666;">[ CANCEL / 取消 ]</div>
+            <div id="cancelPlayerSelect" style="text-align:center; cursor:pointer; font-size:12px; color:#666;" data-i18n="dialog.cancel">[ CANCEL / 取消 ]</div>
         </div>
 
         <div id="logModeTips" style="display:none;">
-            <div class="analyze-desc">> 请确定系统用户路径下终末地的 HGWebview.log 访问权限<br>> 点击按钮开始解析 HGWebview.log 日志文件并初始化记录</div>
-            <div class="analyze-important-desc">> 注意: 需要玩家看过游戏内卡池抽卡记录才会产生相关日志</div>
+            <div class="analyze-desc" data-i18n-html="login.logModeTips">> 请确定系统用户路径下终末地的 HGWebview.log 访问权限<br>> 点击按钮开始解析 HGWebview.log 日志文件并初始化记录</div>
+            <div class="analyze-important-desc" data-i18n="login.logModeWarning">> 注意: 需要玩家看过游戏内卡池抽卡记录才会产生相关日志</div>
         </div>
         <div class="analyze-divider" style="display: none"></div>
 
         <!-- 服务器选择区域 (默认隐藏) -->
         <div id="serverSelectArea" style="display:none; animation: fadeIn 0.5s;">
-            <div class="analyze-important-desc" style="margin-bottom: 12px; border-color: var(--ef-grey); color: var(--ef-yellow);">
+            <div class="analyze-important-desc" style="margin-bottom: 12px; border-color: var(--ef-grey); color: var(--ef-yellow);" data-i18n-html="login.serverConflict">
                 > SIGNAL CONFLICT // 检测到多端数据<br>> SELECT YOUR SERVER // 请选择要同步的服务器节点
             </div>
-            <button id="btnOfficial" class="ef-btn ef-btn-outline" style="margin-bottom: 10px;">OFFICIAL // 官服</button>
-            <button id="btnBilibili" class="ef-btn ef-btn-outline">BILIBILI // B服</button>
+            <button id="btnOfficial" class="ef-btn ef-btn-outline" style="margin-bottom: 10px;" data-i18n="login.official">OFFICIAL</button>
+            <button id="btnBilibili" class="ef-btn ef-btn-outline" data-i18n="login.bilibili">BILIBILI</button>
             <div class="analyze-divider"></div>
-            <div id="cancelServerSelect" style="text-align:center; cursor:pointer; font-size:12px; color:#666;">[ CANCEL / 取消 ]</div>
+            <div id="cancelServerSelect" style="text-align:center; cursor:pointer; font-size:12px; color:#666;" data-i18n="dialog.cancel">[ CANCEL / 取消 ]</div>
         </div>
 
         <!-- 按钮组 -->
         <div id="defaultBtnGroup">
-            <button id="webTokenBtn" class="ef-btn" style="margin-top: 10px;">WEB TOKEN SYNC</button>
-            <button id="localBtn" class="ef-btn ef-btn-outline" style="margin-top: 10px;">LOCAL INITIALIZE</button>
-            <button id="importBtn" class="ef-btn ef-btn-outline" style="margin-top: 10px; border-style: dashed;">IMPORT TEMP JSON</button>
-            <button id="analyzeBtn" class="ef-btn ef-btn-outline ef-btn-glitch" disabled style="margin-top: 10px" data-text="ONLINE INITIALIZE">ONLINE INITIALIZE</button>
+            <button id="webTokenBtn" class="ef-btn" style="margin-top: 10px;" data-i18n="login.webTokenSync">WEB TOKEN SYNC</button>
+            <button id="localBtn" class="ef-btn ef-btn-outline" style="margin-top: 10px;" data-i18n="login.localInit">LOCAL INITIALIZE</button>
+            <button id="importBtn" class="ef-btn ef-btn-outline" style="margin-top: 10px; border-style: dashed;" data-i18n="login.importJson">IMPORT JSON</button>
+            <button id="analyzeBtn" class="ef-btn ef-btn-outline ef-btn-glitch" disabled style="margin-top: 10px" data-text="ONLINE INITIALIZE" data-i18n="login.onlineInit">ONLINE INITIALIZE</button>
         </div>
         <div id="analyzeError"></div>
     </div>
@@ -135,25 +135,25 @@
 <!-- === 主内容区域 === -->
 <div class="main-content-wrapper">
     <h1 class="main-title" id="mainTitle">
-        <span>寻访数据概览 <span style="font-size:14px;color:#666"> // STATISTICS</span></span>
+        <span data-i18n="main.title">寻访数据概览 // STATISTICS</span>
         <span class="title-currency-info" id="currencyInfo" style="display:none;">
             <span id="charCurrency" style="display:none;">
-                <span class="currency-item">嵌晶玉 <span class="currency-val" id="jadeValue">0</span></span>
+                <span class="currency-item"><span data-i18n="currency.Oroberyl">嵌晶玉</span> <span class="currency-val" id="jadeValue">0</span></span>
                 <span class="currency-divider">//</span>
-                <span class="currency-item">衍质原石 <span class="currency-val" id="stoneValue">0</span></span>
+                <span class="currency-item"><span data-i18n="currency.Origeometry">衍质原石</span> <span class="currency-val" id="stoneValue">0</span></span>
             </span>
             <span id="weaponCurrency" style="display:none;">
-                <span class="currency-item">武器配额 <span class="currency-val" id="weaponQuotaValue">0</span></span>
+                <span class="currency-item"><span data-i18n="currency.ArsenalTicket">武器配额</span> <span class="currency-val" id="weaponQuotaValue">0</span></span>
             </span>
         </span>
     </h1>
 
     <!-- 类型切换 Tab -->
     <div class="type-switcher" id="typeSwitcher" style="display:none;">
-        <button class="type-btn active" id="btnTypeChar">[ CHARACTERS / 干员 ]</button>
-        <button class="type-btn" id="btnTypeWeapon">[ WEAPONS / 武器 ]</button>
-        <button class="type-btn" id="btnTypeAll">[ ALL / 汇总分析 ]</button>
-        <button class="type-btn" id="btnTypeStats">[ STATISTICS / 统计分析 ]</button>
+        <button class="type-btn active" id="btnTypeChar" data-i18n="typeSwitcher.char">[ CHAR / 角色 ]</button>
+        <button class="type-btn" id="btnTypeWeapon" data-i18n="typeSwitcher.weapon">[ WEAPON / 武器 ]</button>
+        <button class="type-btn" id="btnTypeAll" data-i18n="typeSwitcher.all">ALL / 汇总分析</button>
+        <button class="type-btn" id="btnTypeStats" data-i18n="typeSwitcher.stats">STATS / 统计分析</button>
     </div>
 
     <!-- 卡池选择器 -->
@@ -179,11 +179,11 @@
         <div class="stats-cards-row" id="statsCardsRow"></div>
         <div class="stats-charts">
             <div class="stats-chart-box" id="pityDistChartContainer">
-                <div class="stats-chart-title">[ PITY DISTRIBUTION / 抽数分布 ]</div>
+                <div class="stats-chart-title" data-i18n="stats.pityDistribution">[ PITY DISTRIBUTION / 抽数分布 ]</div>
                 <div class="stats-chart-body" id="pityDistChartBody"></div>
             </div>
             <div class="stats-chart-box" id="monthlyChartContainer" style="display:none;">
-                <div class="stats-chart-title">[ MONTHLY TREND / 月度趋势 ]</div>
+                <div class="stats-chart-title" data-i18n="stats.monthlyTrend">[ MONTHLY TREND / 月度趋势 ]</div>
                 <div class="stats-chart-body" id="monthlyChartBody"></div>
             </div>
         </div>
@@ -192,20 +192,20 @@
     <!-- 历史记录列表 -->
     <div class="history-section" id="historySection" style="display:none;">
         <div class="section-title">
-            <span>[ Gacha Record List ]</span>
+            <span data-i18n="history.title">[ Gacha Record List ]</span>
             <div class="history-filter-bar" id="historyFilterBar">
-                <input type="text" id="filterSearchInput" placeholder="SEARCH NAME..." />
+                <input type="text" id="filterSearchInput" placeholder="SEARCH NAME..." data-i18n-placeholder="history.searchPlaceholder" />
                 <select id="filterRaritySelect">
-                    <option value="0">ALL ★</option>
+                    <option value="0" data-i18n="history.filterAll">ALL ★</option>
                     <option value="6">6★</option>
                     <option value="5">5★</option>
                     <option value="4">4★</option>
                     <option value="3">3★</option>
                 </select>
                 <select id="filterIsFreeSelect">
-                    <option value="-1">ALL</option>
-                    <option value="0">PAID</option>
-                    <option value="1">FREE</option>
+                    <option value="-1" data-i18n="history.filterAllSimple">ALL</option>
+                    <option value="0" data-i18n="history.paid">PAID</option>
+                    <option value="1" data-i18n="history.free">FREE</option>
                 </select>
             </div>
         </div>
@@ -213,11 +213,11 @@
             <table class="ef-table">
                 <thead>
                 <tr>
-                    <th>NUMBER</th>
+                    <th data-i18n="history.colNumber">NUMBER</th>
                     <th id="thName"></th>
-                    <th>RARITY</th>
-                    <th>POOL</th>
-                    <th>ISFREE</th>
+                    <th data-i18n="history.colRarity">RARITY</th>
+                    <th data-i18n="history.colPool">POOL</th>
+                    <th data-i18n="history.colIsFree">ISFREE</th>
                 </tr>
                 </thead>
                 <tbody id="historyTableBody"></tbody>
@@ -1505,6 +1505,67 @@
     .page-btn:disabled {
         color: #333;
         cursor: not-allowed;
+    }
+
+    /* 历史记录换页滑动动画 */
+    @keyframes historySlideOutLeft {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+    }
+
+    @keyframes historySlideOutRight {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+    }
+
+    @keyframes historySlideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes historySlideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    #historyTableBody.history-slide-out-left {
+        animation: historySlideOutLeft 0.1s ease-out forwards;
+    }
+
+    #historyTableBody.history-slide-out-right {
+        animation: historySlideOutRight 0.1s ease-out forwards;
+    }
+
+    #historyTableBody.history-slide-in-left {
+        animation: historySlideInLeft 0.1s ease-out forwards;
+    }
+
+    #historyTableBody.history-slide-in-right {
+        animation: historySlideInRight 0.1s ease-out forwards;
     }
 
     /* 筛选栏 */

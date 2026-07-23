@@ -25,6 +25,9 @@ let gachaChartInstance = null;
 let pityDistChartInstance = null;
 let monthlyTrendChartInstance = null;
 
+// 全局语言
+let globalLang = "zh";
+
 // 主题
 let globalTheme = "night";
 const themeStorageKey = "ef-theme";
@@ -91,6 +94,9 @@ export function setMonthlyTrendChartInstance(v) { monthlyTrendChartInstance = v;
 
 export function getGlobalTheme() { return globalTheme; }
 export function setGlobalTheme(v) { globalTheme = v; }
+
+export function getGlobalLang() { return globalLang; }
+export function setGlobalLang(v) { globalLang = v; }
 
 export function getThemeStorageKey() { return themeStorageKey; }
 

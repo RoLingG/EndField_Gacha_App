@@ -16,6 +16,8 @@ import { updateOrCreateChart } from './render/chart.js';
 import { setChartUpdater, setStatsChartUpdater, initThemeToggle } from './theme.js';
 import { showAppSnackbar, setFetchingState } from './utils.js';
 import { showTokenInputUI, handleOfficialLoginWindow, handleToken, setDataLoader,} from './auth.js';
+import { loadLocale, applyToDOM, t } from './i18n.js';
+import { getGlobalLang } from './state.js';
 import { onSelectServer, loadLocal, handleImportTemp, initApp, setExitAnimator,} from './loader.js';
 
 // ============================================
@@ -73,14 +75,14 @@ async function handleCancelFetch() {
   if (!getIsFetching()) return;
 
   const dialog = document.createElement('mdui-dialog');
-  dialog.headline = '// CONFIRM CANCELLATION';
-  dialog.description = '> 确定要取消当前操作吗？已抓取的数据将会丢失。';
+  dialog.headline = t('dialog.confirmCancellation');
+  dialog.description = t('dialog.cancelFetchDesc');
   dialog.innerHTML = `
     <mdui-button slot="action" variant="text" class="dialog-cancel-btn">
-      [ CANCEL / 取消 ]
+      ${t('dialog.cancel')}
     </mdui-button>
     <mdui-button slot="action" variant="tonal" class="dialog-confirm-btn">
-      [ CONFIRM / 确定 ]
+      ${t('dialog.confirm')}
     </mdui-button>
   `;
   document.body.appendChild(dialog);
@@ -95,13 +97,13 @@ async function handleCancelFetch() {
     try {
       await CancelCurrentOperation();
       showAppSnackbar({
-        message: "[CANCELLED] 操作已取消 / Operation Canceled",
+        message: t('snackbar.operationCancelled'),
         type: "warning"
       });
     } catch (err) {
       console.error(err);
       showAppSnackbar({
-        message: "[ERROR] 操作取消失败: " + err,
+        message: t('snackbar.cancelFailed') + err,
         type: "error",
         autoCloseDelay: SNACKBAR_AUTO_CLOSE,
       });
@@ -117,7 +119,7 @@ async function handleCancelFetch() {
 async function handleExport() {
   if (!getCurrentServerType()) {
     showAppSnackbar({
-      message: "[WARNING] 请先加载数据 (Please Initialize Data First)",
+      message: t('snackbar.loadDataFirst'),
       type: "warning"
     });
     return;
@@ -126,7 +128,7 @@ async function handleExport() {
     const result = await ExportData(getCurrentUid(), getCurrentServerType());
     if (result === "success") {
       showAppSnackbar({
-        message: "[SUCCESS] 导出成功 / Export Completed",
+        message: t('snackbar.exportSuccess'),
         type: "success"
       });
     } else if (result === "cancelled") {
@@ -135,7 +137,7 @@ async function handleExport() {
   } catch (err) {
     console.error(err);
     showAppSnackbar({
-      message: "[ERROR] 导出失败: " + err,
+      message: t('snackbar.exportFailed') + err,
       type: "error",
       autoCloseDelay: SNACKBAR_AUTO_CLOSE,
     });
@@ -255,7 +257,7 @@ window.resetToAnalyze = function () {
   }
   const officialBtn = document.getElementById("btnLoginWindow");
   if (officialBtn) {
-    officialBtn.textContent = "CONNECT (OFFICIAL)";
+    officialBtn.textContent = t('login.connectOfficial');
     officialBtn.disabled = false;
   }
 
@@ -264,13 +266,13 @@ window.resetToAnalyze = function () {
 
   const btn = document.getElementById("analyzeBtn");
   if (btn) {
-    btn.textContent = "ONLINE INITIALIZE (LOG)";
+    btn.textContent = t('login.onlineInit');
     btn.disabled = false;
   }
 
   const localBtn = document.getElementById("localBtn");
   if (localBtn) {
-    localBtn.textContent = "LOCAL INITIALIZE";
+    localBtn.textContent = t('login.localInit');
     localBtn.disabled = false;
   }
 
@@ -282,7 +284,13 @@ window.resetToAnalyze = function () {
 // INIT & EVENTS
 // ============================================
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  // 加载语言包并应用翻译
+  await loadLocale(getGlobalLang());
+  applyToDOM();
+  // 更新 title
+  document.title = t('app.title');
+
   setTimeout(() => {
     const container = document.getElementById('analyzeContainer');
     if (container) container.classList.add('show');

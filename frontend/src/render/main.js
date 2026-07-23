@@ -14,6 +14,7 @@ import { createSummaryStrip, createAllPoolsSummaryStrip } from './summary.js';
 import { createRareRecordCard, createAllPoolsRareRecordsCard } from './rare.js';
 import { setPoolSelectorVisibility, updateSummaryStripVisibility, clearDisplay } from '../utils.js';
 import { createHistoryTable, createAllPoolsHistoryTable, renderEmptyHistoryTable, updateHistoryPaginationUI } from './history.js';
+import { t } from '../i18n.js';
 
 // 核心切换逻辑
 export function switchType(type) {
@@ -81,11 +82,11 @@ export function switchType(type) {
 export function renderByType(type) {
   if (type === 'all') {
     const allPoolsNoDataConfig = {
-      chartMessage: '// NO ALL-POOLS CHART DATA',
-      detailTitle: '// NO SUMMARY DATA',
-      detailDesc: '当前汇总模式下暂无可展示记录。<br>Please switch type or load another archive.',
-      historyMessage: '// NO ALL-POOLS HISTORY',
-      detailLabel: 'ALL POOLS ANALYSIS',
+      chartMessage: t('noData.allPoolsChart'),
+      detailTitle: t('noData.allPoolsSummary'),
+      detailDesc: t('noData.allPoolsDesc'),
+      historyMessage: t('noData.allPoolsHistory'),
+      detailLabel: t('noData.allPoolsAnalysis'),
       historyColspan: 5,
       hidePoolSelector: true
     };
@@ -124,18 +125,18 @@ export function renderByType(type) {
 
   const thEl = document.getElementById('thName');
   if (thEl) {
-    thEl.textContent = (type === 'char') ? "CHARACTER" : "WEAPON";
+    thEl.textContent = (type === 'char') ? t('table.character') : t('table.weapon');
   }
 }
 
 // 统一渲染无数据主界面
 export function renderNoDataState({
-  poolMessage = '// NO DATA RECORDS FOUND',
-  chartMessage = '// NO CHART DATA',
-  detailTitle = '// NO DETAIL DATA',
-  detailDesc = '当前所选类型暂无可展示记录。<br>Please switch pool/type or load another archive.',
-  historyMessage = '// NO HISTORY RECORDS',
-  detailLabel = 'TARGET POOL UNAVAILABLE',
+  poolMessage = t('noData.pool'),
+  chartMessage = t('noData.chart'),
+  detailTitle = t('noData.detail'),
+  detailDesc = t('noData.desc'),
+  historyMessage = t('noData.history'),
+  detailLabel = t('noData.targetUnavailable'),
   historyColspan = 5,
   hidePoolSelector = false
 } = {}) {
@@ -205,10 +206,10 @@ export function displayAllPoolsSummary(allItems) {
 export function updateAllBtnText() {
   const hint = (getLastDataType() === 'char') ? "CHAR" : "WEAPON";
   const allBtn = document.getElementById('btnTypeAll');
-  if (allBtn) allBtn.textContent = `[ ALL / 汇总分析 (${hint}) ]`;
+  if (allBtn) allBtn.textContent = `[ ${t('typeSwitcher.all')} (${hint}) ]`;
   const statsHint = getIsAllPoolsMode() ? "ALL" : hint;
   const statsBtn = document.getElementById('btnTypeStats');
-  if (statsBtn) statsBtn.textContent = `[ STATS / 统计分析 (${statsHint}) ]`;
+  if (statsBtn) statsBtn.textContent = `[ ${t('typeSwitcher.stats')} (${statsHint}) ]`;
 }
 
 // 统计分析 tab 入口
@@ -273,7 +274,7 @@ function renderStatsContent(items, isAllPools) {
 
   if (!items || items.length === 0) {
     if (statsCardsRow) statsCardsRow.innerHTML = '';
-    if (pityDistBody) pityDistBody.innerHTML = '<div style="color:#666;padding:40px;text-align:center;font-weight:bold;">// NO STATS DATA</div>';
+    if (pityDistBody) pityDistBody.innerHTML = `<div style="color:#666;padding:40px;text-align:center;font-weight:bold;">${t('stats.noData')}</div>`;
     if (monthlyBody) monthlyBody.innerHTML = '';
     if (monthlyContainer) monthlyContainer.style.display = 'none';
     destroyStatsCharts();
@@ -285,8 +286,8 @@ function renderStatsContent(items, isAllPools) {
   const drought = calculateMaxDrought(items);
   if (statsCardsRow) {
     statsCardsRow.innerHTML =
-      createStatCard('AVG PITY // 平均水位', avg.avgPity, `共 ${avg.sixStarCount} 个 6★`) +
-      createStatCard('MAX DROUGHT // 最大未抽出间隔', drought.maxDrought, `当前连续 ${drought.currentDrought} 抽未出 6★`);
+      createStatCard(t('stats.avgPity'), avg.avgPity, t('stats.total6Star', { count: avg.sixStarCount })) +
+      createStatCard(t('stats.maxDrought'), drought.maxDrought, t('stats.currentDrought', { count: drought.currentDrought }));
   }
 
   // 抽数分布图（始终显示）

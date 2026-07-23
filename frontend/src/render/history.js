@@ -8,6 +8,7 @@ import {
 } from '../state.js';
 import { getItemName } from '../data.js';
 import { showAppSnackbar } from '../utils.js';
+import { t } from '../i18n.js';
 
 // 统一渲染历史记录空状态
 export function renderEmptyHistoryTable(message, colspan = 5) {
@@ -29,7 +30,7 @@ export function updateHistoryPaginationUI(currentPage, totalPages) {
   const prevBtn = document.getElementById('prevPageBtn');
   const nextBtn = document.getElementById('nextPageBtn');
 
-  if (pageInfo) pageInfo.textContent = `PAGE ${currentPage} / ${totalPages}`;
+  if (pageInfo) pageInfo.textContent = `${t('pagination.page')} ${currentPage} / ${totalPages}`;
   if (prevBtn) prevBtn.disabled = (currentPage <= 1);
   if (nextBtn) nextBtn.disabled = (currentPage >= totalPages || totalPages === 0);
 }
@@ -109,32 +110,9 @@ function reRenderCurrentPage() {
   }
 }
 
-// 统一渲染卡池历史记录分页
-export function renderPagedHistoryTable({
-  items,
-  isAllPoolsMode,
-  getPoolLabel = () => 'UNKNOWN',
-  emptyMessage = 'NO DATA AVAILABLE',
-  emptyColspan = 5
-}) {
-  const tbody = document.getElementById('historyTableBody');
-  if (!tbody) return;
+// 渲染行到 tbody（内部辅助函数）
+function renderTableRows(tbody, pageItems, totalItems, startIndex, getPoolLabel, emptyMessage, emptyColspan) {
   tbody.innerHTML = '';
-
-  // 应用筛选
-  const filteredItems = applyFilters(items);
-  const totalItems = filteredItems.length;
-  const pageSize = getHistoryPageSize();
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  let page = getCurrentHistoryPage();
-  if (page < 1) page = 1;
-  if (page > totalPages) page = totalPages;
-  setCurrentHistoryPage(page);
-
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const pageItems = filteredItems.slice(startIndex, endIndex);
-
   if (pageItems.length === 0) {
     renderEmptyHistoryTable(emptyMessage, emptyColspan);
   } else {
@@ -154,6 +132,97 @@ export function renderPagedHistoryTable({
       tbody.appendChild(tr);
     });
   }
+}
+
+// 防止快速点击导致动画链条断裂
+let isAnimating = false;
+
+function cleanupAnimation(tbody) {
+  isAnimating = false;
+  tbody.classList.remove(
+      'history-slide-out-left', 'history-slide-out-right',
+      'history-slide-in-left', 'history-slide-in-right'
+  );
+  tbody.onanimationend = null;
+}
+
+// 换页动画 debounce，快速连点只执行最后一次
+let changePageDebounceTimer = null;
+
+function clearChangePageDebounce() {
+  if (changePageDebounceTimer) {
+    clearTimeout(changePageDebounceTimer);
+    changePageDebounceTimer = null;
+  }
+}
+
+// 统一渲染卡池历史记录分页
+// direction: "left" | "right" | null — 控制换页滑动方向
+export function renderPagedHistoryTable({
+  items,
+  isAllPoolsMode,
+  getPoolLabel = () => 'UNKNOWN',
+  emptyMessage = 'NO DATA AVAILABLE',
+  emptyColspan = 5,
+  direction = null
+}) {
+  const tbody = document.getElementById('historyTableBody');
+  if (!tbody) return;
+
+  // 应用筛选
+  const filteredItems = applyFilters(items);
+  const totalItems = filteredItems.length;
+  const pageSize = getHistoryPageSize();
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  let page = getCurrentHistoryPage();
+  if (page < 1) page = 1;
+  if (page > totalPages) page = totalPages;
+  setCurrentHistoryPage(page);
+
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const pageItems = filteredItems.slice(startIndex, endIndex);
+
+  // 首次加载、筛选、跳页直接渲染
+  if (!direction) {
+    clearChangePageDebounce();
+    renderTableRows(tbody, pageItems, totalItems, startIndex, getPoolLabel, emptyMessage, emptyColspan);
+    updateHistoryPaginationUI(page, totalPages);
+    initPageIndicatorEditing(totalPages, isAllPoolsMode);
+    return;
+  }
+  if (isAnimating) {
+    // 清理动画上一次切页的 Debounce
+    clearChangePageDebounce();
+    // 创建新 Debounce，设置延迟动画定时器，防止切页过快动画和渲染不匹配
+    // 这样做的好处是动画时间内无论点击了多少次，最后都是两次动画
+    // 但因为动画与点击较快，用户模糊视觉上认为是高速切页看不清动画而不是动画次数少了
+    changePageDebounceTimer = setTimeout(() => {
+      changePageDebounceTimer = null;
+      cleanupAnimation(tbody);
+      renderPagedHistoryTable({ items, isAllPoolsMode, getPoolLabel, emptyMessage, emptyColspan, direction });
+    }, 150);
+    updateHistoryPaginationUI(page, totalPages);
+    return;
+  }
+
+  isAnimating = true;
+  // 旧记录滑出 → 渲染新行 → 新记录滑入
+  const outClass = direction === 'left' ? 'history-slide-out-left' : 'history-slide-out-right';
+  const inClass = direction === 'left' ? 'history-slide-in-right' : 'history-slide-in-left';
+
+  // 旧记录滑出
+  tbody.classList.add(outClass);
+  // 动画结束后替换内容并滑入
+  tbody.onanimationend = () => {
+    tbody.classList.remove(outClass);
+    renderTableRows(tbody, pageItems, totalItems, startIndex, getPoolLabel, emptyMessage, emptyColspan);
+    // 新记录滑入
+    tbody.classList.add(inClass);
+    tbody.onanimationend = () => {
+      cleanupAnimation(tbody);
+    };
+  };
 
   updateHistoryPaginationUI(page, totalPages);
   initPageIndicatorEditing(totalPages, isAllPoolsMode);
@@ -172,13 +241,14 @@ export function createHistoryTable(dataMap, poolName) {
   renderHistoryPage();
 }
 
-export function renderHistoryPage() {
+export function renderHistoryPage(direction = null) {
   renderPagedHistoryTable({
     items: getCurrentHistoryData(),
     isAllPoolsMode: false,
     getPoolLabel: () => getCurrentPoolNameForPagination(),
-    emptyMessage: 'NO DATA AVAILABLE',
-    emptyColspan: 5
+    emptyMessage: t('noData.history'),
+    emptyColspan: 5,
+    direction
   });
 }
 
@@ -191,22 +261,24 @@ export function createAllPoolsHistoryTable(allItems) {
   renderAllPoolsHistoryPage();
 }
 
-export function renderAllPoolsHistoryPage() {
+export function renderAllPoolsHistoryPage(direction = null) {
   renderPagedHistoryTable({
     items: getCurrentHistoryData(),
     isAllPoolsMode: true,
     getPoolLabel: (item) => item.poolName,
-    emptyMessage: 'NO DATA AVAILABLE',
-    emptyColspan: 5
+    emptyMessage: t('noData.history'),
+    emptyColspan: 5,
+    direction
   });
 }
 
 export function changePage(delta) {
   setCurrentHistoryPage(getCurrentHistoryPage() + delta);
+  const direction = delta > 0 ? 'left' : 'right';
   if (getIsAllPoolsMode()) {
-    renderAllPoolsHistoryPage();
+    renderAllPoolsHistoryPage(direction);
   } else {
-    renderHistoryPage();
+    renderHistoryPage(direction);
   }
 }
 
@@ -277,7 +349,7 @@ function handlePageIndicatorDoubleClick(totalPages, isAllPoolsMode) {
 
     if (isNaN(newPage) || newPage < 1 || newPage > totalPages) {
       showAppSnackbar({
-        message: `[WARNING] Invalid page number. Please enter a number between 1 and ${totalPages}`,
+        message: t('pagination.invalidPage', { total: totalPages }),
         type: "warning"
       });
       pageIndicator.textContent = originalText;

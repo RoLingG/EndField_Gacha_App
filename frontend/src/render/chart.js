@@ -4,6 +4,7 @@ import {
   getMonthlyTrendChartInstance, setMonthlyTrendChartInstance,
   getGlobalTheme
 } from '../state.js';
+import { t } from '../i18n.js';
 
 function getStatsGridColor() {
   return getGlobalTheme() === 'day' ? '#cfcfc7' : '#444';
@@ -85,7 +86,7 @@ export function renderPityDistributionChart(distribution) {
       labels: distribution.labels,
       datasets: [
         {
-          label: '总计',
+          label: t('chart.labelTotal'),
           data: distribution.counts,
           backgroundColor: colors,
           borderColor: colors,
@@ -93,7 +94,7 @@ export function renderPityDistributionChart(distribution) {
           borderRadius: 4
         },
         {
-          label: 'UP',
+          label: t('chart.labelUp'),
           data: distribution.upCounts,
           backgroundColor: 'rgba(244, 67, 54, 0.7)',
           borderColor: '#f44336',
@@ -101,7 +102,7 @@ export function renderPityDistributionChart(distribution) {
           borderRadius: 4
         },
         {
-          label: '歪',
+          label: t('chart.labelOff'),
           data: distribution.offCounts,
           backgroundColor: 'rgba(76, 175, 80, 0.7)',
           borderColor: '#4caf50',
@@ -133,7 +134,7 @@ export function renderPityDistributionChart(distribution) {
           }
         },
         y: {
-          title: { display: true, text: '次数', font: { family: 'Consolas', size: 11 } },
+          title: { display: true, text: t('chart.yAxisTimes'), font: { family: 'Consolas', size: 11 } },
           border: { color: getStatsGridColor(), display: true },
           grid: { color: getStatsGridColor() },
           beginAtZero: true,
@@ -173,7 +174,7 @@ export function renderMonthlyTrendChart(monthlyData) {
       labels: monthlyData.map(d => d.month),
       datasets: [
         {
-          label: '月抽数',
+          label: t('chart.labelMonthlyPulls'),
           data: monthlyData.map(d => d.totalPulls),
           backgroundColor: 'rgba(255, 202, 40, 0.5)',
           borderColor: '#ffca28',
@@ -181,7 +182,7 @@ export function renderMonthlyTrendChart(monthlyData) {
           yAxisID: 'y'
         },
         {
-          label: '6★数量',
+          label: t('chart.label6StarCount'),
           data: monthlyData.map(d => d.sixStarCount),
           type: 'line',
           borderColor: '#ffd54f',
@@ -192,7 +193,7 @@ export function renderMonthlyTrendChart(monthlyData) {
           yAxisID: 'y1'
         },
         {
-          label: 'UP',
+          label: t('chart.labelUp'),
           data: monthlyData.map(d => d.upCount),
           type: 'line',
           borderColor: '#f44336',
@@ -203,7 +204,7 @@ export function renderMonthlyTrendChart(monthlyData) {
           yAxisID: 'y1'
         },
         {
-          label: '歪',
+          label: t('chart.labelOff'),
           data: monthlyData.map(d => d.offCount),
           type: 'line',
           borderColor: '#4caf50',
@@ -236,7 +237,7 @@ export function renderMonthlyTrendChart(monthlyData) {
           type: 'linear',
           position: 'left',
           beginAtZero: true,
-          title: { display: true, text: '抽数', font: { family: 'Consolas', size: 11 } },
+          title: { display: true, text: t('chart.yAxisPulls'), font: { family: 'Consolas', size: 11 } },
           border: { color: getStatsGridColor(), display: true },
           grid: { color: getStatsGridColor() },
           ticks: { font: { family: 'Consolas', size: 11 } }

@@ -3,6 +3,7 @@ import {
   getIsAllPoolsMode, getCurrentAllPoolsData, getCurrentPool,
   getLastDataType, getGlobalCharData, getGlobalWeaponData,
 } from './state.js';
+import { t } from './i18n.js';
 
 // 通过回调注入图表更新函数，避免与 render/chart.js 循环依赖
 let chartUpdater = null;
@@ -56,11 +57,11 @@ export function applyTheme(theme) {
   if (theme === "day") {
     setGlobalTheme("day");
     body.classList.add("theme-day");
-    btn.textContent = "[ MODE: DAY ]";
+    btn.textContent = t('menu.modeDay');
   } else {
     setGlobalTheme("night");
     body.classList.remove("theme-day");
-    btn.textContent = "[ MODE: NIGHT ]";
+    btn.textContent = t('menu.modeNight');
   }
 
   // 修改主题色

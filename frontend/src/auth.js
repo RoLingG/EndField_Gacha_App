@@ -2,6 +2,7 @@ import { SNACKBAR_AUTO_CLOSE } from './constants.js';
 import { getCachedHgToken, setCachedHgToken, setCurrentServerType } from './state.js';
 import { showAppSnackbar, resetButton, showLoadingState, setFetchingState } from './utils.js';
 import { OpenOfficialLoginWindow, LoginAndFetchPlayers, SyncDataByChoice } from "../wailsjs/go/main/App";
+import { t } from './i18n.js';
 
 // 通过回调注入 initApp，避免与 loader.js 循环依赖
 let dataLoader = null;
@@ -22,7 +23,7 @@ export function showTokenInputUI() {
 export async function handleOfficialLoginWindow() {
   const btn = document.getElementById("btnLoginWindow");
   const originalText = btn.textContent;
-  btn.textContent = "WAITING FOR LOGIN...";
+  btn.textContent = t('login.status.waiting');
   btn.disabled = true;
   document.getElementById("analyzeError").textContent = "";
   try {
@@ -36,7 +37,7 @@ export async function handleOfficialLoginWindow() {
       document.getElementById("playerSelectArea").style.display = "block";
     }
   } catch (err) {
-    document.getElementById("analyzeError").textContent = "LOGIN CANCELLED / FAILED";
+    document.getElementById("analyzeError").textContent = t('login.error.loginCancelled');
   } finally {
     resetButton(btn, originalText);
   }
@@ -47,14 +48,14 @@ export async function handleToken() {
   const input = document.getElementById("webTokenInput");
   const token = input.value.trim();
   if (!token) {
-    document.getElementById("analyzeError").textContent = "ERR: TOKEN_EMPTY // 请输入 Token";
+    document.getElementById("analyzeError").textContent = t('login.error.tokenEmpty');
     return;
   }
 
   input.disabled = true;
   const btn = document.getElementById("btnManualConnect");
   const orgText = btn.textContent;
-  btn.textContent = "CONNECTING...";
+  btn.textContent = t('login.status.connecting');
   try {
     const res = await LoginAndFetchPlayers(token);
     setCachedHgToken(res.hgToken);
@@ -67,7 +68,7 @@ export async function handleToken() {
     document.getElementById("playerSelectArea").style.display = "block";
   } catch (err) {
     showAppSnackbar({
-      message: "[ERROR] 处理 Token 失败: " + err,
+      message: t('snackbar.tokenFailed') + err,
       type: "error",
       autoCloseDelay: SNACKBAR_AUTO_CLOSE,
     });
@@ -92,7 +93,7 @@ export function renderPlayerList(players) {
         <span class="p-uid">UID: ${p.uid}</span>
       </div>
       <div class="p-tag" style="border-color: ${p.channelName === "官服" ? 'var(--ef-yellow)' : '#23ade5'}; color: ${p.channelName === "官服" ? 'var(--ef-yellow)' : '#23ade5'}">
-        ${p.channelName === "官服" ? "OFFICIAL" : "BILIBILI"}
+        ${p.channelName === "官服" ? t('login.official') : t('login.bilibili')}
       </div>
     `;
     div.onclick = () => doTokenSync(p);
@@ -106,7 +107,7 @@ export async function doTokenSync(player) {
   document.getElementById("playerSelectArea").style.display = "none";
   const serverName = player.serverType;
   setCurrentServerType(serverName);
-  showLoadingState("SYSTEM SYNCHRONIZING...", `UID: ${player.uid} // ${serverName.toUpperCase()}`);
+  showLoadingState(t('login.status.syncing'), `UID: ${player.uid} // ${serverName.toUpperCase()}`);
   setFetchingState(true);
   try {
     const res = await SyncDataByChoice(getCachedHgToken(), player.uid, serverName);
