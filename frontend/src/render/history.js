@@ -144,6 +144,8 @@ function cleanupAnimation(tbody) {
       'history-slide-in-left', 'history-slide-in-right'
   );
   tbody.onanimationend = null;
+  tbody.ontransitionend = null;
+  tbody.style.removeProperty('height');
 }
 
 // 换页动画 debounce，快速连点只执行最后一次
@@ -191,6 +193,7 @@ export function renderPagedHistoryTable({
     initPageIndicatorEditing(totalPages, isAllPoolsMode);
     return;
   }
+
   if (isAnimating) {
     // 清理动画上一次切页的 Debounce
     clearChangePageDebounce();
@@ -216,12 +219,37 @@ export function renderPagedHistoryTable({
   // 动画结束后替换内容并滑入
   tbody.onanimationend = () => {
     tbody.classList.remove(outClass);
+    // 记录旧高度（slide out 结束后的内容高度）
+    const oldHeight = tbody.offsetHeight;
     renderTableRows(tbody, pageItems, totalItems, startIndex, getPoolLabel, emptyMessage, emptyColspan);
-    // 新记录滑入
-    tbody.classList.add(inClass);
-    tbody.onanimationend = () => {
-      cleanupAnimation(tbody);
-    };
+    const newHeight = tbody.offsetHeight;
+    // 高度变化时，JS 高度动画与 slide in 同时播放
+    if (oldHeight !== newHeight) {
+      tbody.style.height = oldHeight + 'px';
+      tbody.classList.add(inClass);
+      const startTime = performance.now();
+      const duration = 100;
+      // 历史记录高度动画渲染，每渲染一帧调用一次
+      const animateHeight = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);  // 计算缓动曲线（先快后慢）
+        tbody.style.height = (oldHeight + (newHeight - oldHeight) * eased) + 'px';  // 根据缓动曲线计算当前高度
+        if (progress < 1) {
+          requestAnimationFrame(animateHeight);
+        } else {
+          tbody.style.removeProperty('height');
+          cleanupAnimation(tbody);
+        }
+      };
+      requestAnimationFrame(animateHeight);
+    } else {
+      // 高度没变，走原有纯 slide 逻辑
+      tbody.classList.add(inClass);
+      tbody.onanimationend = () => {
+        cleanupAnimation(tbody);
+      };
+    }
   };
 
   updateHistoryPaginationUI(page, totalPages);
@@ -273,6 +301,10 @@ export function renderAllPoolsHistoryPage(direction = null) {
 }
 
 export function changePage(delta) {
+  const currentPage = getCurrentHistoryPage();
+  const filtered = applyFilters(getCurrentHistoryData());
+  const totalPages = Math.ceil(filtered.length / getHistoryPageSize()) || 1;
+  if ((currentPage + delta < 1) || (currentPage + delta > totalPages)) return;
   setCurrentHistoryPage(getCurrentHistoryPage() + delta);
   const direction = delta > 0 ? 'left' : 'right';
   if (getIsAllPoolsMode()) {
