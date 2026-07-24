@@ -6,7 +6,7 @@ import {
 import {
   setCurrentUid, setCurrentServerType, setGlobalCharData,
   setGlobalWeaponData, setCurrentType, setIsOfflineSelection,
-  getIsOfflineSelection,
+  getIsOfflineSelection, setTempExportData,
 } from './state.js';
 import { SNACKBAR_AUTO_CLOSE } from './constants.js';
 import { groupDataByPool } from './data.js';
@@ -232,8 +232,7 @@ export async function handleImportTemp() {
       setGlobalCharData({});
       setCurrentType('weapon');
     }
-    const exportBtn = document.getElementById("btnExportExcel");
-    if (exportBtn) exportBtn.style.display = "none";
+    setTempExportData({ type: res.type, jsonData: res.jsonData });
     setTimeout(async () => {
       const loadingText = document.querySelector('.loading-text');
       if (loadingText) loadingText.textContent = t('login.status.dataParsed');
@@ -329,6 +328,7 @@ export async function initApp(isOfflineMode, serverName = "official", uid = "") 
 
   setGlobalCharData(charDataGrouped);
   setGlobalWeaponData(weaponDataGrouped);
+  setTempExportData(null);
   loadingText.textContent = t('login.status.dataReceived');
 
   renderByType('char');

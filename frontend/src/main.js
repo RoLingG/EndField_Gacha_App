@@ -1,12 +1,13 @@
 import {
   WindowClose, WindowMinSize, WindowToggleMaxSize,
-  OpenDataFolder, ReloadFrontend, ExportData, CancelCurrentOperation,
+  OpenDataFolder, ReloadFrontend, ExportData, ExportDataDirect, CancelCurrentOperation,
 } from "../wailsjs/go/main/App";
 
 import {
   setCachedHgToken, setCurrentUid, setCurrentServerType, setGlobalCharData, setGlobalWeaponData,
   setCurrentType, setLastDataType, setCurrentPool, setCurrentAllPoolsData, setIsAllPoolsMode,
   setIsFetching, getIsFetching, getCurrentServerType, getCurrentUid, getCurrentType,
+  getTempExportData, setTempExportData,
 } from './state.js';
 
 import { APP_ELEMENT_IDS, SNACKBAR_AUTO_CLOSE } from './constants.js';
@@ -117,15 +118,22 @@ async function handleCancelFetch() {
 }
 
 async function handleExport() {
-  if (!getCurrentServerType()) {
-    showAppSnackbar({
-      message: t('snackbar.loadDataFirst'),
-      type: "warning"
-    });
-    return;
-  }
+  const tempData = getTempExportData();
+  const serverType = getCurrentServerType();
+  const uid = getCurrentUid();
   try {
-    const result = await ExportData(getCurrentUid(), getCurrentServerType());
+    let result;
+    if (tempData) {
+      result = await ExportDataDirect(tempData.jsonData, tempData.type);
+    } else if (serverType) {
+      result = await ExportData(uid, serverType);
+    } else {
+      showAppSnackbar({
+        message: t('snackbar.loadDataFirst'),
+        type: "warning"
+      });
+      return;
+    }
     if (result === "success") {
       showAppSnackbar({
         message: t('snackbar.exportSuccess'),
@@ -313,7 +321,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 顶部菜单栏
   document.getElementById('btnReload')?.addEventListener('click', handleReload);
   document.getElementById('btnOpenFolder')?.addEventListener('click', () => OpenDataFolder());
-  document.getElementById('btnExportExcel')?.addEventListener('click', handleExport);
+  document.getElementById('btnExportData')?.addEventListener('click', handleExport);
   document.getElementById('btnCancelFetch')?.addEventListener('click', handleCancelFetch);
 
   // 登录区

@@ -43,6 +43,9 @@ const historyPageSize = 10;
 let currentHistoryData = [];
 let currentPoolNameForPagination = "";
 
+// 临时导入数据缓存
+let tempExportData = null;
+
 // ============================================
 // Exported Getters & Setters
 // ============================================
@@ -131,3 +134,6 @@ export function setFilterIsFree(v) { filterIsFree = v; }
 
 export function getComingFromStats() { return comingFromStats; }
 export function setComingFromStats(v) { comingFromStats = v; }
+
+export function getTempExportData() { return tempExportData; }
+export function setTempExportData(v) { tempExportData = v; }

@@ -11,6 +11,8 @@ export function DeleteLocalGachaHistory(arg1:string):Promise<void>;
 
 export function ExportData(arg1:string,arg2:string):Promise<string>;
 
+export function ExportDataDirect(arg1:string,arg2:string):Promise<string>;
+
 export function GetCharacterData(arg1:string):Promise<main.FetchDataResponse_Go_Arknights_Gacha_App_internal_model_EndFieldCharInfo_>;
 
 export function GetPoolConfig():Promise<model.PoolConfigList>;

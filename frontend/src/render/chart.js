@@ -11,6 +11,12 @@ function getStatsGridColor() {
 }
 
 export function updateOrCreateChart(items) {
+  const chartContainer = document.getElementById("chartContainer");
+  if (chartContainer) {
+    // 移除残留的无数据样式
+    chartContainer.querySelectorAll(".chart-no-data").forEach(el => el.remove());
+  }
+
   const rarityCounts = { 4: 0, 5: 0, 6: 0 };
   items.forEach(item => {
     if (rarityCounts[item.rarity] !== undefined) rarityCounts[item.rarity] += 1;
@@ -23,8 +29,7 @@ export function updateOrCreateChart(items) {
     return;
   }
 
-  // 获取 chartContainer 元素，清除旧数据的 chart 实例
-  const chartContainer = document.getElementById("chartContainer");
+  // 清除旧数据的 chart 实例
   const oldCanvas = chartContainer.querySelector("canvas");
   if (oldCanvas) oldCanvas.remove();
 

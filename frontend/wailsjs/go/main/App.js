@@ -18,6 +18,10 @@ export function ExportData(arg1, arg2) {
   return window['go']['main']['App']['ExportData'](arg1, arg2);
 }
 
+export function ExportDataDirect(arg1, arg2) {
+  return window['go']['main']['App']['ExportDataDirect'](arg1, arg2);
+}
+
 export function GetCharacterData(arg1) {
   return window['go']['main']['App']['GetCharacterData'](arg1);
 }

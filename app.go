@@ -9,6 +9,7 @@ import (
 	"Go_Arknights_Gacha_App/internal/storage"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -138,12 +139,13 @@ func (a *App) ExportData(uid string, serverType string) (string, error) {
 	if len(charList) == 0 && len(weaponList) == 0 {
 		return "", fmt.Errorf("当前没有任何数据可导出")
 	}
-	defaultName := fmt.Sprintf("endfield_data_%s_%s.xlsx", uid, serverType)
+	defaultName := fmt.Sprintf("endfield_data_%s_%s", uid, serverType)
 	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
 		Title:           "导出抽卡记录",
 		DefaultFilename: defaultName,
 		Filters: []wailsRuntime.FileFilter{
 			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+			{DisplayName: "CSV Files (*.csv)", Pattern: "*.csv"},
 		},
 	})
 	if err != nil {
@@ -153,10 +155,70 @@ func (a *App) ExportData(uid string, serverType string) (string, error) {
 	if savePath == "" {
 		return "cancelled", nil
 	}
-	if err := export.SaveToExcel(savePath, charList, weaponList); err != nil {
-		logger.Log.Error("Export failed", zap.Error(err))
-		return "", fmt.Errorf("导出文件失败: %v", err)
+
+	var exportErr error
+	if strings.HasSuffix(savePath, ".csv") {
+		exportErr = export.SaveToCSV(savePath, charList, weaponList)
+	} else {
+		exportErr = export.SaveToExcel(savePath, charList, weaponList)
 	}
+	if exportErr != nil {
+		logger.Log.Error("Export failed", zap.Error(exportErr))
+		return "", fmt.Errorf("导出文件失败: %v", exportErr)
+	}
+
+	return "success", nil
+}
+
+func (a *App) ExportDataDirect(jsonData string, dataType string) (string, error) {
+	logger.Log.Info("Frontend requested: ExportDataDirect", zap.String("dataType", dataType))
+	if jsonData == "" {
+		return "", fmt.Errorf("JSON 数据不能为空")
+	}
+	var charList []model.EndFieldCharInfo
+	var weaponList []model.EndFieldWeaponInfo
+	if dataType == "char" {
+		charList = make([]model.EndFieldCharInfo, 0)
+		if err := json.Unmarshal([]byte(jsonData), &charList); err != nil {
+			return "", fmt.Errorf("JSON 数据解析失败: %v", err)
+		}
+	} else {
+		weaponList = make([]model.EndFieldWeaponInfo, 0)
+		if err := json.Unmarshal([]byte(jsonData), &weaponList); err != nil {
+			return "", fmt.Errorf("JSON 数据解析失败: %v", err)
+		}
+	}
+	if len(charList) == 0 && len(weaponList) == 0 {
+		return "", fmt.Errorf("当前没有任何数据可导出")
+	}
+	defaultName := fmt.Sprintf("endfield_data_temp_%s", dataType)
+	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "导出抽卡记录",
+		DefaultFilename: defaultName,
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+			{DisplayName: "CSV Files (*.csv)", Pattern: "*.csv"},
+		},
+	})
+	if err != nil {
+		logger.Log.Error("Failed to open save dialog", zap.Error(err))
+		return "", err
+	}
+	if savePath == "" {
+		return "cancelled", nil
+	}
+
+	var exportErr error
+	if strings.HasSuffix(savePath, ".csv") {
+		exportErr = export.SaveToCSV(savePath, charList, weaponList)
+	} else {
+		exportErr = export.SaveToExcel(savePath, charList, weaponList)
+	}
+	if exportErr != nil {
+		logger.Log.Error("Export failed", zap.Error(exportErr))
+		return "", fmt.Errorf("导出文件失败: %v", exportErr)
+	}
+
 	return "success", nil
 }
 

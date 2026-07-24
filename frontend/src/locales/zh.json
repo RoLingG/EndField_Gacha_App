@@ -3,7 +3,7 @@
 
   "menu.reload": "[ SYSTEM_RELOAD ]",
   "menu.dataFolder": "[ DATA_FOLDER ]",
-  "menu.exportExcel": "[ EXPORT_EXCEL ]",
+  "menu.exportData": "[ EXPORT_DATA ]",
   "menu.cancelFetch": "[ CANCEL_FETCH ]",
   "menu.modeNight": "[ MODE: NIGHT ]",
   "menu.modeDay": "[ MODE: DAY ]",

@@ -4,6 +4,7 @@ import (
 	"Go_Arknights_Gacha_App/internal/logger"
 	"Go_Arknights_Gacha_App/internal/model"
 	"fmt"
+
 	"github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
 )
@@ -24,14 +25,15 @@ func SaveToExcel(filePath string, chars []model.EndFieldCharInfo, weapons []mode
 			logger.Log.Error("Failed to close excel file", zap.Error(err))
 		}
 	}()
-
-	charCfg := sheetConfig[model.EndFieldCharInfo]{
-		SheetName: "角色寻访",
-		Headers:   []string{"时间戳", "干员", "稀有度", "卡池", "SeqID"},
-		Data:      chars,
-		Mapper:    mapCharToRow,
+	if len(chars) > 0 {
+		charCfg := sheetConfig[model.EndFieldCharInfo]{
+			SheetName: "角色寻访",
+			Headers:   []string{"时间戳", "干员", "稀有度", "卡池", "SeqID"},
+			Data:      chars,
+			Mapper:    mapCharToRow,
+		}
+		writeSheet(f, charCfg)
 	}
-	writeSheet(f, charCfg)
 	if len(weapons) > 0 {
 		f.NewSheet("武器寻访")
 		wpCfg := sheetConfig[model.EndFieldWeaponInfo]{
