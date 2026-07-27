@@ -1,5 +1,6 @@
 import { calculateSixStarDetails } from '../data.js';
 import { getCurrentType, getGlobalPoolConfig } from '../state.js';
+import { t } from '../i18n.js';
 
 function renderRareItemChip({
   label,
@@ -7,7 +8,8 @@ function renderRareItemChip({
   isNewItem,
   chipBorderColor,
   chipTextColor,
-  chipBgColor
+  chipBgColor,
+  cornerBadge
 }) {
   let borderColor, textColor, bgColor;
   let hasGlowEffect = false;
@@ -27,10 +29,15 @@ function renderRareItemChip({
     textColor = "#888888";
     bgColor = "#66666619";
   }
-  const styleStr = `display: inline-block; border: 1px solid ${borderColor}; color: ${textColor};
-  background: ${bgColor}; padding: 4px 10px; margin: 4px; font-size: 12px; font-weight: bold; font-family: 'Consolas';`;
+  const chipStyle = `padding: 5px 10px; font-size: 12px; font-weight: bold; font-family: 'Consolas'; white-space: nowrap; color: ${textColor}; background: ${bgColor};`;
   const glowClass = hasGlowEffect ? 'class="glow-up-new"' : '';
-  return `<span ${glowClass} style="${styleStr}">${label}</span>`;
+  if (cornerBadge) {
+    return `<span ${glowClass} style="display:inline-flex; align-items:stretch; margin:4px; border:1px solid ${borderColor}; border-radius:3px; overflow:hidden; font-family:'Consolas';">` +
+      `<span style="display:flex; align-items:center; ${chipStyle}">${label}</span>` +
+      `<span style="display:flex; align-items:center; padding:5px 8px; background:${bgColor}; color:${textColor}; font-size:11px; font-weight:bold; border-left:1px solid ${borderColor}; white-space:nowrap;">+${cornerBadge}</span>` +
+      `</span>`;
+  }
+  return `<span ${glowClass} style="display:inline-block; margin:4px; border:1px solid ${borderColor}; border-radius:3px; ${chipStyle}">${label}</span>`;
 }
 
 function renderRareRecordsCard(options) {
@@ -62,7 +69,8 @@ function renderRareRecordsCard(options) {
       label: getChipLabel(item),
       isUpItem,
       isNewItem: item.isNew,
-      chipBorderColor, chipTextColor, chipBgColor
+      chipBorderColor, chipTextColor, chipBgColor,
+      cornerBadge: item.inheritedPity
     });
   }).join("");
 
@@ -88,14 +96,16 @@ function renderRareRecordsCard(options) {
 
 export function createRareRecordCard(dataMap, poolName) {
   const items = dataMap[poolName] || [];
-  const sixStarDetails = calculateSixStarDetails(items, true);
-  const labelText = (getCurrentType() === 'char') ? "RECENT 6★ CHARACTERS" : "RECENT 6★ WEAPONS";
+  const currentType = getCurrentType();
+  const allItems = Object.values(dataMap).flat();
+  const sixStarDetails = calculateSixStarDetails(items, true, allItems);
+  const labelText = (currentType === 'char') ? t('rare.recent6Char') : t('rare.recent6Weapon');
 
   renderRareRecordsCard({
     sixStarDetails,
-    headerText: "TARGET POOL IDENTIFIED",
+    headerText: t('rare.targetPoolIdentified'),
     titleText: poolName,
-    countLabel: "TOTAL RECORDS:",
+    countLabel: t('rare.totalRecords'),
     countValue: items.length,
     labelText,
     getChipLabel: (item) => `${item.name} [${item.pityText}]`,
@@ -107,14 +117,15 @@ export function createRareRecordCard(dataMap, poolName) {
 }
 
 export function createAllPoolsRareRecordsCard(items) {
+  const currentType = getCurrentType();
   const sixStarDetails = calculateSixStarDetails(items, true);
-  const labelText = (getCurrentType() === 'char') ? "ALL 6★ CHARACTERS" : "ALL 6★ WEAPONS";
+  const labelText = (currentType === 'char') ? t('rare.all6Char') : t('rare.all6Weapon');
 
   renderRareRecordsCard({
     sixStarDetails,
-    headerText: "ALL POOLS ANALYSIS",
-    titleText: "历史汇总",
-    countLabel: "TOTAL 6★ RECORDS:",
+    headerText: t('rare.allPoolsAnalysis'),
+    titleText: t('rare.allPoolsTitle'),
+    countLabel: t('rare.total6Records'),
     countValue: sixStarDetails.length,
     labelText,
     getChipLabel: (item) => `${item.name} - ${item.poolName} [${item.pityText}]`,

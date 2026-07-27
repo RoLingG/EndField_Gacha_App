@@ -85,19 +85,39 @@ export function renderPlayerList(players) {
   container.innerHTML = "";
 
   players.forEach(p => {
-    const div = document.createElement("div");
-    div.className = "player-card";
-    div.innerHTML = `
-      <div class="player-info">
-        <span class="p-name">${p.nickName} <span style="font-size:10px;color:#888;">Lv.${p.level}</span></span>
-        <span class="p-uid">UID: ${p.uid}</span>
-      </div>
-      <div class="p-tag" style="border-color: ${p.channelName === "官服" ? 'var(--ef-yellow)' : '#23ade5'}; color: ${p.channelName === "官服" ? 'var(--ef-yellow)' : '#23ade5'}">
-        ${p.channelName === "官服" ? t('login.official') : t('login.bilibili')}
-      </div>
-    `;
-    div.onclick = () => doTokenSync(p);
-    container.appendChild(div);
+    const isOfficial = p.channelName === t('server.official');
+    const accentColor = isOfficial ? "var(--ef-yellow)" : "#23ade5";
+
+    const card = document.createElement("div");
+    card.className = "player-card";
+
+    const info = document.createElement("div");
+    info.className = "player-info";
+
+    const name = document.createElement("span");
+    name.className = "p-name";
+    name.textContent = p.nickName;
+
+    const level = document.createElement("span");
+    level.className = "p-level";
+    level.textContent = `Lv.${p.level}`;
+    name.append(" ", level);
+
+    const uid = document.createElement("span");
+    uid.className = "p-uid";
+    uid.textContent = `UID: ${p.uid}`;
+
+    info.append(name, uid);
+
+    const tag = document.createElement("div");
+    tag.className = "p-tag";
+    tag.style.borderColor = accentColor;
+    tag.style.color = accentColor;
+    tag.textContent = isOfficial ? t('login.official') : t('login.bilibili');
+
+    card.append(info, tag);
+    card.onclick = () => doTokenSync(p);
+    container.appendChild(card);
   });
 }
 

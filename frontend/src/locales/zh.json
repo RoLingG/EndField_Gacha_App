@@ -118,6 +118,29 @@
   "stats.total6Star": "共 {count} 个 6★",
   "stats.currentDrought": "当前连续 {count} 抽未出 6★",
 
+  "rare.recent6Char": "RECENT 6★ CHARACTERS",
+  "rare.recent6Weapon": "RECENT 6★ WEAPONS",
+  "rare.all6Char": "ALL 6★ CHARACTERS",
+  "rare.all6Weapon": "ALL 6★ WEAPONS",
+  "rare.targetPoolIdentified": "TARGET POOL IDENTIFIED",
+  "rare.allPoolsAnalysis": "ALL POOLS ANALYSIS",
+  "rare.totalRecords": "TOTAL RECORDS:",
+  "rare.total6Records": "TOTAL 6★ RECORDS:",
+  "rare.allPoolsTitle": "历史汇总",
+
+  "summary.poolTotal": "POOL TOTAL // 总抽取数",
+  "summary.poolSpark": "POOL SPARK // 本池垫刀",
+  "summary.currentPity": "CURRENT PITY // 当前水位",
+  "summary.ratio": "6★ RATIO // 出货率",
+  "summary.guaranteeChar": "6★ GUARANTEED AT 80",
+  "summary.guaranteeWeapon": "UP 6★ GUARANTEED AT 80",
+  "summary.characters": "CHARACTERS",
+  "summary.weapons": "WEAPONS",
+  "summary.totalDraws": "TOTAL DRAWS // 总抽取数",
+  "summary.total6Count": "6★ COUNT // 六星出货数",
+  "summary.allPoolsCombined": "ALL POOLS COMBINED",
+  "summary.total6Obtained": "TOTAL 6★ OBTAINED",
+
   "chart.labelTotal": "总计",
   "chart.labelUp": "UP",
   "chart.labelOff": "歪",
@@ -141,5 +164,8 @@
   "pagination.invalidPage": "[WARNING] Invalid page number. Please enter a number between 1 and {total}",
 
   "confirm.cancel": "[ CANCEL / 取消 ]",
-  "confirm.confirm": "[ CONFIRM / 确定 ]"
+  "confirm.confirm": "[ CONFIRM / 确定 ]",
+
+  "archive.deleteTitle": "DELETE ARCHIVE / 删除该记录",
+  "server.official": "官服"
 }

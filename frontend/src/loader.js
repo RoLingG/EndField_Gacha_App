@@ -27,7 +27,7 @@ export async function onSelectServer(serverName) {
   showLoadingState(actionText, `ACCESSING ${serverName.toUpperCase()} DATABASE...`);
   try {
     if (getIsOfflineSelection()) {
-      throw new Error("离线模式缺少 UID，请从本地存档列表中选择具体记录");
+      throw new Error(t('login.error.offlineMissingUid'));
     } else {
       await initApp(false, serverName);
     }
@@ -137,7 +137,7 @@ export function renderLocalArchiveList(archives) {
           <div class="p-tag" style="border-color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}; color: ${server === 'official' ? 'var(--ef-yellow)' : '#23ade5'}">
             ${server.toUpperCase()}
           </div>
-          <div class="del-archive-btn" style="cursor: pointer; color: #888;" title="DELETE ARCHIVE / 删除该记录">×</div>
+          <div class="del-archive-btn" style="cursor: pointer; color: #888;" title="${t('archive.deleteTitle')}">×</div>
         </div>
       `;
 
@@ -277,16 +277,24 @@ export async function initApp(isOfflineMode, serverName = "official", uid = "") 
     loadingText.textContent = t('login.status.fetching');
     setFetchingState(true);
 
-    const [charResult, weaponResult] = await Promise.all([
-      GetCharacterData(serverName).catch(e => { console.warn("Character data fetch failed:", e); return null; }),
-      GetWeaponData(serverName).catch(e => { console.warn("Weapon data fetch failed:", e); return null; }),
+    let charFetchError = null;
+    let weaponFetchError = null;
+
+    const [charRes, weaponRes] = await Promise.all([
+      GetCharacterData(serverName).catch(e => {
+        charFetchError = e;
+        console.warn("Character data fetch failed:", e);
+        return null;
+      }),
+      GetWeaponData(serverName).catch(e => {
+        weaponFetchError = e;
+        console.warn("Weapon data fetch failed:", e);
+        return null;
+      }),
     ]);
-    const charRes = charResult;
-    const weaponRes = weaponResult;
+
     const charList = charRes?.list || [];
     const weaponList = weaponRes?.list || [];
-    const charFetchError = charResult === null ? true : null;
-    const weaponFetchError = weaponResult === null ? true : null;
 
     setFetchingState(false);
 
@@ -299,6 +307,7 @@ export async function initApp(isOfflineMode, serverName = "official", uid = "") 
       window.resetToAnalyze();
       return;
     }
+
     setCurrentUid(charRes?.uid || weaponRes?.uid || "");
     if (charFetchError || weaponFetchError) {
       const warningMessages = [];

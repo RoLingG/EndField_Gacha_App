@@ -5,7 +5,7 @@ export function groupDataByPool(flatList) {
   const grouped = {};
   if (!flatList || flatList.length === 0) return grouped;
   flatList.forEach(item => {
-    const pool = item.poolName || "未知卡池";
+    const pool = item.poolName || "UNKNOWN";
     if (!grouped[pool]) {
       grouped[pool] = [];
     }
@@ -19,13 +19,16 @@ export function getItemName(item) {
   return item.charName || item.weaponName || "UNKNOWN";
 }
 
-export function calculateSixStarDetails(items, reverse = false) {
-  const list = reverse ? items.slice().reverse() : items;
+// 计算卡池六星详细信息
+export function calculateSixStarDetails(items, reverse = false, allItems) {
+  // allItems 用于计算 pityCounter（跨池继承），items 决定显示哪些池子
+  const pitySource = allItems || items;
+  // 按时间排序（保证跨池保底计数正确），再按卡池分组
+  const sorted = [...pitySource].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
 
-  // 按卡池分组，每个卡池独立计算保底
   const pools = {};
   const poolOrder = [];
-  list.forEach(item => {
+  sorted.forEach(item => {
     const key = item.poolName;
     if (!pools[key]) {
       pools[key] = [];
@@ -34,31 +37,73 @@ export function calculateSixStarDetails(items, reverse = false) {
     pools[key].push(item);
   });
 
+  // 需要显示 6★ 的池子集合
+  const displayPools = new Set(items.map(i => i.poolName));
+
   // 按卡池分别统计
+  // pityCounter：跨池累加（排除池冻结），用于继承水位角标
+  // poolPity：当前池内计数，用于 pityText 显示
   const allDetails = [];
+  let pityCounter = 0;
   for (const key of poolOrder) {
-    const details = [];
-    let pityCounter = 0;
-    pools[key].forEach(item => {
-      if (item.rarity === 6) {
-        const detail = {
-          name: getItemName(item),
-          isNew: item.isNew,
-          pityText: item.isFree ? "FREE" : ++pityCounter
-        };
-        if (item.poolName) detail.poolName = item.poolName;
-        details.push(detail);
-        if (!item.isFree) pityCounter = 0;
-      } else {
-        if (!item.isFree) pityCounter++;
-      }
-    });
-    if (reverse) details.reverse();
-    allDetails.push(...details);
+    const firstItem = pools[key][0];
+    const isExcluded = EXCLUDED_FROM_PITY.includes(firstItem?.poolId);
+
+    if (isExcluded) {
+      // 排除池：冻结 pityCounter，用独立 poolPity 计数
+      const saved = pityCounter;
+      let poolPity = 0;
+      pools[key].forEach(item => {
+        if (item.rarity === 6 && displayPools.has(key)) {
+          const detail = {
+            name: getItemName(item),
+            isNew: item.isNew,
+            pityText: item.isFree ? "FREE" : ++poolPity
+          };
+          if (item.poolName) detail.poolName = item.poolName;
+          allDetails.push(detail);
+          if (!item.isFree) poolPity = 0;
+        } else {
+          if (!item.isFree) poolPity++;
+        }
+      });
+      pityCounter = saved; // 恢复，排除池不影响继承链
+    } else {
+      // 非排除池：pityCounter 跨池累加，poolPity 当前池内计数
+      const details = [];
+      const inheritedPity = pityCounter;
+      let poolPity = 0;
+      let firstSixStar = true;
+      pools[key].forEach(item => {
+        if (item.rarity === 6) {
+          if (displayPools.has(key)) {
+            const detail = {
+              name: getItemName(item),
+              isNew: item.isNew,
+              pityText: item.isFree ? "FREE" : ++poolPity
+            };
+            if (item.poolName) detail.poolName = item.poolName;
+            if (!item.isFree && firstSixStar && inheritedPity > 0) {
+              detail.inheritedPity = inheritedPity;
+            }
+            details.push(detail);
+          } else {
+            if (!item.isFree) poolPity++;
+          }
+          firstSixStar = false;
+          if (!item.isFree) { pityCounter = 0; poolPity = 0; }
+        } else {
+          if (!item.isFree) { pityCounter++; poolPity++; }
+        }
+      });
+      if (reverse) details.reverse();
+      allDetails.push(...details);
+    }
   }
   return allDetails;
 }
 
+// 计算卡池大保底信息
 export function calculateSparkInfo(reversed, targetUp) {
   let sparkCount = 0;
   let sparkConsumed = false;
@@ -85,8 +130,45 @@ export function calculateSparkInfo(reversed, targetUp) {
   return { sparkCount, targetLimit, rightCornerSub };
 }
 
-export function calculatePityBoost(currentPity, poolName) {
-  if (currentPity >= PITY_BOOST_START && poolName !== "基础寻访") {
+// 不参与跨池水位继承的特殊卡池
+const EXCLUDED_FROM_PITY = ['standard', 'beginner'];
+
+// 计算每个池子各自的水位（保底计数跨池继承，出 6★ 归零）
+// 返回 { poolName: pity } 的对象，pity 为该池子结束时的累计水位
+// 基础寻访和启程寻访不参与继承链，不出现在返回值中
+export function calculatePerPoolPity(dataMap, poolOrder) {
+  const perPoolPity = {};
+  let pity = 0;
+
+  // 按配置顺序逐池遍历
+  const allPoolNames = [...poolOrder];
+  for (const poolName in dataMap) {
+    if (!allPoolNames.includes(poolName)) {
+      allPoolNames.push(poolName);
+    }
+  }
+
+  for (const poolName of allPoolNames) {
+    if (!dataMap[poolName]) continue;
+    // 跳过特殊卡池，不参与跨池水位继承
+    if (EXCLUDED_FROM_PITY.includes(dataMap[poolName][0]?.poolId)) continue;
+    // 池内按时间升序排序，同时间戳按 seqId 升序（保证十连批次内顺序正确）
+    const items = [...dataMap[poolName]].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
+
+    for (const item of items) {
+      if (item.isFree) continue;
+      pity++;
+      if (item.rarity === 6) { pity = 0; }
+    }
+    perPoolPity[poolName] = pity;
+  }
+
+  return perPoolPity;
+}
+
+// 水位概率计算
+export function calculatePityBoost(currentPity, poolId) {
+  if (currentPity >= PITY_BOOST_START && !EXCLUDED_FROM_PITY.includes(poolId)) {
     const extraRate = (currentPity - (PITY_BOOST_START - 1)) * 5;
     const nextProb = Math.min(0.8 + extraRate, 100);
     return {
@@ -100,12 +182,15 @@ export function calculatePityBoost(currentPity, poolName) {
   };
 }
 
+// 计算卡池当前相关信息
 export function calculatePoolStats(items) {
   const total = items.length;
   const notFreeTotal = items.filter(item => !item.isFree).length;
   const sixStarCount = items.filter(i => i.rarity === 6).length;
+  const fiveStarCount = items.filter(i => i.rarity === 5).length;
+  const fourStarCount = items.filter(i => i.rarity === 4).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
-  return { total, notFreeTotal, sixStarCount, rate };
+  return { total, notFreeTotal, sixStarCount, fiveStarCount, fourStarCount, rate };
 }
 
 // 合并所有卡池的数据并按卡池配置顺序排序
@@ -127,50 +212,63 @@ export function mergeAllPoolsData(dataMap, type = 'char') {
   return merged;
 }
 
-// 平均出货抽数（排除免费抽，按池隔离计算再取平均）
+// 平均出货抽数（排除免费抽，保底跨池继承，出 6★ 归零，基础寻访/启程寻访排除）
 export function calculateAvgPity(items) {
-  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs));
-  let currentPoolPulls = 0;
+  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
+  let pity = 0;
   let sixCount = 0;
-  let lastPool = null;
-  const poolAvgList = [];
+  const pityList = [];
+  let lastPoolId = '';
+  let savedPity = 0;
   for (const item of sorted) {
     if (item.isFree) continue;
-    if (lastPool !== null && item.poolName !== lastPool) {
-      currentPoolPulls = 0;
+    if (item.poolId !== lastPoolId) {
+      const wasExcluded = EXCLUDED_FROM_PITY.includes(lastPoolId);
+      const nowExcluded = EXCLUDED_FROM_PITY.includes(item.poolId);
+      if (nowExcluded && !wasExcluded) {
+        savedPity = pity;  // 进入排除池，保存
+        pity = 0;
+      } else if (!nowExcluded && wasExcluded) {
+        pity = savedPity;  // 离开排除池，恢复
+      }
+      lastPoolId = item.poolId;
     }
-    lastPool = item.poolName;
-    currentPoolPulls++;
+    pity++;
     if (item.rarity === 6) {
-      poolAvgList.push(currentPoolPulls);
-      currentPoolPulls = 0;
+      pityList.push(pity);
+      pity = 0;
       sixCount++;
     }
   }
-  // 最后一个池未出6★的抽数不计入平均（没有出货就不计入平均水位）
-  const avgPity = poolAvgList.length > 0
-    ? +(poolAvgList.reduce((a, b) => a + b, 0) / poolAvgList.length).toFixed(1)
+  // 最后未出6★的抽数不计入平均（没有出货就不计入平均水位）
+  const avgPity = pityList.length > 0
+    ? +(pityList.reduce((a, b) => a + b, 0) / pityList.length).toFixed(1)
     : 0;
   return { avgPity, sixStarCount: sixCount };
 }
 
-// 最长不出货记录（排除免费抽，跨池重置保底计数）
+// 最长不出货记录（排除免费抽，保底跨池继承，基础寻访/启程寻访排除）
 export function calculateMaxDrought(items) {
-  // 按时间升序排序，确保抽数计算顺序正确
-  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs));
+  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
   let maxDrought = 0;
   let currentStreak = 0;
-  let lastPool = null;
+  let lastPoolId = '';
+  let savedStreak = 0;
   for (const item of sorted) {
     if (item.isFree) continue;
-    // 切换卡池时重置保底计数（保底不跨池继承）
-    if (lastPool !== null && item.poolName !== lastPool) {
-      if (currentStreak > maxDrought) maxDrought = currentStreak;
-      currentStreak = 0;
+    if (item.poolId !== lastPoolId) {
+      const wasExcluded = EXCLUDED_FROM_PITY.includes(lastPoolId);
+      const nowExcluded = EXCLUDED_FROM_PITY.includes(item.poolId);
+      if (nowExcluded && !wasExcluded) {
+        savedStreak = currentStreak;
+        currentStreak = 0;
+      } else if (!nowExcluded && wasExcluded) {
+        currentStreak = savedStreak;
+      }
+      lastPoolId = item.poolId;
     }
-    lastPool = item.poolName;
     if (item.rarity === 6) {
-      if (currentStreak > maxDrought) maxDrought = currentStreak+1;
+      if (currentStreak > maxDrought) maxDrought = currentStreak;
       currentStreak = 0;
     } else {
       currentStreak++;
@@ -220,22 +318,28 @@ export function calculateMonthlyStats(items, poolConfig = {}) {
   return result;
 }
 
-// 6★ 之间的抽数间隔分布（排除免费抽，跨池重置保底计数）
+// 6★ 之间的抽数间隔分布（排除免费抽，保底跨池继承，基础寻访/启程寻访排除）
 export function calculatePityDistribution(items, poolConfig = {}) {
-  // 按时间升序排序，确保抽数计算顺序正确
-  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs));
+  const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
   const buckets = [0, 0, 0, 0, 0, 0, 0, 0, 0]; // 1-10, 11-20, ..., 71-80, 80+
   const upBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0];
   const offBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0];
   let streak = 0;
-  let lastPool = null;
+  let lastPoolId = '';
+  let savedStreak = 0;
   for (const item of sorted) {
     if (item.isFree) continue;
-    // 切换卡池时重置保底计数（保底不跨池继承）
-    if (lastPool !== null && item.poolName !== lastPool) {
-      streak = 0;
+    if (item.poolId !== lastPoolId) {
+      const wasExcluded = EXCLUDED_FROM_PITY.includes(lastPoolId);
+      const nowExcluded = EXCLUDED_FROM_PITY.includes(item.poolId);
+      if (nowExcluded && !wasExcluded) {
+        savedStreak = streak;
+        streak = 0;
+      } else if (!nowExcluded && wasExcluded) {
+        streak = savedStreak;
+      }
+      lastPoolId = item.poolId;
     }
-    lastPool = item.poolName;
     streak++;
     if (item.rarity === 6) {
       const bucketIndex = Math.min(Math.floor((streak - 1) / 10), 8);

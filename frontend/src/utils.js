@@ -1,6 +1,7 @@
 import { getGachaChartInstance, setGachaChartInstance, setIsFetching, getComingFromStats } from './state.js';
 import { destroyStatsCharts } from './render/chart.js';
-import { SNACKBAR_AUTO_CLOSE, JADE_PER_PULL, JADE_PER_STONE, WEAPON_QUOTA_PER_TEN } from './constants.js';
+import { SNACKBAR_AUTO_CLOSE, JADE_PER_PULL, JADE_PER_STONE, WEAPON_QUOTA_PER_TEN,
+         WEAPON_QUOTA_6STAR, WEAPON_QUOTA_5STAR, WEAPON_QUOTA_4STAR } from './constants.js';
 
 // mdui Snackbar封装
 export function showAppSnackbar({
@@ -109,10 +110,11 @@ export function clearDisplay() {
     currencyInfo.style.display = 'none';
     document.getElementById('jadeValue').textContent = '0';
     document.getElementById('stoneValue').textContent = '0';
+    document.getElementById('weaponQuotaFromCharValue').textContent = '0';
   }
 }
 
-export function updateCurrencyDisplay(notFreeTotal, type) {
+export function updateCurrencyDisplay(notFreeTotal, type, starCounts = {}) {
   const currencyInfo = document.getElementById('currencyInfo');
   const charCurrency = document.getElementById('charCurrency');
   const weaponCurrency = document.getElementById('weaponCurrency');
@@ -126,6 +128,10 @@ export function updateCurrencyDisplay(notFreeTotal, type) {
     const stoneVal = Math.floor(jadeVal / JADE_PER_STONE);
     document.getElementById('jadeValue').textContent = jadeVal.toLocaleString();
     document.getElementById('stoneValue').textContent = stoneVal.toLocaleString();
+    const weaponQuota = (starCounts.six || 0) * WEAPON_QUOTA_6STAR
+                      + (starCounts.five || 0) * WEAPON_QUOTA_5STAR
+                      + (starCounts.four || 0) * WEAPON_QUOTA_4STAR;
+    document.getElementById('weaponQuotaFromCharValue').textContent = weaponQuota.toLocaleString();
   } else {
     charCurrency.style.display = 'none';
     weaponCurrency.style.display = 'inline';
