@@ -14,6 +14,7 @@ export const WEAPON_QUOTA_4STAR = 20;       // 角色池 4★ → 20 武库配�
 export const SPARK_TIER1 = 120;             // 垫刀第一阶段阈值
 export const SPARK_TIER2 = 240;             // 垫刀第二阶段阈值
 export const PITY_BOOST_START = 65;         // 概率提升起始抽数
+export const CHAR_BASE_RATE = 0.8;          // 角色池 6★ 基础概率
 
 // UI 常量
 export const SNACKBAR_AUTO_CLOSE = 4500;    // snackbar 自动关闭延迟 (ms)

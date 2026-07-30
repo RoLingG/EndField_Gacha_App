@@ -1,5 +1,5 @@
 import { getGlobalCharPoolOrder, getGlobalWeaponPoolOrder } from './state.js';
-import { SPARK_TIER1, SPARK_TIER2, PITY_BOOST_START } from './constants.js';
+import { SPARK_TIER1, SPARK_TIER2, PITY_BOOST_START, CHAR_BASE_RATE } from './constants.js';
 
 export function groupDataByPool(flatList) {
   const grouped = {};
@@ -47,12 +47,13 @@ export function calculateSixStarDetails(items, reverse = false, allItems) {
   let pityCounter = 0;
   for (const key of poolOrder) {
     const firstItem = pools[key][0];
-    const isExcluded = EXCLUDED_FROM_PITY.includes(firstItem?.poolId);
+    const isExcluded = isPityExcluded(firstItem?.poolId);
 
     if (isExcluded) {
       // 排除池：冻结 pityCounter，用独立 poolPity 计数
       const saved = pityCounter;
       let poolPity = 0;
+      const details = [];
       pools[key].forEach(item => {
         if (item.rarity === 6 && displayPools.has(key)) {
           const detail = {
@@ -61,13 +62,15 @@ export function calculateSixStarDetails(items, reverse = false, allItems) {
             pityText: item.isFree ? "FREE" : ++poolPity
           };
           if (item.poolName) detail.poolName = item.poolName;
-          allDetails.push(detail);
+          details.push(detail);
           if (!item.isFree) poolPity = 0;
         } else {
           if (!item.isFree) poolPity++;
         }
       });
-      pityCounter = saved; // 恢复，排除池不影响继承链
+      if (reverse) details.reverse();
+      allDetails.push(...details);
+      pityCounter = saved;
     } else {
       // 非排除池：pityCounter 跨池累加，poolPity 当前池内计数
       const details = [];
@@ -130,8 +133,16 @@ export function calculateSparkInfo(reversed, targetUp) {
   return { sparkCount, targetLimit, rightCornerSub };
 }
 
-// 不参与跨池水位继承的特殊卡池
+// 不参与跨池水位继承的特殊卡池（含武器池，武器池保底不继承）
 const EXCLUDED_FROM_PITY = ['standard', 'beginner'];
+
+function isWeaponPool(poolId) {
+  return poolId?.startsWith('weaponbox_') || poolId?.startsWith('weponbox_');
+}
+
+function isPityExcluded(poolId) {
+  return EXCLUDED_FROM_PITY.includes(poolId) || isWeaponPool(poolId);
+}
 
 // 计算每个池子各自的水位（保底计数跨池继承，出 6★ 归零）
 // 返回 { poolName: pity } 的对象，pity 为该池子结束时的累计水位
@@ -151,7 +162,7 @@ export function calculatePerPoolPity(dataMap, poolOrder) {
   for (const poolName of allPoolNames) {
     if (!dataMap[poolName]) continue;
     // 跳过特殊卡池，不参与跨池水位继承
-    if (EXCLUDED_FROM_PITY.includes(dataMap[poolName][0]?.poolId)) continue;
+    if (isPityExcluded(dataMap[poolName][0]?.poolId)) continue;
     // 池内按时间升序排序，同时间戳按 seqId 升序（保证十连批次内顺序正确）
     const items = [...dataMap[poolName]].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
 
@@ -167,10 +178,10 @@ export function calculatePerPoolPity(dataMap, poolOrder) {
 }
 
 // 水位概率计算
-export function calculatePityBoost(currentPity, poolId) {
-  if (currentPity >= PITY_BOOST_START && !EXCLUDED_FROM_PITY.includes(poolId)) {
+export function calculatePityBoost(currentPity, poolId, isWeapon) {
+  if (!isWeapon && currentPity >= PITY_BOOST_START && !EXCLUDED_FROM_PITY.includes(poolId)) {
     const extraRate = (currentPity - (PITY_BOOST_START - 1)) * 5;
-    const nextProb = Math.min(0.8 + extraRate, 100);
+    const nextProb = Math.min(CHAR_BASE_RATE + extraRate, 100);
     return {
       pityColor: "#ff5722",
       pitySubText: `NEXT PROB: ${nextProb}%`
@@ -223,8 +234,8 @@ export function calculateAvgPity(items) {
   for (const item of sorted) {
     if (item.isFree) continue;
     if (item.poolId !== lastPoolId) {
-      const wasExcluded = EXCLUDED_FROM_PITY.includes(lastPoolId);
-      const nowExcluded = EXCLUDED_FROM_PITY.includes(item.poolId);
+      const wasExcluded = isPityExcluded(lastPoolId);
+      const nowExcluded = isPityExcluded(item.poolId);
       if (nowExcluded && !wasExcluded) {
         savedPity = pity;  // 进入排除池，保存
         pity = 0;
@@ -257,8 +268,8 @@ export function calculateMaxDrought(items) {
   for (const item of sorted) {
     if (item.isFree) continue;
     if (item.poolId !== lastPoolId) {
-      const wasExcluded = EXCLUDED_FROM_PITY.includes(lastPoolId);
-      const nowExcluded = EXCLUDED_FROM_PITY.includes(item.poolId);
+      const wasExcluded = isPityExcluded(lastPoolId);
+      const nowExcluded = isPityExcluded(item.poolId);
       if (nowExcluded && !wasExcluded) {
         savedStreak = currentStreak;
         currentStreak = 0;
@@ -330,8 +341,8 @@ export function calculatePityDistribution(items, poolConfig = {}) {
   for (const item of sorted) {
     if (item.isFree) continue;
     if (item.poolId !== lastPoolId) {
-      const wasExcluded = EXCLUDED_FROM_PITY.includes(lastPoolId);
-      const nowExcluded = EXCLUDED_FROM_PITY.includes(item.poolId);
+      const wasExcluded = isPityExcluded(lastPoolId);
+      const nowExcluded = isPityExcluded(item.poolId);
       if (nowExcluded && !wasExcluded) {
         savedStreak = streak;
         streak = 0;

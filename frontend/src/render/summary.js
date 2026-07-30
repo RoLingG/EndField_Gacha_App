@@ -11,7 +11,8 @@ export function createSummaryStrip(dataMap, poolName) {
 
   // 每个池子各自的水位（保底计数跨池继承，出 6★ 归零）
   const currentType = getCurrentType();
-  const poolOrder = (currentType === 'weapon')
+  const isWeapon = currentType === 'weapon';
+  const poolOrder = isWeapon
     ? getGlobalWeaponPoolOrder()
     : getGlobalCharPoolOrder();
   const perPoolPity = calculatePerPoolPity(dataMap, poolOrder);
@@ -21,18 +22,18 @@ export function createSummaryStrip(dataMap, poolName) {
 
   let centerLabel = t('summary.poolTotal');
   let centerValueHtml = total;
-  let rightCornerSub = (currentType === 'char') ? t('summary.guaranteeChar') : t('summary.guaranteeWeapon');
-  let pityCount = (currentType === 'char') ? 80 : 40;
+  let rightCornerSub = isWeapon ? t('summary.guaranteeWeapon') : t('summary.guaranteeChar');
+  let pityCount = isWeapon ? 40 : 80;
   const targetUp = poolUpConfig[poolName] || null;
-  if (currentType === 'char' && targetUp) {
+  if (!isWeapon && targetUp) {
     centerLabel = t('summary.poolSpark');
     const spark = calculateSparkInfo(reversed, targetUp);
     rightCornerSub = spark.rightCornerSub;
     centerValueHtml = `${spark.sparkCount} <span style="font-size:12px;color:#666">/ ${spark.targetLimit}</span>`;
   }
 
-  const pityBoost = calculatePityBoost(currentPity, poolId);
-  const typeLabel = (currentType === 'char') ? t('summary.characters') : t('summary.weapons');
+  const pityBoost = calculatePityBoost(currentPity, poolId, isWeapon);
+  const typeLabel = isWeapon ? t('summary.weapons') : t('summary.characters');
   document.getElementById('summaryStrip').innerHTML = `
     <div class="info-card">
       <div class="info-label">${t('summary.currentPity')}</div>
