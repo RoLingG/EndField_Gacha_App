@@ -1,5 +1,5 @@
 import { getGlobalCharPoolOrder, getGlobalWeaponPoolOrder } from './state.js';
-import { SPARK_TIER1, SPARK_TIER2, PITY_BOOST_START, CHAR_BASE_RATE } from './constants.js';
+import { SPARK_TIER1, SPARK_TIER2, PITY_BOOST_START, CHAR_BASE_RATE, CHAR_HARD_PITY } from './constants.js';
 
 export function groupDataByPool(flatList) {
   const grouped = {};
@@ -177,14 +177,38 @@ export function calculatePerPoolPity(dataMap, poolOrder) {
   return perPoolPity;
 }
 
+// 计算当前水位下一次单抽出 6★ 概率
+function calcSingleProb(currentPity) {
+  if (currentPity >= CHAR_HARD_PITY) {
+    return 100
+  }
+  if (currentPity >= PITY_BOOST_START) {
+    const extraRate = (currentPity - (PITY_BOOST_START - 1)) * 5;
+    return Math.min(CHAR_BASE_RATE + extraRate, 100);
+  }
+  return CHAR_BASE_RATE
+}
+
+// 计算当前水位下一次十连内出 6★ 的累计概率
+// basePity: 当前水位, pulls: 再抽次数
+// P = 1 - ∏(1 - p_i), p_i 随软保底递增
+function calcCumulatedProb(basePity, pulls) {
+  let probNoSix = 1;
+  for (let k = 1; k <= pulls; k++) {
+    const p = calcSingleProb(basePity + k) / 100;
+    probNoSix *= (1 - p);
+  }
+  return (1 - probNoSix) * 100;
+}
+
 // 水位概率计算
 export function calculatePityBoost(currentPity, poolId, isWeapon) {
   if (!isWeapon && currentPity >= PITY_BOOST_START && !EXCLUDED_FROM_PITY.includes(poolId)) {
-    const extraRate = (currentPity - (PITY_BOOST_START - 1)) * 5;
-    const nextProb = Math.min(CHAR_BASE_RATE + extraRate, 100);
+    const singlePullProb = calcSingleProb(currentPity)
+    const tenPullProb = calcCumulatedProb(currentPity, 10);
     return {
       pityColor: "#ff5722",
-      pitySubText: `NEXT PROB: ${nextProb}%`
+      pitySubText: `1x: ${singlePullProb.toFixed(1)}% // 10x: ${tenPullProb.toFixed(1)}%`
     };
   }
   return {
@@ -332,9 +356,9 @@ export function calculateMonthlyStats(items, poolConfig = {}) {
 // 6★ 之间的抽数间隔分布（排除免费抽，保底跨池继承，基础寻访/启程寻访排除）
 export function calculatePityDistribution(items, poolConfig = {}) {
   const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
-  const buckets = [0, 0, 0, 0, 0, 0, 0, 0, 0]; // 1-10, 11-20, ..., 71-80, 80+
-  const upBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-  const offBuckets = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const buckets = [0, 0, 0, 0, 0, 0, 0, 0]; // 1-10, 11-20, ..., 71-80
+  const upBuckets = [0, 0, 0, 0, 0, 0, 0, 0];
+  const offBuckets = [0, 0, 0, 0, 0, 0, 0, 0];
   let streak = 0;
   let lastPoolId = '';
   let savedStreak = 0;
@@ -353,7 +377,7 @@ export function calculatePityDistribution(items, poolConfig = {}) {
     }
     streak++;
     if (item.rarity === 6) {
-      const bucketIndex = Math.min(Math.floor((streak - 1) / 10), 8);
+      const bucketIndex = Math.min(Math.floor((streak - 1) / 10), 7);
       buckets[bucketIndex]++;
       const upName = poolConfig[item.poolName];
       if (upName && getItemName(item) === upName) {
@@ -365,7 +389,7 @@ export function calculatePityDistribution(items, poolConfig = {}) {
     }
   }
   return {
-    labels: ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '80+'],
+    labels: ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80'],
     counts: buckets,
     upCounts: upBuckets,
     offCounts: offBuckets

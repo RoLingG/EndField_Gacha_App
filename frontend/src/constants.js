@@ -15,6 +15,7 @@ export const SPARK_TIER1 = 120;             // 垫刀第一阶段阈值
 export const SPARK_TIER2 = 240;             // 垫刀第二阶段阈值
 export const PITY_BOOST_START = 65;         // 概率提升起始抽数
 export const CHAR_BASE_RATE = 0.8;          // 角色池 6★ 基础概率
+export const CHAR_HARD_PITY = 80;           // 角色池 6★ 硬保底上限
 
 // UI 常量
 export const SNACKBAR_AUTO_CLOSE = 4500;    // snackbar 自动关闭延迟 (ms)

@@ -80,9 +80,10 @@ export function renderPityDistributionChart(distribution) {
   container.appendChild(canvas);
 
   const colors = [
-    '#ffd54f', '#ffca28', '#ffc107',
-    '#ffb300', '#ff9800', '#f57c00',
-    '#ef6c00', '#e65100', '#bf360c'
+    '#ffd54f', '#ffca28',
+    '#ffc107', '#ffb300',
+    '#ff9800', '#f57c00',
+    '#ef6c00', '#e65100'
   ];
 
   const newChart = new Chart(canvas, {
