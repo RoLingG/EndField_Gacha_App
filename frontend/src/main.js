@@ -46,8 +46,10 @@ if (maxBtn) {
     maxBtn.textContent = isMax ? "❐" : "□";
   };
 }
-document.getElementById("minBtn").onclick = () => WindowMinSize();
-document.getElementById("closeBtn").onclick = () => WindowClose();
+const minBtn = document.getElementById("minBtn");
+if (minBtn) minBtn.onclick = () => WindowMinSize();
+const closeBtn = document.getElementById("closeBtn");
+if (closeBtn) closeBtn.onclick = () => WindowClose();
 
 // ============================================
 // 窗口操作函数

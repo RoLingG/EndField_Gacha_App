@@ -10,6 +10,10 @@ import { getItemName } from '../data.js';
 import { showAppSnackbar } from '../utils.js';
 import { t } from '../i18n.js';
 
+const originalNumMap = new WeakMap();
+const FILTER_CACHE_DEFAULT = { searchText: '', rarity: 0, isFree: -1, items: null, result: [] };
+let filterCache = { ...FILTER_CACHE_DEFAULT };
+
 // 统一渲染历史记录空状态
 export function renderEmptyHistoryTable(message, colspan = 5) {
   const historyTableBody = document.getElementById('historyTableBody');
@@ -41,7 +45,12 @@ function applyFilters(items) {
   const rarity = getFilterRarity();
   const isFree = getFilterIsFree();
 
-  return items.filter(item => {
+  if (filterCache.searchText === searchText && filterCache.rarity === rarity
+      && filterCache.isFree === isFree && filterCache.items === items) {
+    return filterCache.result
+  }
+
+  const result = items.filter(item => {
     if (searchText) {
       const name = getItemName(item).toLowerCase();
       if (!name.includes(searchText)) return false;
@@ -51,6 +60,9 @@ function applyFilters(items) {
     if (isFree === 1 && !item.isFree) return false;
     return true;
   });
+
+  filterCache = {searchText, rarity, isFree, items, result}
+  return result
 }
 
 // 筛选栏事件绑定（只初始化一次）
@@ -92,6 +104,7 @@ export function resetFilters() {
   setFilterSearchText("");
   setFilterRarity(0);
   setFilterIsFree(-1);
+  filterCache = { ...FILTER_CACHE_DEFAULT };
 
   const searchInput = document.getElementById('filterSearchInput');
   const raritySelect = document.getElementById('filterRaritySelect');
@@ -118,7 +131,7 @@ function renderTableRows(tbody, pageItems, totalItems, startIndex, getPoolLabel,
   } else {
     pageItems.forEach((item, index) => {
       const tr = document.createElement('tr');
-      const displayNum = item._originalNum || (totalItems - (startIndex + index));
+      const displayNum = originalNumMap.get(item) || (totalItems - (startIndex + index));
       const name = getItemName(item);
       const isFree = item.isFree ? "YES" : "NO";
       const poolLabel = getPoolLabel(item);
@@ -263,7 +276,7 @@ export function createHistoryTable(dataMap, poolName) {
   }
   const items = dataMap[poolName].slice();
   // 为每条记录保留原始序号（筛选时不重新编号）
-  items.forEach((item, index) => { item._originalNum = items.length - index; });
+  items.forEach((item, index) => { originalNumMap.set(item, items.length - index); });
   setCurrentHistoryData(items);
   initFilterBar();
   renderHistoryPage();
@@ -283,7 +296,7 @@ export function renderHistoryPage(direction = null) {
 export function createAllPoolsHistoryTable(allItems) {
   setCurrentHistoryPage(1);
   const sorted = allItems.slice();
-  sorted.forEach((item, index) => { item._originalNum = sorted.length - index; });
+  sorted.forEach((item, index) => { originalNumMap.set(item, sorted.length - index); });
   setCurrentHistoryData(sorted);
   initFilterBar();
   renderAllPoolsHistoryPage();

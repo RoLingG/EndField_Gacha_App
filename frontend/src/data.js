@@ -231,6 +231,7 @@ export function calculatePoolStats(items) {
 // 合并所有卡池的数据并按卡池配置顺序排序
 export function mergeAllPoolsData(dataMap, type = 'char') {
   const poolOrder = (type === 'weapon') ? getGlobalWeaponPoolOrder() : getGlobalCharPoolOrder();
+  const poolOrderSet = new Set(poolOrder);
   const merged = [];
   // 新池→旧池遍历（反转配置顺序），保持池内顺序不变
   for (let i = poolOrder.length - 1; i >= 0; i--) {
@@ -240,7 +241,7 @@ export function mergeAllPoolsData(dataMap, type = 'char') {
   }
   // 再把 dataMap 中有但 poolOrder 没有的池子加进去（保底）
   for (const poolName in dataMap) {
-    if (!poolOrder.includes(poolName)) {
+    if (!poolOrderSet.has(poolName)) {
       merged.push(...dataMap[poolName]);
     }
   }
