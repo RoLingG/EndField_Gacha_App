@@ -1,12 +1,14 @@
-import { getGlobalLang } from './state.js';
+import zhMessages from './locales/zh.json';
+
+const localeMap = {
+  zh: zhMessages,
+};
 
 let messages = {};
 
-// 加载语言包
 export async function loadLocale(lang) {
   try {
-    const res = await fetch(`./src/locales/${lang}.json`);
-    messages = await res.json();
+    messages = localeMap[lang] || {};
   } catch (err) {
     console.warn(`Failed to load locale "${lang}":`, err);
     messages = {};
