@@ -117,6 +117,7 @@ export function createRareRecordCard(dataMap, poolName) {
 }
 
 export function createAllPoolsRareRecordsCard(items) {
+  if (!items || !Array.isArray(items) || items.length === 0) items = [];
   const currentType = getCurrentType();
   const sixStarDetails = calculateSixStarDetails(items, true);
   const labelText = (currentType === 'char') ? t('rare.all6Char') : t('rare.all6Weapon');

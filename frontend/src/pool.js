@@ -1,5 +1,10 @@
 import { GetPoolConfig, UpdatePoolConfig } from "../wailsjs/go/main/App";
-import {FALLBACK_POOL_CONFIG, FALLBACK_POOL_ORDER, SNACKBAR_AUTO_CLOSE,} from './constants.js';
+import {
+  FALLBACK_CHAR_POOL_CONFIG,
+  FALLBACK_WEAPON_POOL_CONFIG,
+  FALLBACK_POOL_ORDER,
+  SNACKBAR_AUTO_CLOSE,
+} from './constants.js';
 import {
   getGlobalPoolConfig, setGlobalPoolConfig,
   getGlobalCharPoolOrder, setGlobalCharPoolOrder,
@@ -41,7 +46,7 @@ export async function loadPoolConfig() {
     }
   } catch (err) {
     console.warn("Failed to load pool config, using fallback:", err);
-    setGlobalPoolConfig({ ...FALLBACK_POOL_CONFIG });
+    setGlobalPoolConfig({ ...FALLBACK_CHAR_POOL_CONFIG });
     setGlobalCharPoolOrder([...FALLBACK_POOL_ORDER]);
     setGlobalWeaponPoolOrder([]);
   }
@@ -69,6 +74,18 @@ export async function updatePoolConfigHandler() {
 }
 
 export function createPoolButtons(dataMap, onPoolChange, type = 'char') {
+  if (!dataMap || typeof dataMap !== 'object' || Object.keys(dataMap).length === 0) {
+    showAppSnackbar({
+      message: t('snackbar.emptyPools'),
+      type: "warning",
+      autoCloseDelay: SNACKBAR_AUTO_CLOSE,
+    })
+    if (type === "weapon") {
+      dataMap = { ...FALLBACK_WEAPON_POOL_CONFIG }
+    } else {
+      dataMap = { ...FALLBACK_CHAR_POOL_CONFIG }
+    }
+  }
   const poolSelectorWrapper = document.getElementById('poolSelectorWrapper');
   if (!poolSelectorWrapper) {
     console.warn('poolSelectorWrapper element not found');

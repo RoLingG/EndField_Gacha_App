@@ -38,8 +38,8 @@ let globalCharPoolOrder = [];
 let globalWeaponPoolOrder = [];
 
 // 分页逻辑
+let historyPageSize = 10;
 let currentHistoryPage = 1;
-const historyPageSize = 10;
 let currentHistoryData = [];
 let currentPoolNameForPagination = "";
 
@@ -116,6 +116,7 @@ export function getCurrentHistoryPage() { return currentHistoryPage; }
 export function setCurrentHistoryPage(v) { currentHistoryPage = v; }
 
 export function getHistoryPageSize() { return historyPageSize; }
+export function setHistoryPageSize(v) { historyPageSize = v; }
 
 export function getCurrentHistoryData() { return currentHistoryData; }
 export function setCurrentHistoryData(v) { currentHistoryData = v; }

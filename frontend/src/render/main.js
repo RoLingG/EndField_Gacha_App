@@ -4,8 +4,7 @@ import {
   getGlobalCharData, getGlobalWeaponData,
   getCurrentPool, setCurrentPool, setCurrentAllPoolsData,
   setIsAllPoolsMode, getIsAllPoolsMode, setCurrentHistoryPage,
-  getGlobalPoolConfig,
-  getComingFromStats, setComingFromStats,
+  getGlobalPoolConfig, getComingFromStats, setComingFromStats,
 } from '../state.js';
 import { createPoolButtons } from '../pool.js';
 import { mergeAllPoolsData, calculateAvgPity, calculateMaxDrought, calculateMonthlyStats, calculatePityDistribution } from '../data.js';

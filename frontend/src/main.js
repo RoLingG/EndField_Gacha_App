@@ -5,9 +5,8 @@ import {
 
 import {
   setCachedHgToken, setCurrentUid, setCurrentServerType, setGlobalCharData, setGlobalWeaponData,
-  setCurrentType, setLastDataType, setCurrentPool, setCurrentAllPoolsData, setIsAllPoolsMode,
-  setIsFetching, getIsFetching, getCurrentServerType, getCurrentUid, getCurrentType,
-  getTempExportData, setTempExportData,
+  setCurrentType, setLastDataType, setCurrentPool, setCurrentAllPoolsData, setIsAllPoolsMode, setIsFetching,
+  getIsFetching, getCurrentServerType, getCurrentUid, getCurrentType, getTempExportData, getGlobalLang,
 } from './state.js';
 
 import { APP_ELEMENT_IDS, SNACKBAR_AUTO_CLOSE } from './constants.js';
@@ -18,7 +17,6 @@ import { setChartUpdater, setStatsChartUpdater, initThemeToggle } from './theme.
 import { showAppSnackbar, setFetchingState } from './utils.js';
 import { showTokenInputUI, handleOfficialLoginWindow, handleToken, setDataLoader,} from './auth.js';
 import { loadLocale, applyToDOM, t } from './i18n.js';
-import { getGlobalLang } from './state.js';
 import { onSelectServer, loadLocal, handleImportTemp, initApp, setExitAnimator,} from './loader.js';
 
 // ============================================
@@ -158,7 +156,11 @@ async function handleExport() {
 // 动画 & 导航
 // ============================================
 
-function startExitAnimation() {
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function startExitAnimation() {
   const loadingOverlay = document.getElementById('loadingOverlay');
   const loadingText = document.querySelector('.loading-text');
   const loadingTrack = document.querySelector('.tech-progress-track');
@@ -171,59 +173,61 @@ function startExitAnimation() {
     loadingTrack.style.opacity = "0";
   }
 
-  setTimeout(() => {
-    if (loadingText) {
-      loadingText.style.transition = "all 0.5s ease-in";
-      loadingText.style.opacity = "0";
-      loadingText.style.transform = "translateY(-20px)";
-    }
-    if (logoWrapper) {
-      logoWrapper.style.transition = "all 0.5s ease-in";
-      logoWrapper.style.opacity = "0";
-      logoWrapper.style.transform = "scale(0.5)";
-    }
-    setTimeout(() => {
-      loadingOverlay.style.transition = "transform 0.6s cubic-bezier(0.8, 0, 0.2, 1)";
-      loadingOverlay.style.transform = "translateY(-100%)";
-      if (techStatRow) {
-        techStatRow.style.transition = "opacity 0.2s ease-in";
-        techStatRow.style.opacity = "0";
-      }
+  await delay(400);
 
-      setTimeout(() => {
-        loadingOverlay.classList.remove("show");
-        if (loadingTrack) {
-          loadingTrack.style.transition = "none";
-          loadingTrack.style.transform = "scaleX(1)";
-          loadingTrack.style.opacity = "1";
-        }
-        if (logoWrapper) logoWrapper.style.transform = "";
-        if (loadingText) loadingText.style.transform = "";
-        if (techStatRow) {
-          techStatRow.style.transition = "";
-          techStatRow.style.opacity = "";
-          techStatRow.style.transform = "";
-        }
-        const elements = APP_ELEMENT_IDS.map(id => document.getElementById(id));
-        const flexIds = new Set(["mainTitle", "typeSwitcher", "dashboardPanel"]);
-        elements.forEach((el) => {
-          if (!el || el.id === 'statsPanel') return;
-          const needFlex = flexIds.has(el.id) || (el.id === 'summaryStrip' && el.style.display !== 'none');
-          el.style.display = needFlex ? 'flex' : 'block';
-        });
-        elements.forEach((el, index) => {
-          if (!el || el.id === 'statsPanel') return;
-          setTimeout(() => {
-            el.style.transition = "opacity 0.5s ease-out, visibility 0.5s ease-out, transform 0.5s ease-out";
-            el.style.opacity = "1";
-            el.style.visibility = "visible";
-            el.style.transform = "translateY(0)";
-          }, index * 100);
-        });
-      }, 500);
-    }, 400);
-  }, 400);
+  if (loadingText) {
+    loadingText.style.transition = "all 0.5s ease-in";
+    loadingText.style.opacity = "0";
+    loadingText.style.transform = "translateY(-20px)";
+  }
+  if (logoWrapper) {
+    logoWrapper.style.transition = "all 0.5s ease-in";
+    logoWrapper.style.opacity = "0";
+    logoWrapper.style.transform = "scale(0.5)";
+  }
+
+  await delay(400);
+
+  loadingOverlay.style.transition = "transform 0.6s cubic-bezier(0.8, 0, 0.2, 1)";
+  loadingOverlay.style.transform = "translateY(-100%)";
+  if (techStatRow) {
+    techStatRow.style.transition = "opacity 0.2s ease-in";
+    techStatRow.style.opacity = "0";
+  }
+
+  await delay(500);
+
+  loadingOverlay.classList.remove("show");
+  if (loadingTrack) {
+    loadingTrack.style.transition = "none";
+    loadingTrack.style.transform = "scaleX(1)";
+    loadingTrack.style.opacity = "1";
+  }
+  if (logoWrapper) logoWrapper.style.transform = "";
+  if (loadingText) loadingText.style.transform = "";
+  if (techStatRow) {
+    techStatRow.style.transition = "";
+    techStatRow.style.opacity = "";
+    techStatRow.style.transform = "";
+  }
+  const elements = APP_ELEMENT_IDS.map(id => document.getElementById(id));
+  const flexIds = new Set(["mainTitle", "typeSwitcher", "dashboardPanel"]);
+  elements.forEach((el) => {
+    if (!el || el.id === 'statsPanel') return;
+    const needFlex = flexIds.has(el.id) || (el.id === 'summaryStrip' && el.style.display !== 'none');
+    el.style.display = needFlex ? 'flex' : 'block';
+  });
+  elements.forEach((el, index) => {
+    if (!el || el.id === 'statsPanel') return;
+    setTimeout(() => {
+      el.style.transition = "opacity 0.5s ease-out, visibility 0.5s ease-out, transform 0.5s ease-out";
+      el.style.opacity = "1";
+      el.style.visibility = "visible";
+      el.style.transform = "translateY(0)";
+    }, index * 100);
+  });
 }
+
 
 window.resetToAnalyze = function () {
   setCachedHgToken("");

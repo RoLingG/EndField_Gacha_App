@@ -11,6 +11,8 @@ function getStatsGridColor() {
 }
 
 export function updateOrCreateChart(items) {
+  if (!items || !Array.isArray(items) || items.length === 0) items = [];
+
   const chartContainer = document.getElementById("chartContainer");
   if (chartContainer) {
     // 移除残留的无数据样式
@@ -63,6 +65,8 @@ export function updateOrCreateChart(items) {
 }
 
 export function renderPityDistributionChart(distribution) {
+  if (!distribution || !distribution.labels) return;
+
   const existing = getPityDistChartInstance();
   if (existing) {
     existing.data.datasets[0].data = distribution.counts;
@@ -156,6 +160,8 @@ export function renderPityDistributionChart(distribution) {
 }
 
 export function renderMonthlyTrendChart(monthlyData) {
+  if (!monthlyData || !Array.isArray(monthlyData) || monthlyData.length === 0) monthlyData = [];
+
   const existing = getMonthlyTrendChartInstance();
   if (existing) {
     existing.data.labels = monthlyData.map(d => d.month);

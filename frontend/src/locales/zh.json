@@ -79,8 +79,9 @@
   "snackbar.updateFailed": "[ERROR] 更新失败 / Update failed: ",
   "snackbar.tokenFailed": "[ERROR] 处理 Token 失败: ",
   "snackbar.charAndWeaponFailed": "[ERROR] 角色池与武器池数据均加载失败",
-  "snackbar.charFailed": "角色池数据加载失败，已降级为空数据",
-  "snackbar.weaponFailed": "武器池数据加载失败，已降级为空数据",
+  "snackbar.charFailed": "[INFO] 角色池数据加载失败，已降级为空数据",
+  "snackbar.weaponFailed": "[INFO] 武器池数据加载失败，已降级为空数据",
+  "snackbar.emptyPools": "[WARNING] 当前卡池数据为空",
 
   "main.title": "寻访数据概览 // STATISTICS",
 

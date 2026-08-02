@@ -41,6 +41,8 @@ export function updateHistoryPaginationUI(currentPage, totalPages) {
 
 // 根据筛选状态过滤数据
 function applyFilters(items) {
+  if (!items || !Array.isArray(items) || items.length === 0) return [];
+
   const searchText = getFilterSearchText().toLowerCase();
   const rarity = getFilterRarity();
   const isFree = getFilterIsFree();
@@ -294,6 +296,8 @@ export function renderHistoryPage(direction = null) {
 }
 
 export function createAllPoolsHistoryTable(allItems) {
+  if (!allItems || !Array.isArray(allItems) || allItems.length === 0) allItems = [];
+
   setCurrentHistoryPage(1);
   const sorted = allItems.slice();
   sorted.forEach((item, index) => { originalNumMap.set(item, sorted.length - index); });
@@ -327,7 +331,7 @@ export function changePage(delta) {
   }
 }
 
-// 初始化页码编辑功能（双击可编辑）
+// 初始化页码编辑功能
 function initPageIndicatorEditing(totalPages, isAllPoolsMode) {
   const pageIndicator = document.getElementById('pageIndicator');
   if (!pageIndicator) return;

@@ -1,5 +1,24 @@
-import { getGlobalCharPoolOrder, getGlobalWeaponPoolOrder } from './state.js';
 import { SPARK_TIER1, SPARK_TIER2, PITY_BOOST_START, CHAR_BASE_RATE, CHAR_HARD_PITY } from './constants.js';
+import {getGlobalCharPoolOrder, getGlobalWeaponPoolOrder} from "./state";
+
+export const DEFAULT_EMPTY_POOL_STATS = {
+  total: 0,
+  notFreeTotal: 0,
+  sixStarCount: 0,
+  fiveStarCount: 0,
+  fourStarCount: 0,
+  rate: "0.00"
+};
+export const DEFAULT_AVG_PITY = { avgPity: 0, sixStarCount: 0 };
+export const DEFAULT_MAX_DROUGHT = { maxDrought: 0, currentDrought: 0 };
+export const DEFAULT_MONTHLY_STATS = [];
+export const DEFAULT_PITY_DISTRIBUTION = {
+  labels: ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80'],
+  counts: [0, 0, 0, 0, 0, 0, 0, 0],
+  upCounts: [0, 0, 0, 0, 0, 0, 0, 0],
+  offCounts: [0, 0, 0, 0, 0, 0, 0, 0]
+};
+export const DEFAULT_ARRAY = [];
 
 export function groupDataByPool(flatList) {
   const grouped = {};
@@ -21,6 +40,8 @@ export function getItemName(item) {
 
 // 计算卡池六星详细信息
 export function calculateSixStarDetails(items, reverse = false, allItems) {
+  if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_ARRAY;
+
   // allItems 用于计算 pityCounter（跨池继承），items 决定显示哪些池子
   const pitySource = allItems || items;
   // 按时间排序（保证跨池保底计数正确），再按卡池分组
@@ -219,6 +240,8 @@ export function calculatePityBoost(currentPity, poolId, isWeapon) {
 
 // 计算卡池当前相关信息
 export function calculatePoolStats(items) {
+  if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_EMPTY_POOL_STATS;
+
   const total = items.length;
   const notFreeTotal = items.filter(item => !item.isFree).length;
   const sixStarCount = items.filter(i => i.rarity === 6).length;
@@ -230,6 +253,8 @@ export function calculatePoolStats(items) {
 
 // 合并所有卡池的数据并按卡池配置顺序排序
 export function mergeAllPoolsData(dataMap, type = 'char') {
+  if (!dataMap || typeof dataMap !== 'object' || Object.keys(dataMap).length === 0) return DEFAULT_ARRAY;
+
   const poolOrder = (type === 'weapon') ? getGlobalWeaponPoolOrder() : getGlobalCharPoolOrder();
   const poolOrderSet = new Set(poolOrder);
   const merged = [];
@@ -250,6 +275,8 @@ export function mergeAllPoolsData(dataMap, type = 'char') {
 
 // 平均出货抽数（排除免费抽，保底跨池继承，出 6★ 归零，基础寻访/启程寻访排除）
 export function calculateAvgPity(items) {
+  if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_AVG_PITY;
+
   const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
   let pity = 0;
   let sixCount = 0;
@@ -285,6 +312,8 @@ export function calculateAvgPity(items) {
 
 // 最长不出货记录（排除免费抽，保底跨池继承，基础寻访/启程寻访排除）
 export function calculateMaxDrought(items) {
+  if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_MAX_DROUGHT;
+
   const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
   let maxDrought = 0;
   let currentStreak = 0;
@@ -315,6 +344,8 @@ export function calculateMaxDrought(items) {
 
 // 按月统计抽数和出货数（排除免费抽）
 export function calculateMonthlyStats(items, poolConfig = {}) {
+  if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_MONTHLY_STATS;
+
   const monthMap = new Map();
   for (const item of items) {
     if (item.isFree) continue;
@@ -356,6 +387,8 @@ export function calculateMonthlyStats(items, poolConfig = {}) {
 
 // 6★ 之间的抽数间隔分布（排除免费抽，保底跨池继承，基础寻访/启程寻访排除）
 export function calculatePityDistribution(items, poolConfig = {}) {
+  if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_PITY_DISTRIBUTION
+
   const sorted = [...items].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
   const buckets = [0, 0, 0, 0, 0, 0, 0, 0]; // 1-10, 11-20, ..., 71-80
   const upBuckets = [0, 0, 0, 0, 0, 0, 0, 0];

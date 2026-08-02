@@ -19,7 +19,7 @@ export function t(key, params) {
   let msg = messages[key] || key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      msg = msg.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+      msg = msg.replaceAll(`{${k}}`, v);
     }
   }
   return msg;

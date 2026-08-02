@@ -61,6 +61,7 @@ export function createSummaryStrip(dataMap, poolName) {
 }
 
 export function createAllPoolsSummaryStrip(items) {
+  if (!items || !Array.isArray(items) || items.length === 0) items = [];
   const { total, notFreeTotal, sixStarCount, fiveStarCount, fourStarCount, rate } = calculatePoolStats(items);
   const typeLabel = (getLastDataType() === 'char') ? t('summary.characters') : t('summary.weapons');
 
