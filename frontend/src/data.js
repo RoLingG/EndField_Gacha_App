@@ -38,6 +38,11 @@ export function getItemName(item) {
   return item.charName || item.weaponName || "UNKNOWN";
 }
 
+// 判断是否为真实抽卡记录（排除 gift_intel_book 等非抽卡条目）
+export function isDraw(item) {
+  return !item.kind || item.kind === "draw";
+}
+
 // 计算卡池六星详细信息
 export function calculateSixStarDetails(items, reverse = false, allItems) {
   if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_ARRAY;
@@ -76,6 +81,7 @@ export function calculateSixStarDetails(items, reverse = false, allItems) {
       let poolPity = 0;
       const details = [];
       pools[key].forEach(item => {
+        if (!isDraw(item)) return; // 跳过寻访情报书等非抽卡条目
         if (item.rarity === 6 && displayPools.has(key)) {
           const detail = {
             name: getItemName(item),
@@ -99,6 +105,7 @@ export function calculateSixStarDetails(items, reverse = false, allItems) {
       let poolPity = 0;
       let firstSixStar = true;
       pools[key].forEach(item => {
+        if (!isDraw(item)) return; // 跳过寻访情报书等非抽卡条目
         if (item.rarity === 6) {
           if (displayPools.has(key)) {
             const detail = {
@@ -132,6 +139,7 @@ export function calculateSparkInfo(reversed, targetUp) {
   let sparkCount = 0;
   let sparkConsumed = false;
   for (let item of reversed) {
+    if (!isDraw(item)) continue; // 跳过寻访情报书等非抽卡条目
     if (!item.isFree) sparkCount++;
     const name = getItemName(item);
     if (name === targetUp && !item.isFree && sparkCount <= SPARK_TIER1) {
@@ -148,7 +156,13 @@ export function calculateSparkInfo(reversed, targetUp) {
     rightCornerSub = `NEXT TARGET: ${SPARK_TIER2}`;
   } else {
     targetLimit = sparkConsumed ? SPARK_TIER2 : SPARK_TIER1;
-    rightCornerSub = sparkConsumed ? `${SPARK_TIER1} CONSUMED -> TARGET ${SPARK_TIER2}` : "LIMITED SPARK COUNT";
+    if (sparkCount < 60) {
+      rightCornerSub = `INTEL BOOK: ${sparkCount} / 60`;
+    } else if (sparkConsumed) {
+      rightCornerSub = `${SPARK_TIER1} CONSUMED -> TARGET ${SPARK_TIER2}`;
+    } else {
+      rightCornerSub = "INTEL BOOK OBTAINED";
+    }
   }
 
   return { sparkCount, targetLimit, rightCornerSub };
@@ -188,6 +202,7 @@ export function calculatePerPoolPity(dataMap, poolOrder) {
     const items = [...dataMap[poolName]].sort((a, b) => Number(a.gachaTs) - Number(b.gachaTs) || Number(a.seqId) - Number(b.seqId));
 
     for (const item of items) {
+      if (!isDraw(item)) continue; // 跳过寻访情报书等非抽卡条目
       if (item.isFree) continue;
       pity++;
       if (item.rarity === 6) { pity = 0; }
@@ -242,11 +257,13 @@ export function calculatePityBoost(currentPity, poolId, isWeapon) {
 export function calculatePoolStats(items) {
   if (!items || !Array.isArray(items) || items.length === 0) return DEFAULT_EMPTY_POOL_STATS;
 
-  const total = items.length;
-  const notFreeTotal = items.filter(item => !item.isFree).length;
-  const sixStarCount = items.filter(i => i.rarity === 6).length;
-  const fiveStarCount = items.filter(i => i.rarity === 5).length;
-  const fourStarCount = items.filter(i => i.rarity === 4).length;
+  // 只统计真实抽卡记录，排除寻访情报书等非抽卡条目
+  const drawItems = items.filter(isDraw);
+  const total = drawItems.length;
+  const notFreeTotal = drawItems.filter(item => !item.isFree).length;
+  const sixStarCount = drawItems.filter(i => i.rarity === 6).length;
+  const fiveStarCount = drawItems.filter(i => i.rarity === 5).length;
+  const fourStarCount = drawItems.filter(i => i.rarity === 4).length;
   const rate = total > 0 ? ((sixStarCount / total) * 100).toFixed(2) : "0.00";
   return { total, notFreeTotal, sixStarCount, fiveStarCount, fourStarCount, rate };
 }
@@ -284,6 +301,7 @@ export function calculateAvgPity(items) {
   let lastPoolId = '';
   let savedPity = 0;
   for (const item of sorted) {
+    if (!isDraw(item)) continue; // 跳过寻访情报书等非抽卡条目
     if (item.isFree) continue;
     if (item.poolId !== lastPoolId) {
       const wasExcluded = isPityExcluded(lastPoolId);
@@ -320,6 +338,7 @@ export function calculateMaxDrought(items) {
   let lastPoolId = '';
   let savedStreak = 0;
   for (const item of sorted) {
+    if (!isDraw(item)) continue; // 跳过寻访情报书等非抽卡条目
     if (item.isFree) continue;
     if (item.poolId !== lastPoolId) {
       const wasExcluded = isPityExcluded(lastPoolId);
@@ -348,6 +367,7 @@ export function calculateMonthlyStats(items, poolConfig = {}) {
 
   const monthMap = new Map();
   for (const item of items) {
+    if (!isDraw(item)) continue; // 跳过寻访情报书等非抽卡条目
     if (item.isFree) continue;
     const date = new Date(Number(item.gachaTs));
     if (isNaN(date.getTime())) continue;
@@ -397,6 +417,7 @@ export function calculatePityDistribution(items, poolConfig = {}) {
   let lastPoolId = '';
   let savedStreak = 0;
   for (const item of sorted) {
+    if (!isDraw(item)) continue; // 跳过寻访情报书等非抽卡条目
     if (item.isFree) continue;
     if (item.poolId !== lastPoolId) {
       const wasExcluded = isPityExcluded(lastPoolId);

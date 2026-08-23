@@ -296,8 +296,6 @@ export async function initApp(isOfflineMode, serverName = "official", uid = "") 
     const charList = charRes?.list || [];
     const weaponList = weaponRes?.list || [];
 
-    setFetchingState(false);
-
     if (charFetchError && weaponFetchError) {
       showAppSnackbar({
         message: `${t('snackbar.charAndWeaponFailed')}: ${charFetchError} / ${weaponFetchError}。`,
@@ -342,5 +340,6 @@ export async function initApp(isOfflineMode, serverName = "official", uid = "") 
 
   renderByType('char');
   updateAllBtnText();
+  setFetchingState(false);
   if (exitAnimator) exitAnimator();
 }

@@ -148,6 +148,8 @@ export namespace main {
 export namespace model {
 	
 	export class EndFieldCharInfo {
+	    kind: string;
+	    nameText: string;
 	    charId: string;
 	    charName: string;
 	    gachaTs: string;
@@ -164,6 +166,8 @@ export namespace model {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.nameText = source["nameText"];
 	        this.charId = source["charId"];
 	        this.charName = source["charName"];
 	        this.gachaTs = source["gachaTs"];

@@ -6,7 +6,7 @@ import {
   getFilterRarity, setFilterRarity,
   getFilterIsFree, setFilterIsFree,
 } from '../state.js';
-import { getItemName } from '../data.js';
+import { getItemName, isDraw } from '../data.js';
 import { showAppSnackbar } from '../utils.js';
 import { t } from '../i18n.js';
 
@@ -133,17 +133,30 @@ function renderTableRows(tbody, pageItems, totalItems, startIndex, getPoolLabel,
   } else {
     pageItems.forEach((item, index) => {
       const tr = document.createElement('tr');
-      const displayNum = originalNumMap.get(item) || (totalItems - (startIndex + index));
-      const name = getItemName(item);
-      const isFree = item.isFree ? "YES" : "NO";
-      const poolLabel = getPoolLabel(item);
-      tr.innerHTML = `
-        <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
-        <td class="rarity-${item.rarity}">${name}</td>
-        <td>${"★".repeat(item.rarity)}</td>
-        <td style="color:#444; font-size:10px;">[ ${poolLabel} ]</td>
-        <td style="color:#444; font-size:10px;">${isFree}</td>
-      `;
+      if (!isDraw(item)) {
+        // 寻访情报书等非抽卡条目，不计入编号
+        const name = item.nameText || t('history.giftIntelBook');
+        const poolLabel = getPoolLabel(item);
+        tr.innerHTML = `
+          <td style="color:#444; font-size:10px;">-</td>
+          <td>${name}</td>
+          <td>☆☆☆☆☆☆</td>
+          <td style="color:#444; font-size:10px;">[ ${poolLabel} ]</td>
+          <td style="color:#444; font-size:10px;">-</td>
+        `;
+      } else {
+        const displayNum = originalNumMap.get(item) || (totalItems - (startIndex + index));
+        const name = getItemName(item);
+        const isFree = item.isFree ? "YES" : "NO";
+        const poolLabel = getPoolLabel(item);
+        tr.innerHTML = `
+          <td style="color:#444; font-size:10px;">${String(displayNum).padStart(2, '0')}</td>
+          <td>${name}</td>
+          <td>${"★".repeat(item.rarity)}</td>
+          <td style="color:#444; font-size:10px;">[ ${poolLabel} ]</td>
+          <td style="color:#444; font-size:10px;">${isFree}</td>
+        `;
+      }
       tbody.appendChild(tr);
     });
   }
@@ -277,8 +290,14 @@ export function createHistoryTable(dataMap, poolName) {
     setCurrentPoolNameForPagination(poolName);
   }
   const items = dataMap[poolName].slice();
-  // 为每条记录保留原始序号（筛选时不重新编号）
-  items.forEach((item, index) => { originalNumMap.set(item, items.length - index); });
+  // 为每条真实抽卡记录保留原始序号（筛选时不重新编号），跳过寻访情报书等非抽卡条目
+  let drawCount = 0;
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (isDraw(items[i])) {
+      drawCount++;
+      originalNumMap.set(items[i], drawCount);
+    }
+  }
   setCurrentHistoryData(items);
   initFilterBar();
   renderHistoryPage();
@@ -300,7 +319,14 @@ export function createAllPoolsHistoryTable(allItems) {
 
   setCurrentHistoryPage(1);
   const sorted = allItems.slice();
-  sorted.forEach((item, index) => { originalNumMap.set(item, sorted.length - index); });
+  // 为每条真实抽卡记录保留原始序号，跳过寻访情报书等非抽卡条目
+  let drawCount = 0;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (isDraw(sorted[i])) {
+      drawCount++;
+      originalNumMap.set(sorted[i], drawCount);
+    }
+  }
   setCurrentHistoryData(sorted);
   initFilterBar();
   renderAllPoolsHistoryPage();

@@ -75,8 +75,8 @@ function renderRareRecordsCard(options) {
   }).join("");
 
   const emptyHtml = `<span style="color:${emptyColor}; font-style:italic; font-size:12px;">// NO SIGNAL DETECTED</span>`;
+  container.style.borderLeft = `4px solid ${accentColor}`;
   container.innerHTML = `
-    <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:${accentColor};"></div>
     <div style="margin-left: 8px;">
       <div style="font-size:10px; color:${textMuted}; font-family:'Consolas'; letter-spacing:1px; margin-bottom:4px;">${headerText}</div>
       <div style="font-size:18px; font-weight:bold; color:${accentColor}; margin-bottom:12px; font-family:'Consolas'; text-transform:uppercase;">${titleText}</div>

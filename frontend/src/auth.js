@@ -131,7 +131,12 @@ export async function doTokenSync(player) {
   setFetchingState(true);
   try {
     const res = await SyncDataByChoice(getCachedHgToken(), player.uid, serverName);
-    if (res === "success") await dataLoader(true, serverName, player.uid);
+    if (res === "success") {
+      await dataLoader(true, serverName, player.uid);
+    } else {
+      document.getElementById("analyzeError").textContent = "SYNC ERR: " + res;
+      window.resetToAnalyze();
+    }
   } catch (err) {
     setFetchingState(false);
     document.getElementById("analyzeError").textContent = "SYNC ERR: " + err;

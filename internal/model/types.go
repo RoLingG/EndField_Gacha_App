@@ -13,6 +13,8 @@ type GachaItem interface {
 }
 
 type EndFieldCharInfo struct {
+	Kind     string `json:"kind"`
+	NameText string `json:"nameText"`
 	CharID   string `json:"charId"`
 	CharName string `json:"charName"`
 	GachaTs  string `json:"gachaTs"`
@@ -179,13 +181,13 @@ type PoolContentResponse struct {
 
 // PoolConfig 卡池配置（用于前端）
 type PoolConfig struct {
-	PoolName     string `json:"poolName"`
-	PoolType     string `json:"poolType"`
-	Up6Name      string `json:"up6Name"`
-	Up6CharID    string `json:"up6CharId,omitempty"`
-	Up6WeaponID  string `json:"up6WeaponId,omitempty"`
-	GachaType    string `json:"gachaType"`
-	LastUpdate   string `json:"lastUpdate"`
+	PoolName    string `json:"poolName"`
+	PoolType    string `json:"poolType"`
+	Up6Name     string `json:"up6Name"`
+	Up6CharID   string `json:"up6CharId,omitempty"`
+	Up6WeaponID string `json:"up6WeaponId,omitempty"`
+	GachaType   string `json:"gachaType"`
+	LastUpdate  string `json:"lastUpdate"`
 }
 
 // PoolConfigList 卡池配置列表

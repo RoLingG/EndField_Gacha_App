@@ -3,3 +3,4 @@ node_modules
 frontend/dist
 cmd/sync_poolConfig
 docs
+migrate.exe
