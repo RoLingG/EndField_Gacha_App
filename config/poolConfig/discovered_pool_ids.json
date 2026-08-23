@@ -8,7 +8,8 @@
     "special_1_2_1",
     "special_1_3_1",
     "special_1_3_2",
-    "special_1_4_1"
+    "special_1_4_1",
+    "special_1_4_2"
   ],
   "weaponPoolIds": [
     "weaponbox_constant_1",
@@ -24,7 +25,8 @@
     "weponbox_1_2_1",
     "weponbox_1_3_1",
     "weponbox_1_3_2",
-    "weponbox_1_4_1"
+    "weponbox_1_4_1",
+    "weponbox_1_4_2"
   ],
-  "lastUpdate": "2026-07-16 14:56:32"
+  "lastUpdate": "2026-08-23 12:50:28"
 }

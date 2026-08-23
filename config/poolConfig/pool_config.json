@@ -85,6 +85,14 @@
       "up6CharId": "chr_0032_lizhiyan",
       "gachaType": "char",
       "lastUpdate": "2026-07-16 14:56:32"
+    },
+    {
+      "poolName": "晨星于此闪耀",
+      "poolType": "special",
+      "up6Name": "梨诺",
+      "up6CharId": "chr_0035_liino",
+      "gachaType": "char",
+      "lastUpdate": "2026-08-23 12:50:36"
     }
   ],
   "weaponPools": [
@@ -199,7 +207,15 @@
       "up6WeaponId": "wpn_funnel_0016",
       "gachaType": "weapon",
       "lastUpdate": "2026-07-16 14:56:32"
+    },
+    {
+      "poolName": "明曜申领",
+      "poolType": "",
+      "up6Name": "曜夜的首演",
+      "up6WeaponId": "wpn_lance_0014",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-08-10 14:56:32"
     }
   ],
-  "lastUpdate": "2026-07-16 21:43:39"
+  "lastUpdate": "2026-08-23 20:14:11"
 }
