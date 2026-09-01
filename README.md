@@ -1,21 +1,21 @@
 # Endfield Gacha App // 终末地寻访记录终端
 
-[![Go Version](https://img.shields.io/badge/Go-%3E%3D1.24-00ADD8.svg)](https://go.dev) ![Wails](https://img.shields.io/badge/Wails-2.0+-C70039.svg) [![Frontend](https://img.shields.io/badge/Frontend-JavaScript-F7DF1E.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)  [![Node](https://img.shields.io/badge/Node-%3E%3D24-green.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/Go-%3E%3D1.24-00ADD8.svg)](https://go.dev) ![Wails](https://img.shields.io/badge/Wails-2.0+-C70039.svg) [![Frontend](https://img.shields.io/badge/Frontend-JavaScript-F7DF1E.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) [![Node](https://img.shields.io/badge/Node-%3E%3D24-green.svg)](LICENSE) [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) ![Release](https://img.shields.io/github/v/release/RoLingG/endfield-gacha-app?style=flat&color=orange) ![Last Commit](https://img.shields.io/github/last-commit/RoLingG/endfield-gacha-app?style=flat&color=purple)
 
 一个极简、安全且具有沉浸式**终末地 (Endfield) 工业风格**的明日方舟官服/B服抽卡记录分析工具。
 基于 Wails 构建，无需上传数据，完全本地解析日志文件，提供良好的数据可视化体验。
 
-![Preview](https://rolingg.top/images/EndField/efimg1.png)
+![Preview](https://rolingg.top/images/EndField/efaimg1.png)
 
-![Preview](https://rolingg.top/images/EndField/efimg2.png)
+![Preview](https://rolingg.top/images/EndField/efaimg2.png)
 
-![Preview](https://rolingg.top/images/EndField/efimg3.png)
+![Preview](https://rolingg.top/images/EndField/efaimg3.png)
 
-![Preview](https://rolingg.top/images/EndField/efimg4.png)
+![Preview](https://rolingg.top/images/EndField/efaimg4.png)
 
-![Preview](https://rolingg.top/images/EndField/efimg5.png)
+![Preview](https://rolingg.top/images/EndField/efaimg5.png)
 
-![Preview](https://rolingg.top/images/EndField/efimg6.png)
+![Preview](https://rolingg.top/images/EndField/efaimg6.png)
 
 ## ✨ 特性 (Features)
 
@@ -66,7 +66,7 @@
 - **系统托盘**: 支持最小化到系统托盘，右键菜单提供便捷控制。
 - **无感运行**: 隐藏窗口后自动折叠至托盘区，保持后台静默运行。
 
-### 🎨 工业美学 (Industrial Design)
+### 🎨 设计美学 (Design Aesthetics)
 
 - **沉浸式 UI**: 深度复刻终末地游戏内终端界面 (UI)。
 - **轻量高效**: 基于 Golang + Wails，系统资源占用极低，启动即用。
@@ -104,7 +104,7 @@
 
 > 注：如果维护不及时，可以提出 issue 或者 pr 申请更改对应卡池信息文件。
 
-### 方式一：日志扫描 (Online Mode)
+### 方式一：日志扫描 (Online Mode)  已失效
 
 1. 启动《明日方舟：终末地》PC 客户端。
 2. 打开游戏内的【寻访】界面，并点击一次【历史记录】。
@@ -141,7 +141,7 @@
 
 数据默认存储在用户配置目录下，可通过界面顶部的 `[ DATA_FOLDER ]` 按钮直接访问。文件名已更新以支持多服隔离（前提是使用短 Token 获取方式）：
 
-```cmd
+```
 userdata/
 ├── uid_timeStamp/                      		  // [精准模式] 特定UID存档
 │   ├── official_char_history.json    // 角色池记录
@@ -161,7 +161,7 @@ userdata/
 - Node.js ≥ 24
 - Wails CLI
 
-```bash
+```cmd
 # 安装 Wails
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
@@ -171,10 +171,10 @@ git clone https://github.com/RoLingG/EndField_Gacha_App.git
 # 进入目录
 cd Endfield_Gacha_App
 
-# 启动开发模式 (热重载)
+# 启动开发模式
 wails dev
 
-# 编译构建 (Windows)
+# 编译构建
 wails build
 ```
 
