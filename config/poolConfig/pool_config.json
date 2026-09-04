@@ -93,6 +93,14 @@
       "up6CharId": "chr_0035_liino",
       "gachaType": "char",
       "lastUpdate": "2026-08-23 12:50:36"
+    },
+    {
+      "poolName": "冬猎",
+      "poolType": "special",
+      "up6Name": "提弗洛斯",
+      "up6CharId": "chr_0034_typhoea",
+      "gachaType": "char",
+      "lastUpdate": "2026-09-04 11:35:17"
     }
   ],
   "weaponPools": [
@@ -215,7 +223,15 @@
       "up6WeaponId": "wpn_lance_0014",
       "gachaType": "weapon",
       "lastUpdate": "2026-08-10 14:56:32"
+    },
+    {
+      "poolName": "幽寒申领",
+      "poolType": "normal",
+      "up6Name": "寒夜幽影",
+      "up6WeaponId": "wpn_funnel_0019",
+      "gachaType": "weapon",
+      "lastUpdate": "2026-09-04 11:35:17"
     }
   ],
-  "lastUpdate": "2026-08-23 20:14:11"
+  "lastUpdate": "2026-09-04 11:35:17"
 }
