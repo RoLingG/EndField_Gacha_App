@@ -290,7 +290,9 @@ func (a *App) LoadGachaTokens() (model.ServerTokens, error) {
 	tokens, err := api.ScanLogForTokens()
 	if err != nil {
 		logger.Log.Error("Token scan failed", zap.Error(err))
+		a.mu.Lock()
 		a.cachedTokens = model.ServerTokens{}
+		a.mu.Unlock()
 		return model.ServerTokens{}, fmt.Errorf("扫描失败: %v。请先在游戏中打开抽卡历史记录。", err)
 	}
 
@@ -300,7 +302,9 @@ func (a *App) LoadGachaTokens() (model.ServerTokens, error) {
 	)
 
 	// 更新 App 内部缓存
+	a.mu.Lock()
 	a.cachedTokens = tokens
+	a.mu.Unlock()
 	return tokens, nil
 }
 
@@ -392,6 +396,8 @@ func (a *App) prepareFetchParams(serverType string) (token, serverID, lang strin
 
 // getTokenByServerType 服务器类型辨识
 func (a *App) getTokenByServerType(serverType string) (string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	switch serverType {
 	case model.ServerOfficial:
 		return a.cachedTokens.Official, nil
@@ -475,12 +481,12 @@ func (a *App) LoadLocalGachaHistory(uid string, serverType string) (LocalDataRes
 
 	charGrouped := make(map[string][]model.EndFieldCharInfo)
 	if len(charList) > 0 {
-		charGrouped = groupByCharPoolName(charList)
+		charGrouped = groupByPoolName(charList)
 	}
 
 	weaponGrouped := make(map[string][]model.EndFieldWeaponInfo)
 	if len(weaponList) > 0 {
-		weaponGrouped = groupByWeaponPoolName(weaponList)
+		weaponGrouped = groupByPoolName(weaponList)
 	}
 
 	return LocalDataResponse{
@@ -498,7 +504,7 @@ func (a *App) DeleteLocalGachaHistory(folderName string) error {
 	targetDir := filepath.Join(baseDir, folderName)
 	// 安全校验，防止越权删除（如传入 "../../windows"）
 	if filepath.Base(targetDir) != folderName {
-		return fmt.Errorf("非法目录路径: %v", err)
+		return fmt.Errorf("非法目录路径: %v", folderName)
 	}
 	// 删除目标文件夹及其内部所有文件
 	return os.RemoveAll(targetDir)
@@ -549,11 +555,11 @@ func (a *App) ImportTemporaryJson() (ImportResponse, error) {
 	if selection == "" {
 		return ImportResponse{}, fmt.Errorf("cancelled")
 	}
-	bytes, err := os.ReadFile(selection)
+	fileContent, err := os.ReadFile(selection)
 	if err != nil {
 		return ImportResponse{}, fmt.Errorf("读取文件失败: %v", err)
 	}
-	contentStr := string(bytes)
+	contentStr := string(fileContent)
 	isChar := false
 	isWeapon := false
 	if strings.Contains(contentStr, "\"charId\"") || strings.Contains(selection, "char") {
@@ -706,22 +712,14 @@ func (a *App) GetPoolConfig() (*model.PoolConfigList, error) {
 
 // ================= Data Grouping Helpers =================
 
-func groupByCharPoolName(data []model.EndFieldCharInfo) map[string][]model.EndFieldCharInfo {
-	groupedData := make(map[string][]model.EndFieldCharInfo)
+// groupByPoolName 将抽卡记录列表按卡池名分组
+func groupByPoolName[T model.GachaItem](data []T) map[string][]T {
+	grouped := make(map[string][]T)
 	for _, item := range data {
-		key := item.PoolName
-		groupedData[key] = append(groupedData[key], item)
+		key := item.GetPoolName()
+		grouped[key] = append(grouped[key], item)
 	}
-	return groupedData
-}
-
-func groupByWeaponPoolName(data []model.EndFieldWeaponInfo) map[string][]model.EndFieldWeaponInfo {
-	groupedData := make(map[string][]model.EndFieldWeaponInfo)
-	for _, item := range data {
-		key := item.PoolName
-		groupedData[key] = append(groupedData[key], item)
-	}
-	return groupedData
+	return grouped
 }
 
 // ================= System Tray =================

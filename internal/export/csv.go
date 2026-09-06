@@ -21,6 +21,13 @@ func formatTimestamp(ts string) string {
 	return time.UnixMilli(ms).Format("2006-01-02 15:04:05")
 }
 
+func charDisplayName(c model.EndFieldCharInfo) string {
+	if c.NameText != "" {
+		return c.NameText
+	}
+	return c.CharName
+}
+
 func SaveToCSV(filePath string, chars []model.EndFieldCharInfo, weapons []model.EndFieldWeaponInfo) error {
 	f, err := os.Create(filePath)
 	if err != nil {
@@ -40,13 +47,14 @@ func SaveToCSV(filePath string, chars []model.EndFieldCharInfo, weapons []model.
 		if err := w.Write([]string{"角色寻访记录"}); err != nil {
 			return err
 		}
-		if err := w.Write([]string{"时间戳", "干员", "稀有度", "卡池", "SeqID"}); err != nil {
+		if err := w.Write([]string{"时间戳", "干员ID", "干员名", "稀有度", "卡池", "SeqID"}); err != nil {
 			return err
 		}
 		for _, char := range chars {
 			row := []string{
 				formatTimestamp(char.GachaTs),
-				char.CharName,
+				char.CharID,
+				charDisplayName(char),
 				fmt.Sprintf("%d", char.Rarity),
 				char.PoolName,
 				char.SeqID,

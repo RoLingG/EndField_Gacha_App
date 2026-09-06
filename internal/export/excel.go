@@ -28,7 +28,7 @@ func SaveToExcel(filePath string, chars []model.EndFieldCharInfo, weapons []mode
 	if len(chars) > 0 {
 		charCfg := sheetConfig[model.EndFieldCharInfo]{
 			SheetName: "角色寻访",
-			Headers:   []string{"时间戳", "干员", "稀有度", "卡池", "SeqID"},
+			Headers:   []string{"时间戳", "干员ID", "干员名", "稀有度", "卡池", "SeqID"},
 			Data:      chars,
 			Mapper:    mapCharToRow,
 		}
@@ -108,7 +108,8 @@ func writeSheet[T any](f *excelize.File, cfg sheetConfig[T]) {
 func mapCharToRow(c model.EndFieldCharInfo) []interface{} {
 	return []interface{}{
 		c.GachaTs,
-		c.CharName,
+		c.CharID,
+		charDisplayName(c),
 		c.Rarity,
 		c.PoolName,
 		c.SeqID,

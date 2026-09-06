@@ -10,6 +10,7 @@ const (
 type GachaItem interface {
 	GetSeqID() string
 	GetGachaTime() string
+	GetPoolName() string
 }
 
 type EndFieldCharInfo struct {
@@ -28,6 +29,7 @@ type EndFieldCharInfo struct {
 
 func (c EndFieldCharInfo) GetSeqID() string     { return c.SeqID }
 func (c EndFieldCharInfo) GetGachaTime() string { return c.GachaTs }
+func (c EndFieldCharInfo) GetPoolName() string  { return c.PoolName }
 
 type EndFieldCharData struct {
 	List    []EndFieldCharInfo `json:"list"`
@@ -54,6 +56,7 @@ type EndFieldWeaponInfo struct {
 
 func (w EndFieldWeaponInfo) GetSeqID() string     { return w.SeqID }
 func (w EndFieldWeaponInfo) GetGachaTime() string { return w.GachaTs }
+func (w EndFieldWeaponInfo) GetPoolName() string  { return w.PoolName }
 
 type EndFieldWeaponData struct {
 	List    []EndFieldWeaponInfo `json:"list"`

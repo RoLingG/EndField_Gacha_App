@@ -176,7 +176,7 @@ func SavePoolConfig(configList model.PoolConfigList, isWeapon bool) (string, err
 
 	msg := fmt.Sprintf("卡池配置已更新 %d 项卡池数据 / Pool config updated", addedCount)
 	if addedCount == 0 {
-		msg = fmt.Sprintf("卡池配置无变动 / Pool config unchanged")
+		msg = "卡池配置无变动 / Pool config unchanged"
 	}
 
 	// 更新时间戳

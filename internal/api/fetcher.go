@@ -62,6 +62,54 @@ func (s *gachaSession) get(ctx context.Context, targetURL string, queryParams ur
 	return io.ReadAll(resp.Body)
 }
 
+// fetchPaginated 通用分页抓取：循环请求直到 hasMore 为 false
+// buildParams: 构造每页请求参数（seqID 由本函数负责追加）
+// parseList: 解析响应体，返回条目列表、是否还有下一页、下一页 seqID
+func fetchPaginated[T any](
+	ctx context.Context,
+	sess *gachaSession,
+	baseURL string,
+	refererPage string,
+	buildParams func(seqID string) url.Values,
+	parseList func(body []byte) (items []T, hasMore bool, nextSeqID string, err error),
+) ([]T, error) {
+	var list []T
+	seqID := ""
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
+		default:
+		}
+
+		var raw json.RawMessage
+		err := retry.DoWithContext(ctx, func() error {
+			params := buildParams(seqID)
+			body, err := sess.get(ctx, baseURL, params, refererPage)
+			if err != nil {
+				return err
+			}
+			raw = body
+			return nil
+		}, retry.DefaultConfig)
+		if err != nil {
+			return nil, fmt.Errorf("获取数据失败: %v", err)
+		}
+
+		items, hasMore, next, err := parseList(raw)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, items...)
+		if !hasMore || len(items) == 0 {
+			break
+		}
+		time.Sleep(200 * time.Millisecond) // 分页间隔，避免频繁请求
+		seqID = next
+	}
+	return list, nil
+}
+
 // FetchCharDataAll 获取所有角色池数据
 func FetchCharDataAll(ctx context.Context, token, serverID, lang string) ([]model.EndFieldCharInfo, error) {
 	if token == "" {
@@ -128,17 +176,9 @@ func FetchCharDataAll(ctx context.Context, token, serverID, lang string) ([]mode
 }
 
 func fetchCharDataFromPool(ctx context.Context, sess *gachaSession, poolType string) ([]model.EndFieldCharInfo, error) {
-	var list []model.EndFieldCharInfo
-	seqID := ""
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
-		default:
-		}
-
-		var apiResp model.EndFieldGachaResponse
-		err := retry.DoWithContext(ctx, func() error {
+	return fetchPaginated(ctx, sess, BaseUrlChar, "gacha_char",
+		// 构造角色池请求参数
+		func(seqID string) url.Values {
 			params := url.Values{}
 			params.Set("lang", sess.Lang)
 			params.Set("token", sess.Token)
@@ -147,27 +187,23 @@ func fetchCharDataFromPool(ctx context.Context, sess *gachaSession, poolType str
 			if seqID != "" {
 				params.Set("seq_id", seqID)
 			}
-			body, err := sess.get(ctx, BaseUrlChar, params, "gacha_char")
-			if err != nil {
-				return err
+			return params
+		},
+		// 解析角色池响应
+		func(body []byte) ([]model.EndFieldCharInfo, bool, string, error) {
+			var apiResp model.EndFieldGachaResponse
+			if err := json.Unmarshal(body, &apiResp); err != nil {
+				return nil, false, "", err
 			}
-			return json.Unmarshal(body, &apiResp)
-		}, retry.DefaultConfig)
-
-		if err != nil {
-			return nil, fmt.Errorf("获取数据失败: %v", err)
-		}
-		if apiResp.Code != 0 {
-			return nil, fmt.Errorf("API Error: %s", apiResp.Msg)
-		}
-		list = append(list, apiResp.Data.List...)
-		if !apiResp.Data.HasMore || len(apiResp.Data.List) == 0 {
-			break
-		}
-		time.Sleep(200 * time.Millisecond) // 分页间隔，避免频繁请求
-		seqID = apiResp.Data.List[len(apiResp.Data.List)-1].SeqID
-	}
-	return list, nil
+			if apiResp.Code != 0 {
+				return nil, false, "", fmt.Errorf("API Error: %s", apiResp.Msg)
+			}
+			var next string
+			if n := len(apiResp.Data.List); n > 0 {
+				next = apiResp.Data.List[n-1].SeqID
+			}
+			return apiResp.Data.List, apiResp.Data.HasMore, next, nil
+		})
 }
 
 // FetchWeaponDataAll 获取所有武器数据
@@ -241,24 +277,16 @@ func fetchWeaponPoolList(ctx context.Context, sess *gachaSession) ([]model.EndFi
 		return nil, err
 	}
 	if poolResp.Code != 0 {
-		return nil, fmt.Errorf(poolResp.Msg)
+		return nil, fmt.Errorf("%s", poolResp.Msg)
 	}
 	return poolResp.Data, nil
 }
 
 // fetchWeaponDataByPool 获取特定卡池的抽卡记录
 func fetchWeaponDataByPool(ctx context.Context, sess *gachaSession, poolID string) ([]model.EndFieldWeaponInfo, error) {
-	var list []model.EndFieldWeaponInfo
-	seqID := ""
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("操作被取消: %w", ctx.Err())
-		default:
-		}
-
-		var apiResp model.EndFieldWeaponResponse
-		err := retry.DoWithContext(ctx, func() error {
+	list, err := fetchPaginated(ctx, sess, BaseUrlWeapon, "gacha_weapon",
+		// 构造武器池请求参数
+		func(seqID string) url.Values {
 			params := url.Values{}
 			params.Set("lang", sess.Lang)
 			params.Set("token", sess.Token)
@@ -267,24 +295,25 @@ func fetchWeaponDataByPool(ctx context.Context, sess *gachaSession, poolID strin
 			if seqID != "" {
 				params.Set("seq_id", seqID)
 			}
-			body, err := sess.get(ctx, BaseUrlWeapon, params, "gacha_weapon")
-			if err != nil {
-				return err
+			return params
+		},
+		// 解析武器池响应
+		func(body []byte) ([]model.EndFieldWeaponInfo, bool, string, error) {
+			var apiResp model.EndFieldWeaponResponse
+			if err := json.Unmarshal(body, &apiResp); err != nil {
+				return nil, false, "", err
 			}
-			return json.Unmarshal(body, &apiResp)
-		}, retry.DefaultConfig)
-		if err != nil {
-			return nil, fmt.Errorf("获取武器池 %s 数据失败: %v", poolID, err)
-		}
-		if apiResp.Code != 0 {
-			return nil, fmt.Errorf("API Error: %s", apiResp.Msg)
-		}
-		list = append(list, apiResp.Data.List...)
-		if !apiResp.Data.HasMore || len(apiResp.Data.List) == 0 {
-			break
-		}
-		time.Sleep(200 * time.Millisecond) // 分页间隔，避免频繁请求
-		seqID = apiResp.Data.List[len(apiResp.Data.List)-1].SeqID
+			if apiResp.Code != 0 {
+				return nil, false, "", fmt.Errorf("API Error: %s", apiResp.Msg)
+			}
+			var next string
+			if n := len(apiResp.Data.List); n > 0 {
+				next = apiResp.Data.List[n-1].SeqID
+			}
+			return apiResp.Data.List, apiResp.Data.HasMore, next, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("获取武器池 %s 数据失败: %v", poolID, err)
 	}
 	return list, nil
 }
